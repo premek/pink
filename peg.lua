@@ -1,5 +1,6 @@
 require "util"
 local lpeg = require "lpeg"
+local S,C,P = lpeg.S, lpeg.C, lpeg.P
 
 local function node(p)
   return p / function(left, op, right)
@@ -7,16 +8,17 @@ local function node(p)
   end
 end
 
-local sp = lpeg.S" \t" ^0
-local wh = lpeg.S" \t\r\n" ^0
-local nl = lpeg.S"\r\n" ^1
-local ch = lpeg.P(1)
+local sp = S" \t" ^0
+local wh = S" \t\r\n" ^0
+local nl = S"\r\n" ^1
+local ch = P(1)
 
-local para = lpeg.C((ch-nl)^1) *nl^0
+local para = C((ch-nl)^1) *nl^0
 
+local todo = 'TODO:' * sp * C((ch-nl)^0) / function (i) print("[TODO] "..i); end -- TODO how to log
 local commOL = '//' * sp * (ch-nl)^0 -- TODO comment that does not start at the line beginning
 local commML = '/*' * wh * (ch-'*/')^0 * '*/'
-local comm = commOL + commML
+local comm = commOL + commML + todo
 
 local choiceAnswer = '*'* sp * para
 local flowBlock = para -choiceAnswer
