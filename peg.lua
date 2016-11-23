@@ -2,9 +2,11 @@ require "util"
 local lpeg = require "lpeg"
 local S,C,P = lpeg.S, lpeg.C, lpeg.P
 
-local function node(p)
-  return p / function(left, op, right)
-    return { op, left, right }
+local parserLogger = print
+
+local function prefix(pref, p)
+  return p / function(i)
+    return pref..": "..i
   end
 end
 
@@ -13,17 +15,16 @@ local wh = S" \t\r\n" ^0
 local nl = S"\r\n" ^1
 local ch = P(1)
 
-local para = C((ch-nl)^1) *nl^0
-
-local todo = 'TODO:' * sp * C((ch-nl)^0) / function (i) print("[TODO] "..i); end -- TODO how to log
+local todo = 'TODO:' * sp * (ch-nl)^0 / parserLogger -- TODO log location
 local commOL = '//' * sp * (ch-nl)^0 -- TODO comment that does not start at the line beginning
 local commML = '/*' * wh * (ch-'*/')^0 * '*/'
 local comm = commOL + commML + todo
 
-local choiceAnswer = '*'* sp * para
-local flowBlock = para -choiceAnswer
-local choice = choiceAnswer * (flowBlock)^1
-local choices = lpeg.Ct(choice^1)
+local para = (C((ch-nl)^1) *nl^0)-comm
+
+local choiceAnswer = '*' * sp * prefix("CHOICE", para)
+local choiceBlock = choiceAnswer * lpeg.Ct( (para- choiceAnswer)^0)
+local choices = lpeg.Ct(choiceBlock^1)
 
 local statement = wh * (comm + choices + para) * wh
 
