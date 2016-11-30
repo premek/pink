@@ -1,30 +1,59 @@
 require "util"
 local lpeg = require "lpeg"
 lpeg.locale(lpeg)
-local S,C,Ct,P = lpeg.S, lpeg.C, lpeg.Ct, lpeg.P
+local S,C,Ct,Cc,Cg,Cf,P,V = lpeg.S, lpeg.C, lpeg.Ct, lpeg.Cc, lpeg.Cg, lpeg.Cf, lpeg.P, lpeg.V
 local parserLogger = print
 
 local sp = S" \t" ^0 + -1
 local wh = S" \t\r\n" ^0 + -1
 local nl = S"\r\n" ^1 + -1
 local id = (lpeg.alpha + '_') * (lpeg.alnum + '_')^0
+local addr = C(id) * ('.' * C(id))^-1
 
 local todo = sp * 'TODO:' * sp * (1-nl)^0 / parserLogger * wh -- TODO log location
 local commOL = sp * '//' * sp * (1-nl)^0 * wh -- TODO comment that does not start at the line beginning
 local commML = sp * '/*' * wh * (P(1)-'*/')^0 * '*/' * wh
 local comm = commOL + commML + todo
-local para = C(((1-nl-'*') * (1-nl)^1)) *wh -- hm
+-- TODO can contain divert mid sentence
 
-local knot = P('=')^2 * wh * C(id) * wh * P('=')^0 * wh
-local choiceAnswer = '*' * sp * para/"CHOICE: %1"
-local choiceBlock = Ct(choiceAnswer * para^0)
-local choices = Ct(choiceBlock^1)
+local glue = P('<>')/'glue' *wh
+
+local divertSym = '->' *wh
+local divertEndSym = C('END') *wh
+local divertEnd = divertSym * divertEndSym
+local divertJump = Ct(divertSym/'divert' * addr * wh)
+local divert = divertEnd + divertJump
+
+local knotHead = P('=')^2/'knot' * wh * C(id) * wh * P('=')^0 * wh
+local stitchHead = P('=')^1/'stitch' * wh * C(id) * wh * P('=')^0 * wh
+
+--local choiceAnswer = '*' * sp * para/"CHOICE: %1"
+--local choiceBlock = Ct(choiceAnswer * para^0)
+--local choices = Ct(choiceBlock^1)
+
+
 --local statement =  * (comm + choices + para) *n
 --local prog = ((n * lpeg.Ct((statement*n)^0)) )* -1
 --local ink = prog
 
 --test(ink, 'content')
-test(choices, 'choices')
---r=choices:match('*ans\nsss\nsss\n*second\n*second\n*second')
---print (to_string( (r)))
---tprint(r)
+--test(choices, 'choices')
+--r=knotted:match('= start ==\nhello\nagain\n-> END')
+
+
+
+local ink = P({
+ "lines",
+
+ knott = Ct(knotHead * (V'line'-knotHead)^0 * wh),
+ stitch = Ct(stitchHead * (V'line'-stitchHead)^0 * wh),
+
+ stmt = glue + divert + V'knott' + V'stitch',
+
+ para = Ct(Cc('para') * C((1-nl-V'stmt')^1)*wh), -- hm
+ line = V'stmt' + V'para',
+ lines = Ct(V'line'^1)
+})
+
+
+return ink;

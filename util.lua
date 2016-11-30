@@ -57,7 +57,3 @@ function read(file)
     return content
 end
 
-function test(p, file)
-  print ('\n=== '..file..' ===')
-  tprint(p:match(read('test/'..file..'.ink')))
-end
