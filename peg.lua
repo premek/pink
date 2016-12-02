@@ -11,10 +11,9 @@ local id = (lpeg.alpha + '_') * (lpeg.alnum + '_')^0
 local addr = C(id) * ('.' * C(id))^-1
 
 local todo = sp * 'TODO:' * sp * (1-nl)^0 / parserLogger * wh -- TODO log location
-local commOL = sp * '//' * sp * (1-nl)^0 * wh -- TODO comment that does not start at the line beginning
+local commOL = sp * '//' * sp * (1-nl)^0 * wh
 local commML = sp * '/*' * wh * (P(1)-'*/')^0 * '*/' * wh
 local comm = commOL + commML + todo
--- TODO can contain divert mid sentence
 
 local glue = P('<>')/'glue' *wh
 
@@ -31,26 +30,16 @@ local stitchHead = P('=')^1/'stitch' * wh * C(id) * wh * P('=')^0 * wh
 --local choiceBlock = Ct(choiceAnswer * para^0)
 --local choices = Ct(choiceBlock^1)
 
-
---local statement =  * (comm + choices + para) *n
---local prog = ((n * lpeg.Ct((statement*n)^0)) )* -1
---local ink = prog
-
---test(ink, 'content')
---test(choices, 'choices')
---r=knotted:match('= start ==\nhello\nagain\n-> END')
-
-
-
 local ink = P({
  "lines",
 
  knott = Ct(knotHead * (V'line'-knotHead)^0 * wh),
  stitch = Ct(stitchHead * (V'line'-stitchHead)^0 * wh),
 
- stmt = glue + divert + V'knott' + V'stitch',
+ stmt = glue + divert + V'knott' + V'stitch' + comm,
 
- para = Ct(Cc('para') * C((1-nl-V'stmt')^1)*wh), -- hm
+ para = Ct(Cc('para') * C((1-nl-V'stmt')^1)*wh),
+
  line = V'stmt' + V'para',
  lines = Ct(V'line'^1)
 })

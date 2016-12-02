@@ -1,9 +1,8 @@
 return {
 ink=[[
-we <> 
-hurr ied 
-
-<> -> to_savile_row 
+we <> /* he
+asdf
+*/ hurr ied-> to_savile_row //  comm
 
 
   === to_savile_row ===
@@ -18,8 +17,7 @@ stiiii
 expected= {
     {"para", "we "},
     "glue",
-    {"para", "hurr ied "},
-    "glue",
+    {"para", "hurr ied"},
     {"divert", "to_savile_row"},
     {
         "knot",
