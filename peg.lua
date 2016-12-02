@@ -26,9 +26,7 @@ local divert = divertEnd + divertJump
 local knotHead = P('=')^2/'knot' * wh * C(id) * wh * P('=')^0 * wh
 local stitchHead = P('=')^1/'stitch' * wh * C(id) * wh * P('=')^0 * wh
 
---local choiceAnswer = '*' * sp * para/"CHOICE: %1"
---local choiceBlock = Ct(choiceAnswer * para^0)
---local choices = Ct(choiceBlock^1)
+local optionDiv = '[' * C((P(1) - ']')^0) * ']'
 
 local ink = P({
  "lines",
@@ -36,11 +34,15 @@ local ink = P({
  knott = Ct(knotHead * (V'line'-knotHead)^0 * wh),
  stitch = Ct(stitchHead * (V'line'-stitchHead)^0 * wh),
 
- stmt = glue + divert + V'knott' + V'stitch' + comm,
+ stmt = glue + divert + V'knott' + V'stitch' + optionDiv + comm,
+ text = C((1-nl-V'stmt')^1) *wh,
 
- para = Ct(Cc('para') * C((1-nl-V'stmt')^1)*wh),
+ optionHead = P'*'/'option' * sp * V'text' * (optionDiv * V'text')^-1 * wh,
+ option = Ct(V'optionHead' * (V'line'-V'optionHead')^0 * wh),
 
- line = V'stmt' + V'para',
+ para = Ct(Cc('para') * V'text'),
+
+ line = V'stmt' + V'option' + V'para',
  lines = Ct(V'line'^1)
 })
 

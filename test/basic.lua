@@ -1,5 +1,18 @@
 return {
 ink=[[
+Hello, world!
+Hello?
+TODO:Write this section properly!
+
+"What do you make of this?" she asked.
+
+// Something unprintable...
+
+"I couldn't possibly comment," I replied.
+
+/*
+    ... or an unlimited block of text
+*/
 we <> /* he
 asdf
 */ hurr ied-> to_savile_row //  comm
@@ -15,6 +28,10 @@ stiiii
 222stiiii ->END
 ]],
 expected= {
+    {"para", "Hello, world!"},
+    {"para", "Hello?"},
+    {"para", '"What do you make of this?" she asked.'},
+    {"para", "\"I couldn't possibly comment,\" I replied."},
     {"para", "we "},
     "glue",
     {"para", "hurr ied"},

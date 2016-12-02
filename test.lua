@@ -2,8 +2,18 @@ local luaunit = require('luaunit')
 local parser = require('peg')
 
 
-function testText() doTestS("Hello world", {{"para", "Hello world"}}) end
-function testDev() doTest('dev') end
+function testText() doTestS(
+ "Hello world",
+ {{"para", "Hello world"}}
+) end
+
+function testOptS() doTestS(
+ '*   "I am somewhat tired[."]," I repeated.',
+ {{"option", '"I am somewhat tired', '."', '," I repeated.'}}
+) end
+
+function testBasic() doTest('basic') end
+function testChoices() doTest('choices') end
 
 
 
@@ -20,4 +30,3 @@ function doTest(name)
 end
 
 os.exit( luaunit.LuaUnit.run() )
-
