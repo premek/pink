@@ -14,7 +14,7 @@ function testText() doTestS(
 
 function testOptS() doTestS(
  '*   "I am somewhat tired[."]," I repeated.',
- {{"option", '"I am somewhat tired', '."', '," I repeated.'}}
+ {{'choice', {"option", '"I am somewhat tired', '."', '," I repeated.'}}}
 ) end
 
 function testBasic() doTest('basic') end

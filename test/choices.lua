@@ -6,11 +6,12 @@ ink=[[
     "How deleterious."
 *   "Nothing, Monsieur!"[] I replied.
     "Very good, *then."
-*  "I said[."] and no more "
+*  I said no more
     "Ah,". "I see you"
 ]],
 expected= {
-    {"option", "I dont know"},
+  {'choice',
+    {"option", "I dont know", "", ""},
     {
         "option",
         '"I am somewhat tired',
@@ -26,6 +27,7 @@ expected= {
         " I replied.",
         {"para", '"Very good, *then."'}
     },
-    {"option", '"I said', '."', ' and no more "',
+    {"option", 'I said no more', '', '',
         {"para", '"Ah,". "I see you"'}}
+  }
 }}

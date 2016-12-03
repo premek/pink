@@ -15,7 +15,7 @@ local commOL = sp * '//' * sp * (1-nl)^0 * wh
 local commML = sp * '/*' * wh * (P(1)-'*/')^0 * '*/' * wh
 local comm = commOL + commML + todo
 
-local glue = P('<>')/'glue' *wh
+local glue = P'<>'/'glue' *wh
 
 local divertSym = '->' *wh
 local divertEndSym = C('END') *wh
@@ -37,12 +37,15 @@ local ink = P({
  stmt = glue + divert + V'knott' + V'stitch' + optionDiv + comm,
  text = C((1-nl-V'stmt')^1) *wh,
 
- optionHead = P'*'/'option' * sp * V'text' * (optionDiv * V'text')^-1 * wh,
+ optionAnsWithDiv    = V'text' * optionDiv * V'text' * wh,
+ optionAnsWithoutDiv = V'text' * Cc ''* Cc ''* wh, -- huh?
+ optionHead = P'*'/'option' * sp * (V'optionAnsWithDiv' + V'optionAnsWithoutDiv'),
  option = Ct(V'optionHead' * (V'line'-V'optionHead')^0 * wh),
+ choice = Ct(Cc'choice' * V'option'^1),
 
- para = Ct(Cc('para') * V'text'),
+ para = Ct(Cc'para' * V'text'),
 
- line = V'stmt' + V'option' + V'para',
+ line = V'stmt' + V'choice' + V'para',
  lines = Ct(V'line'^0)
 })
 

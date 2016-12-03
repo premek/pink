@@ -11,7 +11,7 @@ while true do
   -- 3) Display story.currentChoices list, allow player to choose one
   if #story.currentChoices == 0 then break end
   for i = 1, #story.currentChoices do
-    print("Choice " .. i .. ". " .. story.currentChoices[i].text)
+    print(i .. "> " .. story.currentChoices[i].text)
   end
   local answer=io.read()
   print (story.currentChoices[tonumber(answer)].choiceText)
