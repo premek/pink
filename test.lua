@@ -1,6 +1,11 @@
 local luaunit = require('luaunit')
-local parser = require('peg')
+local parser = require('pink.parser')
 
+
+function testEmpt() doTestS(
+ "",
+ {}
+) end
 
 function testText() doTestS(
  "Hello world",

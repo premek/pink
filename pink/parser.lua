@@ -43,7 +43,7 @@ local ink = P({
  para = Ct(Cc('para') * V'text'),
 
  line = V'stmt' + V'option' + V'para',
- lines = Ct(V'line'^1)
+ lines = Ct(V'line'^0)
 })
 
 

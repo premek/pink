@@ -2,7 +2,7 @@ return {
 ink=[[
 Hello, world!
 Hello?
-TODO:Write this section properly!
+TODO: this is a test todo-item
 
 "What do you make of this?" she asked.
 
