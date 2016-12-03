@@ -36,11 +36,12 @@ local ink = P({
 
  stmt = glue + divert + V'knott' + V'stitch' + optionDiv + comm,
  text = C((1-nl-V'stmt')^1) *wh,
+ textE = C((1-nl-V'stmt')^0) *wh,
 
- optionAnsWithDiv    = V'text' * optionDiv * V'text' * wh,
- optionAnsWithoutDiv = V'text' * Cc ''* Cc ''* wh, -- huh?
+ optionAnsWithDiv    = V'textE' * optionDiv * V'textE' * wh,
+ optionAnsWithoutDiv = V'textE' * Cc ''* Cc ''* wh, -- huh?
  optionHead = P'*'/'option' * sp * (V'optionAnsWithDiv' + V'optionAnsWithoutDiv'),
- option = Ct(V'optionHead' * (V'line'-V'optionHead')^0 * wh),
+ option = Ct(V'optionHead' * (V'line'-V'optionHead'-V'knott'-V'stitch')^0 * wh), --TODO which can by toplevel only?
  choice = Ct(Cc'choice' * V'option'^1),
 
  para = Ct(Cc'para' * V'text'),

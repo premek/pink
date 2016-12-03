@@ -10,14 +10,36 @@ end
 
 
 return function (tree)
-  --print(to_string(tree))
+  print(to_string(tree))
   local s = {}
 
   local pointer = 1
   local tab = tree
 
+  local knots = {}
+
+  local process = function ()
+    for i, v in ipairs(tree) do
+      if is('knot', v) then
+        knots[v[2]] = v
+      end
+    end
+  end
+
   local update = function ()
     local next = tab[pointer]
+
+    if is('knot', next) then
+      tab = next
+      pointer = 3
+      next = tab[pointer]
+    end
+
+    if is('divert', next) then
+      tab = knots[next[2]]
+      pointer = 3
+      next = tab[pointer]
+    end
 
     s.canContinue = is('para', next)
 
@@ -26,14 +48,14 @@ return function (tree)
       for i=2, #next do
         --print(to_string(next[i]))
         table.insert(s.currentChoices, {
-          text = next[i][2] .. (next[i][3] or ''),
+          text = (next[i][2] or '') .. (next[i][3] or ''),
           choiceText = next[i][2] .. (next[i][4] or ''),
         })
       end
     end
   end
 
-  s.canContinue = true
+  s.canContinue = nil
 
   s.continue = function()
     local res = getPara(tab[pointer])
@@ -42,7 +64,7 @@ return function (tree)
     return res;
   end
 
-  s.currentChoices = {}
+  s.currentChoices = nil
 
   s.chooseChoiceIndex = function(index)
     s.currentChoices = {}
@@ -56,5 +78,8 @@ return function (tree)
   s.choosePathString = function(knotName) end
   s.variablesState = {}
   -- s.state.ToJson();s.state.LoadJson(savedJson);
+
+  update()
+  process()
   return s
 end
