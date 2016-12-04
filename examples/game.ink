@@ -1,14 +1,25 @@
-=== start ===
+=== back_in_london ===
 
-"What that's?" my master asked.
-*   "I am somewhat tired[."]," I repeated.
-    "Really," he responded. "How deleterious."
-*   "Nothing, Monsieur!"[] I replied.
-    "Very good, then."
-    -> finale
-*  "I said, this journey is appalling[."] and I want no more of it."
-    "Ah," he replied, not unkindly. "I see you are feeling frustrated. Tomorrow, things will improve."
-*  [Leave] -> finale
+We arrived into London at 9.45pm exactly.
 
-=== finale ===
-Bye
+*   "There is not a moment to lose!"[] I declared.
+    -> hurry_outside
+
+*   "Monsieur, let us savour this moment!"[] I declared.
+    My master clouted me firmly around the head and dragged me out of the door.
+    -> dragged_outside
+
+*   [We hurried home] -> hurry_outside
+
+
+=== hurry_outside ===
+We hurried home to Savile Row -> as_fast_as_we_could
+
+
+=== dragged_outside ===
+He insisted that we hurried home to Savile Row
+-> as_fast_as_we_could
+
+
+=== as_fast_as_we_could ===
+<> as fast as we could.

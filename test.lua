@@ -23,6 +23,7 @@ function testChoices() doTest('choices') end
 function testNest() doTest('nested') end
 function testNest2() doTest('nested2') end
 function testKnot() doTest('knot') end
+function testBranching() doTest('branching') end
 
 
 
