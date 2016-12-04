@@ -22,7 +22,7 @@ local commOL = sp * '//' * sp * (1-nl)^0 * wh
 local commML = sp * '/*' * wh * (P(1)-'*/')^0 * '*/' * wh
 local comm = commOL + commML + todo
 
-local glue = P'<>'/'glue' *wh
+local glue = P'<>'/'glue' *wh -- FIXME do not consume spaces after glue
 
 local divertSym = '->' *wh
 local divertEndSym = C('END') *wh
