@@ -26,6 +26,7 @@ function testKnot() doTest('knot') end
 function testBranching() doTest('branching') end
 function testGlue() doTest('glue') end
 
+-- TODO test runtime
 
 
 -----------------------------
