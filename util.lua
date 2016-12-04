@@ -37,6 +37,7 @@ end
 
 function tprint (tbl, indent)
   if not indent then indent = 0 end
+  if type(tbl)=='string' then print(tbl); return end
   for k, v in pairs(tbl) do
     formatting = string.rep("  ", indent) .. k .. ": "
     if type(v) == "table" then
@@ -56,4 +57,3 @@ function read(file)
     f:close()
     return content
 end
-
