@@ -1,5 +1,7 @@
-local parser = require('pink.parser')
-local runtime = require('pink.runtime')
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+local parser = require(folderOfThisFile .. 'parser')
+local runtime = require(folderOfThisFile .. 'runtime')
+
 
 local function read(file)
     local f = io.open(file, "rb")

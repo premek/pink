@@ -12,7 +12,7 @@ while true do
   for i = 1, #story.currentChoices do
     print(i .. "> " .. story.currentChoices[i].text)
   end
-  if #story.currentChoices == 0 then break end
+  if #story.currentChoices == 0 then break end -- cannot continue and there are no choices
 
   local answer=io.read()
   print (story.currentChoices[tonumber(answer)].choiceText)

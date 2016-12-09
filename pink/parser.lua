@@ -1,4 +1,3 @@
-require "util"
 local lpeg = require "lpeg"
 lpeg.locale(lpeg)
 local S,C,Ct,Cc,Cg,Cb,Cf,Cmt,P,V =

@@ -1,5 +1,3 @@
-require('util') -- XXX
-
 local is = function (what, node)
   return node ~= nil
     and (type(node) == "table" and node[1] == what)
