@@ -17,6 +17,11 @@ return function (tree)
 
   local knots = {}
 
+  -- TODO state should contain tab/pointer to be able to save / load
+  s.state = {
+    visitCount = {}
+  }
+
   local process = function ()
     for _, v in ipairs(tree) do
       if is('knot', v) then
@@ -25,20 +30,25 @@ return function (tree)
     end
   end
 
+  local goToKnot = function(knotName)
+    if knots[knotName] then
+      s.state.visitCount[knotName] = (s.state.visitCount[knotName] or 0) + 1
+      tab = knots[knotName]
+      pointer = 3
+      return tab[pointer]
+    else
+      print('unknown knot', knotName)
+    end
+  end
+
   local update = function ()
     local next = tab[pointer]
 
-    if is('knot', next) then
-      tab = next
-      pointer = 3
-      next = tab[pointer]
+    if is('knot', next) then -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
+      next = goToKnot(next)
     end
 
-    if is('divert', next) then
-      tab = knots[next[2]]
-      pointer = 3
-      next = tab[pointer]
-    end
+    if is('divert', next) then next = goToKnot(next[2]) end
 
     s.canContinue = is('para', next)
 
@@ -91,7 +101,16 @@ return function (tree)
     stepTo(option, 5)
   end
 
-  s.choosePathString = function(knotName) end
+  s.choosePathString = function(knotName)
+    goToKnot(knotName)
+    update()
+  end
+
+  s.state.visitCountAtPathString = function(knotName)
+    return s.state.visitCount[knotName] or 0
+  end
+
+
   s.variablesState = {}
   -- s.state.ToJson();s.state.LoadJson(savedJson);
 

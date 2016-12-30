@@ -1,5 +1,6 @@
 local luaunit = require('luaunit')
 local parser = require('pink.parser')
+local pink = require('pink.pink')
 
 
 function testEmpt() doTestS(
@@ -26,8 +27,21 @@ function testKnot() doTest('knot') end
 function testBranching() doTest('branching') end
 function testGlue() doTest('glue') end
 
--- TODO test runtime
 
+function testVisitCount()
+  local story = pink.getStory('test/branching.lua')
+  story.choosePathString('hurry_outside');
+  luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 0)
+  while story.canContinue do story.continue() end
+  luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 1)
+  story.choosePathString('hurry_outside');
+  while story.canContinue do story.continue() end
+  luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 2)
+  luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 2)
+end
+
+
+-- TODO test runtime more, test public pink API
 
 -----------------------------
 

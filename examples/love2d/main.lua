@@ -2,13 +2,14 @@ local pink = require('pink.pink')
 
 local story = pink.getStory('examples/game.ink')
 
+-- you can also jump to a story knot based on some event in your game
+story.choosePathString('back_in_london');
+
 local currentText = nil
 local a=10
 
 function love.update(dt)
   a = a + dt*3
-
-  -- TODO to start from a new knot on a game event just set pink to that knot here
 
   if not currentText then
     if story.canContinue then
