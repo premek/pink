@@ -5,6 +5,7 @@ local runtime = require(folderOfThisFile .. 'runtime')
 
 local function read(file)
     local f = io.open(file, "rb")
+    if not f then error('failed to open "'..file..'"') end
     local content = f:read("*all")
     f:close()
     return content
