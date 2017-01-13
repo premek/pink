@@ -45,7 +45,7 @@ return function (tree)
     local next = tab[pointer]
 
     if is('knot', next) then -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
-      next = goToKnot(next)
+      next = goToKnot(next[2])
     end
 
     if is('divert', next) then next = goToKnot(next[2]) end
