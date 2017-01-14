@@ -3,6 +3,21 @@ An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua u
 
 _Ink is inkle's scripting language for writing interactive narrative, both for text-centric games as well as more graphical games that contain highly branching stories._
 
+## Currently supported
+
+- Paragraphs
+- Comments
+- Choices
+    - choice and output text
+    - nested choices
+- Knots
+- Diverts
+- Glue
+
+
+
+See https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md for the description of the reference ink implementation.
+
 ## How to use this to run a game
 To use it in your project download the latest source or the latest [release](../../releases). You need just the [pink](../../tree/master/pink) directory.
 
