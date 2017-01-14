@@ -5,6 +5,7 @@ _Ink is inkle's scripting language for writing interactive narrative, both for t
 
 ## Currently supported
 
+### Parser
 - Paragraphs
 - Comments
 - Choices
@@ -14,7 +15,10 @@ _Ink is inkle's scripting language for writing interactive narrative, both for t
 - Diverts
 - Glue
 
-See https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md for the description of the reference ink implementation.
+### Runtime
+- state.visitCountAtPathString() - allows the runtime to check if the story went through a scpecific point
+
+See [WritingWithInk](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md) and [RunningYourInk](https://github.com/inkle/ink/blob/master/Documentation/RunningYourInk.md) for the description of the reference ink implementation.
 
 ## Used by
 pink is used by my small game https://github.com/premek/enjoy
