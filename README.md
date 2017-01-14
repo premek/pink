@@ -14,9 +14,12 @@ _Ink is inkle's scripting language for writing interactive narrative, both for t
 - Diverts
 - Glue
 
-
-
 See https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md for the description of the reference ink implementation.
+
+## Used by
+pink is used by my small game https://github.com/premek/enjoy
+
+Let me know if you want to use it too.
 
 ## How to use this to run a game
 To use it in your project download the latest source or the latest [release](../../releases). You need just the [pink](../../tree/master/pink) directory.
