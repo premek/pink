@@ -50,7 +50,7 @@ local ink = P({
  knotStitch = Ct(stitchHead * (V'line'-stitchHead)^0 * wh),
  knot = V'knotKnot' + V'knotStitch',
 
- stmt = glue + divert + V'knot' + optDiv + comm,
+ stmt = glue + divert + V'knot' + optDiv + comm + V'include',
  text = C((1-nl-V'stmt')^1) *wh,
  textE = C((1-nl-V'stmt')^0) *wh,
 
@@ -67,6 +67,9 @@ local ink = P({
  opts = (V'opt'*V'optSameIndent'^0),
 
  choice = Ct(Cc'choice' * V'opts')/function(t) t.indent=nil; return t end,
+
+
+ include = Ct(P('INCLUDE')/'include' * wh * V'text' * wh),
 
  para = Ct(Cc'para' * V'text'),
 

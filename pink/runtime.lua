@@ -9,7 +9,6 @@ local getPara = function (node)
 end
 
 return function (tree)
-  --print(to_string(tree))
   local s = {}
 
   local pointer = nil
@@ -44,8 +43,9 @@ return function (tree)
   local update = function ()
     local next = tab[pointer]
 
-    if is('knot', next) then -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
-      next = goToKnot(next[2])
+    if is('knot', next) then
+      -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
+      --next = goToKnot(next[2])
     end
 
     if is('divert', next) then next = goToKnot(next[2]) end
@@ -116,5 +116,8 @@ return function (tree)
 
   stepTo(tree, 1)
   process()
+
+  -- debug
+  s._tree = tree
   return s
 end

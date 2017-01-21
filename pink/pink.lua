@@ -11,11 +11,31 @@ local function read(file)
     return content
 end
 
+local function basename(str) return string.gsub(str, "(.*/)(.*)", "%2") end
+local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
 
-return {
+local api;
+
+
+api = {
   getStory = function (filename)
-    return runtime(parser:match(read(filename)))
+    local parse;
+    parse = function(f)
+      local parsed = {}
+      for _,t in ipairs(parser:match(read(f))) do
+        if t[2] and t[1]=='include' then
+          for _,included in ipairs(parse(basedir(f)..'/'..t[2])) do
+            table.insert(parsed, included)
+          end
+        else
+          table.insert(parsed, t)
+        end
+      end
+      return parsed
+    end
+
+    return runtime(parse(filename))
   end
-
-
 }
+
+return api
