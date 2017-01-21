@@ -55,7 +55,15 @@ end
 
 -- TODO test runtime more, test public pink API
 
-
+function testCLI()
+  -- note the different suffixes
+  os.execute("lua pink/pink.lua parse test/runtime/include.ink > tmp_test.lua")
+  local story = pink.getStory('tmp_test.ink')
+  luaunit.assertEquals(story.continue(), 'hello world')
+  luaunit.assertEquals(story.continue(), 'hello again')
+  luaunit.assertFalse(story.canContinue)
+  os.remove('tmp_test.lua')
+end
 -----------------------------
 
 function doTestS(ink, expected)
