@@ -1,4 +1,4 @@
-[![autobuild status](https://travis-ci.org/premek/pink.svg)](https://travis-ci.org/premek/pink)
+[![status](https://travis-ci.org/premek/pink.svg)](https://travis-ci.org/premek/pink)
 
 # pink
 An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua using [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg)
