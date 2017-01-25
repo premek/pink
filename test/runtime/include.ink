@@ -1,3 +1,3 @@
-NCLUDE hello.ink
+INCLUDE hello.ink
 
 hello again
