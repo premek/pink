@@ -105,4 +105,4 @@ And this example shows [LÖVE](https://love2d.org) integration:
 <!-- TODO: short example here -->
 
 ## How to run tests
-    $ lua test.lua
+    $ lua test/test.lua
