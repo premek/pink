@@ -1,0 +1,13 @@
+language: bash
+sudo: false
+install: true
+addons:
+  apt:
+    packages:
+    - lua5.1
+    - luarocks
+before_install:
+  - luarocks install --local lpeg
+  - "`luarocks path`" # execute the luarocks output - sets the paths for 'local' tree
+
+script: "lua test/test.lua"
