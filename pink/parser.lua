@@ -43,6 +43,10 @@ local optStarsLEIndent = Cmt(Cb("indent") * optStars,
     end)
 
 
+local tag = Ct(wh * P('#')/'tag' * wh * V'text' * wh)
+
+
+
 local ink = P({
  "lines",
 
@@ -50,7 +54,7 @@ local ink = P({
  knotStitch = Ct(stitchHead * (V'line'-stitchHead)^0 * wh),
  knot = V'knotKnot' + V'knotStitch',
 
- stmt = glue + divert + V'knot' + optDiv + comm + V'include',
+ stmt = glue + divert + V'knot' + optDiv + comm + V'include' + tag,
  text = C((1-nl-V'stmt')^1) *wh,
  textE = C((1-nl-V'stmt')^0) *wh,
 

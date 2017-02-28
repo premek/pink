@@ -29,6 +29,7 @@ function testKnot() doTest('knot') end
 function testBranching() doTest('branching') end
 function testGlue() doTest('glue') end
 function testInclude() doTest('include') end
+function testInclude() doTest('tags') end
 
 
 --- runtime ---
@@ -50,6 +51,20 @@ function testIncludeR()
   luaunit.assertEquals(story.continue(), 'hello world')
   luaunit.assertEquals(story.continue(), 'hello again')
   luaunit.assertFalse(story.canContinue)
+end
+
+function testTags()
+  local story = pink.getStory('test/runtime/tags.ink')
+  luaunit.assertEquals(story.continue(), '')
+  luaunit.assertEquals(story.continue(), '')
+  luaunit.assertEquals(story.globalTags, {""})
+  luaunit.assertFalse(story.canContinue)
+end
+
+function testInvisibleDiverts()
+  local story = pink.getStory('test/runtime/branching.ink')
+  story.choosePathString('hurry_outside')
+  luaunit.assertEquals(story.continue(), "We hurried home to Savile Row as fast as we could.")
 end
 
 
