@@ -11,3 +11,4 @@ before_install:
   - "`luarocks path`" # execute the luarocks output - sets the paths for 'local' tree
 
 script: "lua test/test.lua"
+
