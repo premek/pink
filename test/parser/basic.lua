@@ -33,14 +33,14 @@ expected= {
     {"para", '"What do you make of this?" she asked.'},
     {"para", "\"I couldn't possibly comment,\" I replied."},
     {"para", "we "},
-    "glue",
+    {"glue"},
     {"para", "hurr ied"},
     {"divert", "to_savile_row"},
-    {
-        "knot",
-        "to_savile_row",
-        {"para", "to Savile Row"},
-        {"stitch", "st", {"para", "stiiii"}},
-        {"stitch", "st2", {"para", "222stiiii "}, "END"}
-    }
+    {"knot", "to_savile_row"},
+    {"para", "to Savile Row"},
+    {"stitch", "st"},
+    {"para", "stiiii"},
+    {"stitch", "st2"},
+    {"para", "222stiiii "},
+    {"END"}
 }}

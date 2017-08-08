@@ -16,15 +16,18 @@ ink=[[
 
 ]],
 expected={
-    {
-        "knot",
-        "the_orient_express",
-        {"stitch", "in_first_class", {"para", "..."}},
-        {"stitch", "in_third_class", {"para", "..."}},
-        {"stitch", "in_the_guards_van", {"para", "..."}, {"para", "..."}},
-        {"stitch", "missed_the_train", {"para", "..."}}
-    },
-    {"knot", "the_orient_express"},
-    {"knot", "the_orient_express", {"stitch", "stitch"}}
+	{ "knot", "the_orient_express"},
+	{"stitch", "in_first_class"},
+	{"para", "..."},
+	{"stitch", "in_third_class"}, 
+	{"para", "..."},
+	{"stitch", "in_the_guards_van"},
+	{"para", "..."},
+	{"para", "..."},
+	{"stitch", "missed_the_train"},
+	{"para", "..."},
+	{"knot", "the_orient_express"},
+	{"knot", "the_orient_express"},
+	{"stitch", "stitch"}
 }
 }
