@@ -15,13 +15,10 @@ function testText() doTestS(
  {{"para", "Hello world"}}
 ) end
 
-function testOpt1() doTestS(
- '*   "I am somewhat tired[."]," I repeated.',
- {{'choice', {"option", '"I am somewhat tired', '."', '," I repeated.'}}}
-) end
 
 
 function testBasic() doTest('basic') end
+function testComments() doTest('comments') end
 function testChoices() doTest('choices') end
 function testNest() doTest('nested') end
 function testNest2() doTest('nested2') end
@@ -29,7 +26,7 @@ function testKnot() doTest('knot') end
 function testBranching() doTest('branching') end
 function testGlue() doTest('glue') end
 function testInclude() doTest('include') end
-function testInclude() doTest('tags') end
+function testTagsP() doTest('tags') end
 
 
 --- runtime ---

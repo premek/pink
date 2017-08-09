@@ -4,7 +4,6 @@ local S,C,Ct,Cc,Cg,Cb,Cf,Cmt,P,V =
   lpeg.S, lpeg.C, lpeg.Ct, lpeg.Cc, lpeg.Cg, lpeg.Cb, lpeg.Cf, lpeg.Cmt,
   lpeg.P, lpeg.V
 
-local parserLogger = print
 local eof = -1
 local sp = S" \t" ^0 + eof
 local wh = S" \t\r\n" ^0 + eof
@@ -12,9 +11,9 @@ local nl = S"\r\n" ^1 + eof
 local id = (lpeg.alpha + '_') * (lpeg.alnum + '_')^0
 local addr = C(id) * ('.' * C(id))^-1
 
-local todo = sp * 'TODO:' * sp * (1-nl)^0 / parserLogger * wh -- TODO log location
-local commOL = sp * '//' * sp * (1-nl)^0 * wh
-local commML = sp * '/*' * wh * (P(1)-'*/')^0 * '*/' * wh
+local todo = Ct(sp * 'TODO:'/"todo" * sp * C((1-nl)^0)) * wh
+local commOL = Ct(sp * '//'/"comment" * sp * C((1-nl)^0)) * wh
+local commML = Ct(sp * '/*'/"comment" * wh * C((P(1)-'*/')^0)) * '*/' * wh
 local comm = commOL + commML + todo
 
 local glue = Ct(P'<>'/'glue') *wh -- FIXME do not consume spaces after glue
@@ -30,7 +29,7 @@ local stitch = Ct(P('=')^1/'stitch' * wh * C(id) * wh * P('=')^0) * wh
 
 local optDiv = '[' * C((P(1) - ']')^0) * ']'
 
-local optStars = wh * C(P'*') * (sp * C'*')^0
+local optStars = wh * Ct(C'*' * (sp * C'*')^0)/table.getn
 
 local tag = Ct(wh * P('#')/'tag' * wh * V'text' * wh)
 
