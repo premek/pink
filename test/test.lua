@@ -31,6 +31,13 @@ function testTagsP() doTest('tags') end
 
 --- runtime ---
 
+function testBasicR()
+  local story = pink.getStory('test/runtime/hello.ink')
+  luaunit.assertEquals(story.continue(), 'hello world')
+  luaunit.assertFalse(story.canContinue)
+end
+
+
 function testVisitCount()
   local story = pink.getStory('test/runtime/branching.ink')
   story.choosePathString('hurry_outside');
