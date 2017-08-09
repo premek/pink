@@ -19,8 +19,7 @@ local comm = commOL + commML + todo
 local glue = Ct(P'<>'/'glue') *wh -- FIXME do not consume spaces after glue
 
 local divertSym = '->' *wh
-local divertEndSym = Ct(C('END')) *wh
-local divertEnd = divertSym * divertEndSym
+local divertEnd = Ct(divertSym/'end' * 'END' * wh)
 local divertJump = Ct(divertSym/'divert' * addr * wh)
 local divert = divertEnd + divertJump
 
