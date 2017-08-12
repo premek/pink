@@ -10,22 +10,11 @@ ink=[[
 ]],
 expected = {
     {"para", '"Well, Poirot? Murder or suicide?"'},
-    {
-        "choice",
-        {
-            "option",
-            '"Murder"',
-            "",
-            "",
-            {"para", '"And who did it?"'},
-            {
-                "choice",
-                {"option", '"Detective-Inspector Japp!"', "", ""},
-                {"option", '"Captain Hastings!"', "", ""},
-                {"option", '"Myself!"', "", ""}
-            }
-        },
-        {"option", '"Suicide"', "", ""}
-    }
+    {"option", 1, '"Murder"', "", ""},
+    {"para", '"And who did it?"'},
+    {"option", 2, '"Detective-Inspector Japp!"', "", ""},
+    {"option", 2, '"Captain Hastings!"', "", ""},
+    {"option", 2, '"Myself!"', "", ""},
+    {"option", 1, '"Suicide"', "", ""}
 }
 }

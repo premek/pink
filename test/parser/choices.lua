@@ -12,30 +12,16 @@ ink=[[
 == finale ==
 ]],
 expected= {
-    {
-        "knot",
-        "start",
-        {
-            "choice",
-            {"option", "I dont know", "", ""},
-            {
-                "option",
-                '"I am somewhat tired',
-                '."',
-                '," I repeated.',
-                {"para", '"Really," he responded.'},
-                {"para", '"How deleterious."'}
-            },
-            {
-                "option",
-                '"Nothing, Monsieur!"',
-                "",
-                " I replied.",
-                {"para", '"Very good, *then."'}
-            },
-            {"option", "I said no more", "", "", {"para", '"Ah,". "I see you"'}}
-        }
-    },
+    {"knot", "start"},
+    {"option", 1, "I dont know", "", ""},
+    {"option", 1, '"I am somewhat tired', '."', '," I repeated.'},
+    {"para", '"Really," he responded.'},
+    {"para", '"How deleterious."'},
+    {"option", 1, '"Nothing, Monsieur!"', "", " I replied."},
+    {"para", '"Very good,'},
+    {"option", 1, 'then."', "", ""},
+    {"option", 1, "I said no more", "", ""},
+    {"para", '"Ah,". "I see you"'},
     {"knot", "finale"}
 }
 }

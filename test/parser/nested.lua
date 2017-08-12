@@ -2,18 +2,14 @@ return {
 ink=[[
         *   "Murder!"
             ** A
+            * 	* A
         *   "Suicide!"
 ]], expected= {
-    {
-        "choice",
-        {
-            "option",
-            '"Murder!"',
-            "",
-            "",
-            {"choice", {"option", "A", "", ""}}
-        },
-        {"option", '"Suicide!"', "", ""}
-    }
+
+    {"option", 1, '"Murder!"', "", ""},
+    {"option", 2, "A", "", ""},
+    {"option", 2, "A", "", ""},
+    {"option", 1, '"Suicide!"', "", ""}
+
 }
 }
