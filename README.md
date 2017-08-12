@@ -17,16 +17,27 @@ _Ink is inkle's scripting language for writing interactive narrative, both for t
 - Diverts
 - Glue
 - Include
+- Tags
 
-### Runtime
-- state.visitCountAtPathString() - allows the runtime to check if the story went through a scpecific point
+### Runtime API
+```lua
+boolean story.canContinue
+nil story.continue()
+table story.currentChoices
+nil story.chooseChoiceIndex(index)
+nil story.choosePathString(path)
+table story.globalTags
+table story.tagsForContentAtPath(path)
+table story.currentTags
+number story.state.visitCountAtPathString(path) 
+```
 
 See [WritingWithInk](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md) and [RunningYourInk](https://github.com/inkle/ink/blob/master/Documentation/RunningYourInk.md) for the description of the reference ink implementation.
 
 ## Used by
 pink is used by my small game https://github.com/premek/enjoy
 
-Let me know if you want to use it too.
+Let me know if you want to use it too - or just use it!
 
 ## Install dependencies
 
