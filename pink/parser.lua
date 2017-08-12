@@ -30,19 +30,21 @@ local optDiv = '[' * C((P(1) - ']')^0) * ']'
 
 local optStars = wh * Ct(C'*' * (sp * C'*')^0)/table.getn
 
-local tag = Ct(wh * P('#')/'tag' * wh * V'text' * wh)
-
-
+local hash = P('#')
+local tag = hash * wh * V'text'
+local tagGlobal = Ct(Cc'tag' * Cc'global' * tag * wh)
+local tagAbove = Ct(Cc'tag' * Cc'above' * tag * wh)
+local tagEnd = Ct(Cc'tag' * Cc'end' * tag * sp)
 
 local ink = P({
  "lines",
 
- stmt = glue + divert + knot + stitch + V'option' + optDiv + comm + V'include' + tag,
- text = C((1-nl-V'stmt')^1) *wh,
- textE = C((1-nl-V'stmt')^0) *wh,
+ stmt = glue + divert + knot + stitch + V'option' + optDiv + comm + V'include',
+ text = C((1-nl-V'stmt'-hash)^1),
+ textEmptyCapt = C((1-nl-V'stmt'-hash)^0),
 
- optAnsWithDiv    = V'textE' * optDiv * V'textE' * wh,
- optAnsWithoutDiv = V'textE' * Cc ''* Cc ''* wh, -- huh?
+ optAnsWithDiv    = V'textEmptyCapt' * sp * optDiv * V'text'^0 * wh,
+ optAnsWithoutDiv = V'textEmptyCapt' * sp * Cc ''  * Cc ''     * wh, -- huh?
  optAns = V'optAnsWithDiv' + V'optAnsWithoutDiv',
 
  option = Ct(Cc'option' * optStars * sp * V'optAns'),
@@ -52,7 +54,7 @@ local ink = P({
 
  include = Ct(P('INCLUDE')/'include' * wh * V'text' * wh),
 
- para = Ct(Cc'para' * V'text'),
+ para = tagAbove^0 * Ct(Cc'para' * V'text') * tagEnd^0 * wh  +  tagGlobal,
 
  line = V'stmt' + V'para',
  lines = Ct(V'line'^0)
