@@ -5,9 +5,8 @@ An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua u
 
 _Ink is inkle's scripting language for writing interactive narrative, both for text-centric games as well as more graphical games that contain highly branching stories._
 
-## Currently supported
-
-### Parser
+## Parser
+Supported:
 - Paragraphs
 - Comments
 - Choices
@@ -19,19 +18,31 @@ _Ink is inkle's scripting language for writing interactive narrative, both for t
 - Include
 - Tags
 
+
 ### Runtime API
+Supported:
 ```lua
 boolean story.canContinue
-nil story.continue()
+string story.continue()
 table story.currentChoices
 nil story.chooseChoiceIndex(index)
 nil story.choosePathString(path)
 table story.globalTags
 table story.tagsForContentAtPath(path)
 table story.currentTags
-number story.state.visitCountAtPathString(path) 
+number story.state.visitCountAtPathString(path)
 ```
+TODO: 
+```lua
+string story.state.toJson()
+nil story.state.loadJson(savedJson)
+story.variablesState["variable_name"] = newValue
+value = story.variablesState["variable_name"]
+story.observeVariable ("variable_name", function(string varName, object newValue) ) 
+story.bindExternalFunction ("function_name", function(...))
+});
 
+```
 See [WritingWithInk](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md) and [RunningYourInk](https://github.com/inkle/ink/blob/master/Documentation/RunningYourInk.md) for the description of the reference ink implementation.
 
 ## Used by
