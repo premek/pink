@@ -27,6 +27,7 @@ function testBranching() doTest('branching') end
 function testGlue() doTest('glue') end
 function testInclude() doTest('include') end
 function testTags() doTest('tags') end
+function testGather() doTest('gather') end
 
 
 --- runtime ---
@@ -40,7 +41,7 @@ end
 
 function testRChoices()
   local story = pink.getStory('test/runtime/branching.ink')
-  story.choosePathString('back_in_london');  
+  story.choosePathString('back_in_london');
   story.continue()
   luaunit.assertEquals(story.continue(), 'exactly')
   luaunit.assertFalse(story.canContinue)
@@ -49,7 +50,8 @@ function testRChoices()
   luaunit.assertEquals(story.continue(), 'My master clouted me firmly around the head')
   luaunit.assertEquals(#story.currentChoices, 2)
   story.chooseChoiceIndex(2)
-  luaunit.assertEquals(story.continue(), 'huhu')    
+  luaunit.assertEquals(story.continue(), 'huhu')
+  luaunit.assertFalse(story.canContinue)
 end
 
 

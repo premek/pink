@@ -28,7 +28,10 @@ local stitch = Ct(P('=')^1/'stitch' * wh * C(id) * wh * P('=')^0) * wh
 
 local optDiv = '[' * C((P(1) - ']')^0) * ']'
 
-local optStars = wh * Ct(C'*' * (sp * C'*')^0)/table.getn
+local optStar = sp * C'*'
+local optStars = wh * Ct(optStar * optStar^0)/table.getn
+local gatherMark = sp * C'-'
+local gatherMarks = wh * Ct(gatherMark * gatherMark^0)/table.getn
 
 local hash = P('#')
 local tag = hash * wh * V'text'
@@ -48,6 +51,7 @@ local ink = P({
  optAns = V'optAnsWithDiv' + V'optAnsWithoutDiv',
 
  option = Ct(Cc'option' * optStars * sp * V'optAns'),
+ gather = Ct(Cc'gather' * gatherMarks * sp * V'text'),
 
 
 
@@ -56,7 +60,7 @@ local ink = P({
 
  para = tagAbove^0 * Ct(Cc'para' * V'text') * tagEnd^0 * wh  +  tagGlobal,
 
- line = V'stmt' + V'para',
+ line = V'stmt' + V'gather'+ V'para' ,
  lines = Ct(V'line'^0)
 })
 
