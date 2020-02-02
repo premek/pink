@@ -7,7 +7,7 @@ local runtime = require(folderOfThisFile .. 'runtime')
 
 local function read(file) -- TODO should this be here or in client code? At lease allow to pass an ink content in a string
   if love and love.filesystem then
-    if not love.filesystem.isFile(file) then error('failed to open "'..file..'"') end
+    if not love.filesystem.getInfo(file, "file") then error('failed to open "'..file..'"') end
     local content, size = love.filesystem.read(file)
     return content
   else
