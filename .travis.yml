@@ -8,7 +8,7 @@ addons:
     - luarocks
 before_install:
   - luarocks install --local lpeg
-  - "`luarocks path`" # execute the luarocks output - sets the paths for 'local' tree
+  - "eval `luarocks path`" # execute the luarocks output - sets the paths for 'local' tree
 
 script: "lua test/test.lua"
 
