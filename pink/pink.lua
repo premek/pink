@@ -5,6 +5,7 @@ local folderOfThisFile = arg[1] and string.sub(..., 1, string.len(arg[1]))==arg[
 local getParser = function () return require(folderOfThisFile .. 'parser') end
 local runtime = require(folderOfThisFile .. 'runtime')
 
+local newParser = require(folderOfThisFile .. 'newparser')
 
 
 local function loveFileReader(file)
@@ -50,6 +51,9 @@ parse = function(f)
   return parsed
 end
 
+local newParse = function(file)
+    return newParser(file, getFileReader())
+end
 
 
 local api = {
@@ -57,10 +61,10 @@ local api = {
     local parsed
     if not pcall(function ()
       parsed = require (string.sub(filename, 1, -5))
-      print('loaded precompiled story')
+      --print('loaded precompiled story')
     end) then
-      parsed = parse(filename)
-      print('story compiled')
+      parsed = newParse(filename)
+      --print('story compiled')
     end
     return runtime(parsed)
   end

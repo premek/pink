@@ -1,24 +1,15 @@
 #!/usr/bin/env lua
 
 local luaunit = require('test.luaunit')
-local parser = require('pink.parser')
+--local parser = require('pink.parser')
+local parser = require('pink.newparser')
 local runtime = require('pink.runtime')
 local pink = require('pink.pink')
 
 --- parser ---
 
-function testEmpt() doTestS(
- "",
- {}
-) end
 
-function testText() doTestS(
- "Hello world",
- {{"para", "Hello world"}}
-) end
-
-
-
+function testEmpty() doTest('empty') end
 function testBasic() doTest('basic') end
 function testComments() doTest('comments') end
 function testChoices() doTest('choices') end
@@ -108,13 +99,9 @@ function testCLI()
 end
 -----------------------------
 
-function doTestS(ink, expected)
-    luaunit.assertEquals(parser:match(ink), expected)
-end
-
 function doTest(name)
   local test = require ('test.parser.'..name)
-  local parsed = parser:match(test.ink)
+  local parsed = parser(test.ink)
   luaunit.assertEquals(parsed, test.expected)
 end
 
