@@ -5,17 +5,28 @@ local folderOfThisFile = arg[1] and string.sub(..., 1, string.len(arg[1]))==arg[
 local getParser = function () return require(folderOfThisFile .. 'parser') end
 local runtime = require(folderOfThisFile .. 'runtime')
 
-local function read(file) -- TODO should this be here or in client code? At lease allow to pass an ink content in a string
-  if love and love.filesystem then
+
+
+local function loveFileReader(file)
     if not love.filesystem.getInfo(file, "file") then error('failed to open "'..file..'"') end
     local content, size = love.filesystem.read(file)
     return content
-  else
+end
+
+local function ioFileReader(file)
     local f = io.open(file, "rb")
     if not f then error('failed to open "'..file..'"') end
     local content = f:read("*all")
     f:close()
     return content
+end
+
+
+function getFileReader() -- TODO allow provide implementation from client code or pass an ink content in a string
+  if love and love.filesystem then 
+      return loveFileReader
+  else
+      return ioFileReader
   end
 end
 
@@ -26,7 +37,8 @@ local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
 local parse;
 parse = function(f)
   local parsed = {}
-  for _,t in ipairs(getParser():match(read(f))) do
+  local reader = getFileReader()
+  for _,t in ipairs(getParser():match(reader(f))) do
     if t[2] and t[1]=='include' then
       for _,included in ipairs(parse(basedir(f)..'/'..t[2])) do
         table.insert(parsed, included)
