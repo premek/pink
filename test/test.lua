@@ -1,3 +1,5 @@
+#!/usr/bin/env lua
+
 local luaunit = require('test.luaunit')
 local parser = require('pink.parser')
 local runtime = require('pink.runtime')

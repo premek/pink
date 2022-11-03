@@ -1,3 +1,5 @@
+#!/usr/bin/env lua
+
 local pink = require('pink.pink')
 
 -- 1) Load story
