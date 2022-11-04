@@ -26,12 +26,12 @@ return function(fileOrInk, fileReader)
         return currentChar()
     end
 
-    local addToken = function(tokenType, literal)
-        table.insert(tokens, {tokenType, literal})
+    local addToken = function(...)
+        table.insert(tokens, {...})
     end
 
     local string = function()
-        while peek() ~= '\n' and not isAtEnd() do
+        while peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do
             next()
         end
 
@@ -70,11 +70,43 @@ return function(fileOrInk, fileReader)
         addToken('stitch', source:sub(start+leading, current-1))
     end
 
+    local tag = function()
+        local leading = 1
+        while peek() == ' ' do
+            leading = leading + 1
+            next()
+        end
+
+        while peek() ~= '\n' and peek() ~= '#' do 
+            next()
+        end
+
+        addToken('tag', source:sub(start+leading, current-1))
+
+    end
+
+    local option = function()
+        local nested = 1
+        local leading = 1
+        while peek() == ' ' or peek()=='\t' or peek() == '*' do -- TODO peek whitespace
+            leading = leading + 1
+            if peek()=='*' then
+                nested = nested + 1
+            end
+            next()
+        end
+
+        while peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do 
+            next()
+        end
+
+        addToken('option', nested, source:sub(start+leading, current-1), '', '')
+    end
+
 
     while not isAtEnd() do
         start = current
         local c = advance()
-        print(c)
         if c == ' ' or c == '\r' or c == '\t' then 
             -- nothing
         elseif c == '\n' then 
@@ -85,6 +117,10 @@ return function(fileOrInk, fileReader)
             else
                 stitch()
             end
+        elseif c == '#' then
+            tag()
+        elseif c == '*' then
+            option()
         else 
             string()
         end

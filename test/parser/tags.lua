@@ -13,16 +13,16 @@ This is the line of content. # the third tag # really_monsieur.ogg
 aaa
 ]],
 expected={
-    {"tag", "global", "author: Joseph Humfrey"},
-    {"tag", "global", "title: My Wonderful Ink Story"},
+    {"tag", "author: Joseph Humfrey"},
+    {"tag", "title: My Wonderful Ink Story"},
     {"knot", "content"},
-    {"tag", "above", "location: Germany"},
-    {"tag", "above", "overview: munich.ogg"},
-    {"tag", "above", "require: Train ticket"},
+    {"tag", "location: Germany"},
+    {"tag", "overview: munich.ogg"},
+    {"tag", "require: Train ticket"},
     {"para", "This is the line of content. "},
-    {"tag", "end", "the third tag "},
-    {"tag", "end", "really_monsieur.ogg"},
-    {"tag", "above", "tag"},
+    {"tag", "the third tag "},
+    {"tag", "really_monsieur.ogg"},
+    {"tag", "tag"},
     {"para", "aaa"}
 }
 }
