@@ -205,6 +205,40 @@ return function(source)
         addToken('glue')
     end
 
+    local commentLine = function()
+        local leading = 1
+        while peek() == ' ' do
+            leading = leading + 1
+            next()
+        end
+        local s = current
+
+        while peek() ~= '\n' and peek() ~= '#' do 
+            next()
+        end
+
+        addToken('comment', source:sub(s, current-1))
+
+    end
+
+    local commentMultiLine = function()
+        local leading = 1
+        while peek() == ' ' or peek()=='\n' do
+            leading = leading + 1
+            next()
+        end
+        local s = current
+
+        while peek(2) ~= '*/' do 
+            next()
+        end
+
+        addToken('comment', source:sub(s, current-1))
+
+        next()
+        next()
+    end
+
 
 
 
@@ -233,6 +267,10 @@ return function(source)
             divert()
         elseif c == '<' and consume('<>') then -- TODO
             glue()
+        elseif c == '/' and consume('/*') then -- TODO
+            commentMultiLine()
+        elseif c == '/' and consume('//') then -- TODO
+            commentLine()
         elseif c == '-' then
             gather()
         else 
