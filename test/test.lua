@@ -2,7 +2,7 @@
 
 local luaunit = require('test.luaunit')
 --local parser = require('pink.parser')
-local parser = require('pink.newparser')
+local parser = require('pink.parser')
 local runtime = require('pink.runtime')
 local pink = require('pink.pink')
 

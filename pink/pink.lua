@@ -2,10 +2,8 @@
 
 if not arg[1] and not (...) then error("Usage: `require` this file from a script or call `lua pink/pink.lua parse game.ink`") end
 local folderOfThisFile = arg[1] and string.sub(..., 1, string.len(arg[1]))==arg[1] and arg[0]:match("(.-)[^/\\]+$") or (...):match("(.-)[^%.]+$")
-local getParser = function () return require(folderOfThisFile .. 'parser') end
+local parser = require(folderOfThisFile .. 'parser')
 local runtime = require(folderOfThisFile .. 'runtime')
-
-local newParser = require(folderOfThisFile .. 'newparser')
 
 
 local function loveFileReader(file)
@@ -36,12 +34,12 @@ local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
 
 
 local parse;
-parse = function(f)
+parse = function(file)
   local parsed = {}
   local reader = getFileReader()
-  for _,t in ipairs(getParser():match(reader(f))) do
+  for _,t in ipairs(parser(reader(file))) do
     if t[2] and t[1]=='include' then
-      for _,included in ipairs(parse(basedir(f)..'/'..t[2])) do
+      for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
         table.insert(parsed, included)
       end
     else
@@ -51,12 +49,6 @@ parse = function(f)
   return parsed
 end
 
-local newParse = function(file)
-    local read = getFileReader()
-    return newParser(read(file))
-end
-
-
 local api = {
   getStory = function (filename)
     local parsed
@@ -64,7 +56,7 @@ local api = {
       parsed = require (string.sub(filename, 1, -5))
       --print('loaded precompiled story')
     end) then
-      parsed = newParse(filename)
+      parsed = parse(filename)
       --print('story compiled')
     end
     return runtime(parsed)
