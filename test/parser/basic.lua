@@ -31,5 +31,5 @@ expected= {
     {"para", "stiiii"},
     {"stitch", "st2"},
     {"para", "222stiiii "},
-    {"end"}
+    {"divert", "END"}
 }}

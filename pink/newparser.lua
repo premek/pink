@@ -11,7 +11,10 @@ return function(source)
         return current >= #source
     end
 
-    local currentChar = function() return source:sub(current, current) end
+    local currentChar = function(chars) 
+        chars = chars or 1
+        return source:sub(current, current+chars-1)
+    end
     
     local next = function(chars) current=current+(chars or 1) end
 
@@ -21,9 +24,9 @@ return function(source)
         return char
     end
 
-    local peek = function()
+    local peek = function(chars)
         if isAtEnd() then return '\0' end -- FIXME?
-        return currentChar()
+        return currentChar(chars)
     end
 
     local consume = function(str)
@@ -39,8 +42,8 @@ return function(source)
         table.insert(tokens, {...})
     end
 
-    local string = function()
-        while peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do
+    local para = function()
+        while peek() ~= '\n' and peek() ~= '#' and peek(2) ~= '->' and not isAtEnd() do -- TODO -> might be needed elsewhere too
             next()
         end
 
@@ -130,7 +133,7 @@ return function(source)
 
         local part3start = current
         
-        while peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do 
+        while peek() ~= '\n' and peek() ~= '#' and peek(2) ~= '->' and not isAtEnd() do  -- TODO -> everywhere
             next()
         end
         local part3 = source:sub(part3start, current-1)
@@ -150,6 +153,19 @@ return function(source)
 
         addToken('include', source:sub(includeStart, current-1))
     end
+
+    local divert = function()
+        while peek() == ' ' do -- TODO peek whitespace
+            next()
+        end
+        local s = current
+        while peek() ~= '\n' and peek() ~= ' ' and not isAtEnd() do 
+            next()
+        end
+
+        addToken('divert', source:sub(s, current-1))
+    end
+
 
 
 
@@ -172,8 +188,10 @@ return function(source)
             option()
         elseif c == 'I' and consume('INCLUDE') then -- TODO
             include()
+        elseif c == '-' and consume('->') then -- TODO
+            divert()
         else 
-            string()
+            para()
         end
     end
     -- addToken('eof')
