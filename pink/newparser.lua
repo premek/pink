@@ -43,7 +43,11 @@ return function(source)
     end
 
     local para = function()
-        while peek() ~= '\n' and peek() ~= '#' and peek(2) ~= '->' and not isAtEnd() do -- TODO -> might be needed elsewhere too
+        while peek() ~= '\n' 
+            and peek() ~= '#' 
+            and peek(2) ~= '<>' 
+            and peek(2) ~= '->' 
+            and not isAtEnd() do -- TODO -> might be needed elsewhere too
             next()
         end
 
@@ -166,6 +170,10 @@ return function(source)
         addToken('divert', source:sub(s, current-1))
     end
 
+    local glue = function()
+        addToken('glue')
+    end
+
 
 
 
@@ -190,6 +198,8 @@ return function(source)
             include()
         elseif c == '-' and consume('->') then -- TODO
             divert()
+        elseif c == '<' and consume('<>') then -- TODO
+            glue()
         else 
             para()
         end
