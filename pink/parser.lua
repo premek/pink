@@ -259,17 +259,17 @@ return function(source)
             tag()
         elseif c == '*' then
             option()
-        elseif c == 'T' and consume('TODO:') then -- TODO
+        elseif consume('TODO:') then -- TODO
             todo()
-        elseif c == 'I' and consume('INCLUDE') then -- TODO
+        elseif consume('INCLUDE') then -- TODO
             include()
-        elseif c == '-' and consume('->') then -- TODO
+        elseif consume('->') then -- TODO
             divert()
-        elseif c == '<' and consume('<>') then -- TODO
+        elseif consume('<>') then -- TODO
             glue()
-        elseif c == '/' and consume('/*') then -- TODO
+        elseif consume('/*') then -- TODO
             commentMultiLine()
-        elseif c == '/' and consume('//') then -- TODO
+        elseif consume('//') then -- TODO
             commentLine()
         elseif c == '-' then
             gather()

@@ -3,6 +3,7 @@
 if not arg[1] and not (...) then error("Usage: `require` this file from a script or call `lua pink/pink.lua parse game.ink`") end
 local folderOfThisFile = arg[1] and string.sub(..., 1, string.len(arg[1]))==arg[1] and arg[0]:match("(.-)[^/\\]+$") or (...):match("(.-)[^%.]+$")
 local parser = require(folderOfThisFile .. 'parser')
+local tokenizer = require(folderOfThisFile .. 'tokenizer')
 local runtime = require(folderOfThisFile .. 'runtime')
 
 
@@ -37,7 +38,7 @@ local parse;
 parse = function(file)
   local parsed = {}
   local reader = getFileReader()
-  for _,t in ipairs(parser(reader(file))) do
+  for _,t in ipairs(parser(tokenizer(reader(file)))) do
     if t[2] and t[1]=='include' then
       for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
         table.insert(parsed, included)

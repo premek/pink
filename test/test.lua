@@ -3,8 +3,13 @@
 local luaunit = require('test.luaunit')
 --local parser = require('pink.parser')
 local parser = require('pink.parser')
+local tokenizer = require('pink.tokenizer')
 local runtime = require('pink.runtime')
 local pink = require('pink.pink')
+
+
+function testTokenizer() doTTest('basic') end
+
 
 --- parser ---
 
@@ -102,8 +107,14 @@ end
 
 function doTest(name)
   local test = require ('test.parser.'..name)
-  local parsed = parser(test.ink)
+  local parsed = parser(tokenizer(test.ink))
   luaunit.assertEquals(parsed, test.expected)
+end
+
+function doTTest(name)
+  local test = require ('test.tokenizer.'..name)
+  local parsed = tokenizer(test.ink)
+  luaunit.assertEquals(parsed, test.expected) --TODO
 end
 
 os.exit( luaunit.LuaUnit.run() )
