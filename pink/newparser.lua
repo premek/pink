@@ -1,11 +1,10 @@
 local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
-return function(fileOrInk, fileReader)
+return function(source)
 
     local start=1
     local current=1
     local line = 1
-    local source = fileReader and fileReader(fileOrInk) or fileOrInk --FIXME
     local tokens = {}
 
     local isAtEnd = function()

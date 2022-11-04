@@ -52,7 +52,8 @@ parse = function(f)
 end
 
 local newParse = function(file)
-    return newParser(file, getFileReader())
+    local read = getFileReader()
+    return newParser(read(file))
 end
 
 
