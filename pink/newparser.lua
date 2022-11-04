@@ -95,12 +95,39 @@ return function(fileOrInk, fileReader)
             end
             next()
         end
+        -- TODO eh
 
-        while peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do 
+        while peek() ~= '[' and peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do 
+            next()
+        end
+        
+        local part1 = source:sub(start+leading, current-1)
+
+        if peek() == '[' then
             next()
         end
 
-        addToken('option', nested, source:sub(start+leading, current-1), '', '')
+        local part2start = current
+
+        while peek() ~= ']'  and peek() ~= '\n' and peek() ~= '#' and not isAtEnd()  do 
+            next()
+        end
+
+        local part2 = source:sub(part2start, current-1)
+
+        if peek() == ']' then
+            next()
+        end
+
+        local part3start = current
+        
+        while peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do 
+            next()
+        end
+        local part3 = source:sub(part3start, current-1)
+
+
+        addToken('option', nested, part1, part2, part3)
     end
 
 

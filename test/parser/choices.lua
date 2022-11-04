@@ -6,7 +6,7 @@ ink=[[
     "Really," he responded.
     "How deleterious."
 *   "Nothing, Monsieur!"[] I replied.
-    "Very good, *then."
+    "Very good, then."
 *  I said no more
     "Ah,". "I see you"
 == finale ==
@@ -18,8 +18,7 @@ expected= {
     {"para", '"Really," he responded.'},
     {"para", '"How deleterious."'},
     {"option", 1, '"Nothing, Monsieur!"', "", " I replied."},
-    {"para", '"Very good,'},
-    {"option", 1, 'then."', "", ""},
+    {"para", '"Very good, then."'},
     {"option", 1, "I said no more", "", ""},
     {"para", '"Ah,". "I see you"'},
     {"knot", "finale"}
