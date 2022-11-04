@@ -137,13 +137,31 @@ return function(source)
 
         local part3start = current
         
-        while peek() ~= '\n' and peek() ~= '#' and peek(2) ~= '->' and not isAtEnd() do  -- TODO -> everywhere
+        while peek() ~= '\n' and peek() ~= '#' and peek(2) ~= '<>' and peek(2) ~= '->'  and not isAtEnd() do  -- TODO -> everywhere
             next()
         end
         local part3 = source:sub(part3start, current-1)
 
 
         addToken('option', nested, part1, part2, part3)
+    end
+
+    local gather = function()
+        local nested = 1
+        local leading = 1
+        while peek() == ' ' or peek()=='\t' or peek() == '-' do -- TODO peek whitespace
+            leading = leading + 1
+            if peek()=='-' then
+                nested = nested + 1
+            end
+            next()
+        end
+
+        while  peek() ~= '\n' and peek(2) ~= '<>'  and peek() ~= '#' and not isAtEnd() do 
+            next()
+        end
+
+        addToken('gather', nested, source:sub(start+leading, current-1))
     end
 
     local include = function()
@@ -200,6 +218,8 @@ return function(source)
             divert()
         elseif c == '<' and consume('<>') then -- TODO
             glue()
+        elseif c == '-' then
+            gather()
         else 
             para()
         end
