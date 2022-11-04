@@ -12,7 +12,8 @@ return function(source)
     end
 
     local currentChar = function() return source:sub(current, current) end
-    local next = function() current=current+1 end
+    
+    local next = function(chars) current=current+(chars or 1) end
 
     local advance = function()
         local char = currentChar()
@@ -23,6 +24,15 @@ return function(source)
     local peek = function()
         if isAtEnd() then return '\0' end -- FIXME?
         return currentChar()
+    end
+
+    local consume = function(str)
+        if str ~= source:sub(start, start+str:len()-1) then
+            return false
+        end
+
+        next(str:len()-1)
+        return true
     end
 
     local addToken = function(...)
@@ -129,6 +139,19 @@ return function(source)
         addToken('option', nested, part1, part2, part3)
     end
 
+    local include = function()
+        while peek() == ' ' do -- TODO peek whitespace
+            next()
+        end
+        local includeStart = current
+        while peek() ~= '\n' and not isAtEnd() do 
+            next()
+        end
+
+        addToken('include', source:sub(includeStart, current-1))
+    end
+
+
 
     while not isAtEnd() do
         start = current
@@ -147,6 +170,8 @@ return function(source)
             tag()
         elseif c == '*' then
             option()
+        elseif c == 'I' and consume('INCLUDE') then -- TODO
+            include()
         else 
             string()
         end
