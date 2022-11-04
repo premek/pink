@@ -176,6 +176,19 @@ return function(source)
         addToken('include', source:sub(includeStart, current-1))
     end
 
+    local todo = function()
+        while peek() == ' ' do -- TODO peek whitespace
+            next()
+        end
+        local s = current
+        while peek() ~= '\n' and not isAtEnd() do 
+            next()
+        end
+
+        addToken('todo', source:sub(s, current-1))
+    end
+
+
     local divert = function()
         while peek() == ' ' do -- TODO peek whitespace
             next()
@@ -212,6 +225,8 @@ return function(source)
             tag()
         elseif c == '*' then
             option()
+        elseif c == 'T' and consume('TODO:') then -- TODO
+            todo()
         elseif c == 'I' and consume('INCLUDE') then -- TODO
             include()
         elseif c == '-' and consume('->') then -- TODO
