@@ -7,7 +7,8 @@ Hello?
 we <> 
 hurr ied-> to_savile_row 
 
-  === to_savile_row ===
+  === to_savile_row ==
+  === to_savile_row2
 
 to Savile Row
  =st
@@ -26,6 +27,7 @@ expected= {
     {"para", "hurr ied"},
     {"divert", "to_savile_row"},
     {"knot", "to_savile_row"},
+    {"knot", "to_savile_row2"},
     {"para", "to Savile Row"},
     {"stitch", "st"},
     {"para", "stiiii"},

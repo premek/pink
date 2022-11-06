@@ -1,284 +1,85 @@
 local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
-return function(source)
+return function(tokenizer)
 
-    local start=1
-    local current=1
-    local line = 1
-    local tokens = {}
+    local statements = {}
 
     local isAtEnd = function()
-        return current >= #source
-    end
-
-    local currentChar = function(chars) 
-        chars = chars or 1
-        return source:sub(current, current+chars-1)
-    end
-    
-    local next = function(chars) current=current+(chars or 1) end
-
-    local advance = function()
-        local char = currentChar()
-        next()
-        return char
-    end
-
-    local peek = function(chars)
-        if isAtEnd() then return '\0' end -- FIXME?
-        return currentChar(chars)
-    end
-
-    local consume = function(str)
-        if str ~= source:sub(start, start+str:len()-1) then
-            return false
-        end
-
-        next(str:len()-1)
-        return true
-    end
-
-    local addToken = function(...)
-        table.insert(tokens, {...})
-    end
-
-    local para = function()
-        while peek() ~= '\n' 
-            and peek() ~= '#' 
-            and peek(2) ~= '<>' 
-            and peek(2) ~= '->' 
-            and not isAtEnd() do -- TODO -> might be needed elsewhere too
-            next()
-        end
-
-        addToken ('para', source:sub(start, current-1))
-    end
-
-    local knot = function()
-        local leading = 1
-        while peek() == '=' or peek() == ' ' do
-            leading = leading + 1
-            next()
-        end
-        while peek() ~= '=' and peek()~=' ' and peek() ~= '\n' do -- TODO must be single word 
-            next() 
-        end
-
-        addToken ('knot', source:sub(start+leading, current-1))
-        
-        while peek() ~= '\n' and not isAtEnd() do -- check isAtEnd is everywhere so there are no infinite loops
-            next() 
-        end
-
-    end
-
-    local stitch = function()
-        local leading = 1
-        while peek() == ' ' do
-            leading = leading + 1
-            next()
-        end
-
-        while peek()~=' ' and peek() ~= '\n' do -- TODO must be single word 
-            next() 
-        end
-
-        addToken('stitch', source:sub(start+leading, current-1))
-    end
-
-    local tag = function()
-        local leading = 1
-        while peek() == ' ' do
-            leading = leading + 1
-            next()
-        end
-
-        while peek() ~= '\n' and peek() ~= '#' do 
-            next()
-        end
-
-        addToken('tag', source:sub(start+leading, current-1))
-
-    end
-
-    local option = function()
-        local nested = 1
-        local leading = 1
-        while peek() == ' ' or peek()=='\t' or peek() == '*' do -- TODO peek whitespace
-            leading = leading + 1
-            if peek()=='*' then
-                nested = nested + 1
-            end
-            next()
-        end
-        -- TODO eh
-
-        while peek() ~= '[' and peek() ~= '\n' and peek() ~= '#' and not isAtEnd() do 
-            next()
-        end
-        
-        local part1 = source:sub(start+leading, current-1)
-
-        if peek() == '[' then
-            next()
-        end
-
-        local part2start = current
-
-        while peek() ~= ']'  and peek() ~= '\n' and peek() ~= '#' and not isAtEnd()  do 
-            next()
-        end
-
-        local part2 = source:sub(part2start, current-1)
-
-        if peek() == ']' then
-            next()
-        end
-
-        local part3start = current
-        
-        while peek() ~= '\n' and peek() ~= '#' and peek(2) ~= '<>' and peek(2) ~= '->'  and not isAtEnd() do  -- TODO -> everywhere
-            next()
-        end
-        local part3 = source:sub(part3start, current-1)
-
-
-        addToken('option', nested, part1, part2, part3)
-    end
-
-    local gather = function()
-        local nested = 1
-        local leading = 1
-        while peek() == ' ' or peek()=='\t' or peek() == '-' do -- TODO peek whitespace
-            leading = leading + 1
-            if peek()=='-' then
-                nested = nested + 1
-            end
-            next()
-        end
-
-        while  peek() ~= '\n' and peek(2) ~= '<>'  and peek() ~= '#' and not isAtEnd() do 
-            next()
-        end
-
-        addToken('gather', nested, source:sub(start+leading, current-1))
-    end
-
-    local include = function()
-        while peek() == ' ' do -- TODO peek whitespace
-            next()
-        end
-        local includeStart = current
-        while peek() ~= '\n' and not isAtEnd() do 
-            next()
-        end
-
-        addToken('include', source:sub(includeStart, current-1))
-    end
-
-    local todo = function()
-        while peek() == ' ' do -- TODO peek whitespace
-            next()
-        end
-        local s = current
-        while peek() ~= '\n' and not isAtEnd() do 
-            next()
-        end
-
-        addToken('todo', source:sub(s, current-1))
+        return tokenizer.peek().type=='eof'
     end
 
 
-    local divert = function()
-        while peek() == ' ' do -- TODO peek whitespace
-            next()
-        end
-        local s = current
-        while peek() ~= '\n' and peek() ~= ' ' and not isAtEnd() do 
-            next()
-        end
-
-        addToken('divert', source:sub(s, current-1))
-    end
-
-    local glue = function()
-        addToken('glue')
-    end
-
-    local commentLine = function()
-        local leading = 1
-        while peek() == ' ' do
-            leading = leading + 1
-            next()
-        end
-        local s = current
-
-        while peek() ~= '\n' and peek() ~= '#' do 
-            next()
-        end
-
-        addToken('comment', source:sub(s, current-1))
-
-    end
-
-    local commentMultiLine = function()
-        local leading = 1
-        while peek() == ' ' or peek()=='\n' do
-            leading = leading + 1
-            next()
-        end
-        local s = current
-
-        while peek(2) ~= '*/' do 
-            next()
-        end
-
-        addToken('comment', source:sub(s, current-1))
-
-        next()
-        next()
+    local addStatement = function(...)
+        table.insert(statements, {...})
     end
 
 
+    -- trim spaces at end.
+    -- TODO get rid of this?
+    local trimR = function(s)
+        local trimmed = s:gsub("^%s+", ""):gsub("%s+$", "")
+        return trimmed
+    end
 
 
     while not isAtEnd() do
-        start = current
-        local c = advance()
-        if c == ' ' or c == '\r' or c == '\t' then 
-            -- nothing
-        elseif c == '\n' then 
-            line = line + 1
-        elseif c == '=' then 
-            if peek() == '=' then
-                knot()
-            else
-                stitch()
+        local t = tokenizer.getNext()
+        if t.type == 'knot' then
+            addStatement('knot', trimR(tokenizer.getNext('text').text)) -- TODO get single word without spaces// the getNext must be able to set how to parse, not just check the type of what we are getting
+            tokenizer.getNextIf('knot') -- eat closing knot if present// TODO eat single = also but only before end of line
+
+        elseif t.type == 'text' then
+            addStatement('para', t.text) 
+        elseif t.type == 'glue' then -- TODO could be handled here?
+            addStatement('glue')
+        elseif t.type == 'divert' then
+            addStatement('divert', trimR(tokenizer.getNext('text').text))
+        elseif t.type == 'stitch' then
+            addStatement('stitch', trimR(tokenizer.getNext('text').text))
+        elseif t.type == 'tag' then
+            addStatement('tag', tokenizer.getNext('text').text)
+        elseif t.type == 'option' then
+            local nesting = 1
+            while tokenizer.getNextIf('option') do
+                nesting = nesting + 1
             end
-        elseif c == '#' then
-            tag()
-        elseif c == '*' then
-            option()
-        elseif consume('TODO:') then -- TODO
-            todo()
-        elseif consume('INCLUDE') then -- TODO
-            include()
-        elseif consume('->') then -- TODO
-            divert()
-        elseif consume('<>') then -- TODO
-            glue()
-        elseif consume('/*') then -- TODO
-            commentMultiLine()
-        elseif consume('//') then -- TODO
-            commentLine()
-        elseif c == '-' then
-            gather()
-        else 
-            para()
+            local t1 = ''
+            local t2 = ''
+            local t3 = ''
+
+            local t1Token = tokenizer.getNext() -- TODO expected only 'text' OR 'squareLeft'
+
+            if t1Token.type=='text' then 
+                t1 = trimR(t1Token.text)
+            end
+
+            if t1Token.type == 'squareLeft' or tokenizer.getNextIf('squareLeft') then -- FIXME method, token? naming
+                local t2Token = tokenizer.getNextIf('text')
+                if t2Token then
+                    t2 = trimR(t2Token.text)
+                end
+
+                tokenizer.getNext('squareRight')
+                local t3Token = tokenizer.getNextIf('text')
+                if t3Token then
+                    t3 = t3Token.text
+                end
+            end
+            addStatement('option', nesting, t1, t2, t3)
+
+        elseif t.type == 'gather' then
+            local nesting = 1
+            while tokenizer.getNextIf('gather') do
+                nesting = nesting + 1
+            end
+            addStatement('gather', nesting, (tokenizer.getNext('text').text))
+
+        elseif t.type == 'include' then
+            addStatement('include', (tokenizer.getNext('text').text))
+        elseif t.type == 'todo' then
+            addStatement('todo', (tokenizer.getNext('text').text))
         end
     end
-    -- addToken('eof')
 
-
-    return tokens
+    return statements
 end

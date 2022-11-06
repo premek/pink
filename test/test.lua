@@ -8,6 +8,9 @@ local runtime = require('pink.runtime')
 local pink = require('pink.pink')
 
 
+--- tokenizer ---
+
+
 function testTokenizer() doTTest('basic') end
 
 
@@ -113,7 +116,7 @@ end
 
 function doTTest(name)
   local test = require ('test.tokenizer.'..name)
-  local parsed = tokenizer(test.ink)
+  local parsed = tokenizer(test.ink).getAll()
   luaunit.assertEquals(parsed, test.expected) --TODO
 end
 

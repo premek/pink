@@ -11,9 +11,6 @@ ink=[[
 = missed_the_train
     ...
 == the_orient_express =
-======== the_orient_express ===
-=stitch
-
 ]],
 expected={
 	{ "knot", "the_orient_express"},

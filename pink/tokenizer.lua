@@ -78,6 +78,8 @@ return function(source)
             and peek(2) ~= '=='
             and peek(2) ~= '<>'
             and peek(2) ~= '//'
+            and peek() ~= ']' -- TODO different kind of "text' when we are inside an option? normal text would not stop on these?
+            and peek() ~= '['
             and peek(2) ~= '/*'
             and peek() ~= '\n'
             and not isAtEnd() do
@@ -89,6 +91,8 @@ return function(source)
     end
 
     local scanToken = function()
+        start = current
+        
         local c = advance()
         if c == ' ' or c == '\r' or c == '\t' then
             -- skip
@@ -115,6 +119,10 @@ return function(source)
             addToken('gather')            
         elseif consume('<>') then
             addToken('glue')
+        elseif consume('[') then
+            addToken('squareLeft')
+        elseif consume(']') then
+            addToken('squareRight')
         elseif consume('//') then
             skipSingleLineComment()
         elseif consume('/*') then
@@ -125,12 +133,64 @@ return function(source)
 
     end
 
-    while not isAtEnd() do
-        start = current
-        scanToken()
+    local scanAll = function()
+        while not isAtEnd() do
+            scanToken()
+        end
+        addTokenRaw('eof', nil, line, column, '')
+
     end
-    addTokenRaw('eof', nil, line, column, '')
 
+    local scanSome = function()
+        while #tokens == 0 do
+            if not isAtEnd() then
+                scanToken()
+            else
+                addTokenRaw('eof', nil, line, column, '')
+            end
+        end
+    end
 
-    return tokens
+    return {
+        getAll = function ()
+            scanAll()
+            return tokens
+        end,
+
+        peek = function() 
+            if #tokens == 0 then
+                scanSome()
+            end
+            return tokens[1]
+        end,
+
+        -- expectedType optional
+        -- if provided the next token must be of the given type - error otherwise
+        -- the token is removed from the queue and returned
+        -- if no expected type, the next token is removed and returned whatever type it is
+
+        getNext = function(expectedType)
+            if #tokens == 0 then
+                scanSome()
+            end
+            if expectedType then
+                assert(tokens[1].type == expectedType, "expected: "..expectedType..", got: "..tokens[1].type.." at line "..tokens[1].line..", col "..tokens[1].column)
+            end
+            return table.remove(tokens, 1)
+        end,
+
+        -- if the next token is of the given type it's removed from the queue and returned.
+        -- Otherwise the next token stays in the queue and nil is returned
+        -- expectedType required
+
+        getNextIf = function(expectedType)
+            if #tokens == 0 then
+                scanSome()
+            end
+            if tokens[1].type == expectedType then
+                return table.remove(tokens, 1)
+            end
+            return nil
+        end
+    }
 end

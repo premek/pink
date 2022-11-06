@@ -19,6 +19,9 @@ gluedpara
 =stitch
 ->knot_name
 #t
+	* * 	'Ah[.'],' I replied, uncertain what I thought.
+== the_orient_express =
+=st
 ]],
 expected= {
     {column=1, line=1, text="INCLUDE", type="include"},
@@ -56,5 +59,17 @@ expected= {
     {column=3, line=18, text="knot_name", type="text"},
     {column=1, line=19, text="#", type="tag"},
     {column=2, line=19, text="t", type="text"},
-    {column=3, line=19, text="", type="eof"}
+    {column=2, line=20, text="*", type="option"},
+    {column=4, line=20, text="*", type="option"},
+    {column=7, line=20, text="'Ah", type="text"},
+    {column=10, line=20, text="[", type="squareLeft"},
+    {column=11, line=20, text=".'", type="text"},
+    {column=13, line=20, text="]", type="squareRight"},
+    {
+        column=14,
+        line=20,
+        text=",' I replied, uncertain what I thought.",
+        type="text"
+    },
+    {column=1, line=21, text="", type="eof"}
 }}
