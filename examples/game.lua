@@ -5,6 +5,8 @@ local pink = require('pink.pink')
 -- 1) Load story
 local story = pink.getStory('examples/game.ink')
 
+story.choosePathString('back_in_london');
+
 while true do
   -- 2) Game content, line by line
   while story.canContinue do
@@ -18,5 +20,5 @@ while true do
 
   local answer=io.read()
   print (story.currentChoices[tonumber(answer)].choiceText)
-  story.chooseChoiceIndex(answer)
+  story.chooseChoiceIndex(tonumber(answer))
 end
