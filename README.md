@@ -50,25 +50,6 @@ pink is used by my small game https://github.com/premek/enjoy
 
 Let me know if you want to use it too - or just use it!
 
-## Install dependencies
-
-Install luarocks (Or see https://luarocks.org/#quick-start for instructions for other platforms):
-
-    sudo aptitude install luarocks
-
-Install lpeg:
-
-    luarocks install --local lpeg
-
-Get pink:
-
-Clone this repo or download an archive from [releases](../../releases) page. You need just the `pink` subdirectory.
-
-### Note on dependencies
-The pink **parser** depends on lpeg which can easily be instaled by luarocks (see above) but it may be difficult to distribute it with your game for each platform (it is a C library). Please consider compiling the .ink file into lua table, save it into a file and distribute just the compiled file with a lua table instead of compiling at runtime. (See: [#3](/../../issues/3))
-
-Pink **runtime** is just a pure lua.
-
 
 ## How to use this to run a game
 To use it in your project download the latest source or the latest [release](../../releases). You need just the [pink](../../tree/master/pink) directory.
