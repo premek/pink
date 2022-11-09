@@ -1,11 +1,19 @@
 local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
-return function(tokenizer)
-
+return function(source)
+    local start=1
+    local current=1
+    local line = 1
+    local column = 1
     local statements = {}
 
     local isAtEnd = function()
-        return tokenizer.peek().type=='eof'
+        return current >= #source
+    end
+
+    local newline = function()
+        line = line + 1
+        column = 1
     end
 
 
@@ -13,71 +21,259 @@ return function(tokenizer)
         table.insert(statements, {...})
     end
 
+    local currentChar = function(chars)
+        chars = chars or 1
+        return source:sub(current, current+chars-1)
+    end
 
-    -- trim spaces at end.
-    -- TODO get rid of this?
-    local trimR = function(s)
-        local trimmed = s:gsub("^%s+", ""):gsub("%s+$", "")
-        return trimmed
+    local next = function(chars)
+        chars = chars or 1
+        column = column + chars
+        current = current + chars
+    end
+
+    local peek = function(chars)
+        if isAtEnd() then return nil end -- FIXME?
+        return currentChar(chars)
+    end
+    local ahead = function(str)
+        return str == peek(#str)
+    end
+
+    local errorAt = function(msg, ...)
+        local formattedMsg = string.format(msg, unpack(...)) -- unpack must be last argument
+        error(string.format(formattedMsg .. " at line %s, column %s", line, column))
+    end
+
+    local consume = function(str)
+        if str ~= source:sub(current, current+#str-1) then
+            errorAt("expected '%s'", str)
+        end
+        next(#str)
+    end
+
+    local consumeAll = function(c)
+        while ahead(c) do
+            next()
+        end
     end
 
 
-    while not isAtEnd() do
-        local t = tokenizer.getNext()
-        if t.type == 'knot' then
-            addStatement('knot', trimR(tokenizer.getNext('text').text)) -- TODO get single word without spaces// the getNext must be able to set how to parse, not just check the type of what we are getting
-            tokenizer.getNextIf('knot') -- eat closing knot if present// TODO eat single = also but only before end of line
 
-        elseif t.type == 'text' then
-            addStatement('para', t.text) 
-        elseif t.type == 'glue' then -- TODO could be handled here?
-            addStatement('glue')
-        elseif t.type == 'divert' then
-            addStatement('divert', trimR(tokenizer.getNext('text').text))
-        elseif t.type == 'stitch' then
-            addStatement('stitch', trimR(tokenizer.getNext('text').text))
-        elseif t.type == 'tag' then
-            addStatement('tag', tokenizer.getNext('text').text)
-        elseif t.type == 'option' then
-            local nesting = 1
-            while tokenizer.getNextIf('option') do
-                nesting = nesting + 1
+
+    local singleLineComment = function()
+        while peek() ~= '\n' and not isAtEnd() do
+            next()
+        end
+    end
+
+    local multiLineComment = function()
+        while peek(2) ~= '*/' and not isAtEnd() do
+            if peek() == '\n' then
+                newline()
             end
-            local t1 = ''
-            local t2 = ''
-            local t3 = ''
+            next()
+        end
+        consume('*/')
+    end
 
-            local t1Token = tokenizer.getNext() -- TODO expected only 'text' OR 'squareLeft'
 
-            if t1Token.type=='text' then 
-                t1 = trimR(t1Token.text)
+    local currentText = function(s)
+        s = s or start
+        return source:sub(s, current-1)
+    end
+
+
+    local text = function()
+        local s = current
+
+        while peek() ~= '#'
+            and peek(2) ~= '->'
+            and peek(2) ~= '=='
+            and peek(2) ~= '<>'
+            and peek(2) ~= '//'
+            and peek() ~= ']' -- TODO different kind of "text' when we are inside an option?
+            and peek() ~= '['
+            and peek(2) ~= '/*'
+            and peek() ~= '\n'
+            and not isAtEnd() do
+
+            next()
+        end
+        return currentText(s)
+    end
+
+
+    local para = function()
+        addStatement('para', text())
+    end
+
+
+    local textLine = function()
+        local s = current
+        while peek() ~= '\n' and not isAtEnd() do --FIXME -- TODO make sure isAtEnd is not forgotten in any loop
+            next()
+        end
+        return currentText(s)
+    end
+
+    local filename = function()
+        return textLine()
+    end
+
+    local identifier = function()
+        local s = current
+        --FIXME -- TODO make sure isAtEnd is not forgotten in any loop
+        while peek() ~= '\n' and peek() ~= ' ' and not isAtEnd() do
+            next()
+        end
+        return currentText(s)
+    end
+
+
+    local consumeWhitespace = function()
+        while true do
+            local c = peek()
+            if c == ' ' or c == '\r' or c == '\t' then
+                next()
+            else
+                return
             end
+        end
+    end
 
-            if t1Token.type == 'squareLeft' or tokenizer.getNextIf('squareLeft') then -- FIXME method, token? naming
-                local t2Token = tokenizer.getNextIf('text')
-                if t2Token then
-                    t2 = trimR(t2Token.text)
-                end
+    local include = function()
+        consume("INCLUDE")
+        consumeWhitespace()
+        addStatement('include', filename())
+    end
 
-                tokenizer.getNext('squareRight')
-                local t3Token = tokenizer.getNextIf('text')
-                if t3Token then
-                    t3 = t3Token.text
-                end
-            end
-            addStatement('option', nesting, t1, t2, t3)
+    local todo = function()
+        consume("TODO:")
+        consumeWhitespace()
+        addStatement('todo', textLine())
+    end
 
-        elseif t.type == 'gather' then
-            local nesting = 1
-            while tokenizer.getNextIf('gather') do
-                nesting = nesting + 1
-            end
-            addStatement('gather', nesting, (tokenizer.getNext('text').text))
+    local glue = function()
+        consume("<>")
+        addStatement('glue')
+    end
 
-        elseif t.type == 'include' then
-            addStatement('include', (tokenizer.getNext('text').text))
-        elseif t.type == 'todo' then
-            addStatement('todo', (tokenizer.getNext('text').text))
+    local divert = function()
+        consume("->")
+        consumeWhitespace()
+        addStatement('divert', identifier())
+    end
+
+    local knot = function()
+        consume("==")
+        consumeAll('=')
+        consumeWhitespace()
+        addStatement('knot', identifier())
+        consumeWhitespace()
+        consumeAll('=')
+    end
+
+    local stitch = function()
+        consume("=")
+        consumeWhitespace()
+        addStatement('stitch', identifier())
+    end
+
+    local option = function()
+        local nesting = 0
+        repeat
+            consume("*")
+            nesting = nesting + 1
+            consumeWhitespace()
+        until not ahead("*")
+
+        local t1 = text()
+        if ahead('[') then next() end
+        local t2 = text()
+        if ahead(']') then next() end
+        local t3 = text()
+
+
+        addStatement('option', nesting, t1, t2, t3)
+    end
+
+    local gather = function()
+        local nesting = 0
+        repeat
+            consume("-")
+            nesting = nesting + 1
+            consumeWhitespace()
+        until not ahead("-")
+
+        addStatement('gather', nesting, text())
+    end
+
+
+    local tag = function()
+        consume("#")
+        consumeWhitespace()
+        addStatement('tag', text())
+    end
+
+
+
+    local maxIter = 3000 -- just for debugging -- TODO better safety catch
+
+    local last = -1
+
+    for i=1, maxIter do
+        -- check something was consumend in last loop -- TODO
+        if last==current then
+            errorAt("nothing consumed")
+        end
+        last = current
+
+
+        if i == maxIter then
+            error('parser error? or input too long') -- FIXME
+        end
+
+        if isAtEnd() then
+            --        addStatement('eof', nil, line, column, '')
+            break
+        end
+
+        start = current
+
+        local c = peek() --FIXME peek or advance
+        --print(c)
+
+        if c == ' ' or c == '\r' or c == '\t' then
+            next()
+            -- skip
+        elseif c == '\n' then
+            next()
+            newline()
+        elseif ahead('//') then
+            singleLineComment()
+        elseif ahead('/*') then
+            multiLineComment()
+        elseif ahead('TODO:') then
+            todo()
+        elseif ahead('INCLUDE') then
+            include()
+        elseif ahead('<>') then
+            glue() -- TODO should probably be handled inside text(), to preserve whitespace? or not?
+        elseif ahead('->') then
+            divert()
+        elseif ahead('==') then
+            knot()
+        elseif ahead('=') then
+            stitch()
+        elseif ahead('*') then
+            option()
+        elseif ahead('-') then
+            gather()
+        elseif ahead('#') then
+            tag()
+        else
+            para()
         end
     end
 

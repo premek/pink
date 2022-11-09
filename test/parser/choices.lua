@@ -17,7 +17,7 @@ expected= {
     {"option", 1, '"I am somewhat tired', '."', '," I repeated.'},
     {"para", '"Really," he responded.'},
     {"para", '"How deleterious."'},
-    {"option", 1, '"Nothing, Monsieur!"', "", "I replied."},
+    {"option", 1, '"Nothing, Monsieur!"', "", " I replied."},
     {"para", '"Very good, then."'},
     {"option", 1, "I said no more", "", ""},
     {"para", '"Ah,". "I see you"'},

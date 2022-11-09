@@ -13,7 +13,7 @@ expected={
 	{"para", "My master clouted me firmly around the head and dragged me out of the door.  " },
 	{"glue"},
 	{"divert", "dragged_outside"},
-	{"option", 1, "We hurried home", "", ""},
+	{"option", 1, "We hurried home ", "", ""},
 	{"divert", "hurry_outside"},
 	{"knot", "as_fast_as_we_could"}, 
 	{"glue"}, 

@@ -24,7 +24,7 @@ I looked at Monsieur Fogg
     {"option", 1, "... and I could contain myself no longer.", "", ""},
     {"para", "'What is the purpose of our journey, Monsieur?'"},
     {"para", "'A wager,' he replied."},
-    {"option", 2, "'A wager!'", "", "I returned."}, -- TODO space missing?
+    {"option", 2, "'A wager!'", "", " I returned."},
     {"para", "He nodded."},
     {"option", 3, "'But surely that is foolishness!'", "", ""},
     {"option", 3, "'A most serious matter then!'", "", ""},
@@ -44,7 +44,7 @@ I looked at Monsieur Fogg
     {"option", 2, "'Ah", ".'", ",' I replied, uncertain what I thought."},
     {"gather", 2, "After that, "},
     {"glue"},
-    {"option", 1, "... but I said nothing", "", "and "}, -- TODO space missing?
+    {"option", 1, "... but I said nothing", "", " and "},
     {"glue"},
     {"gather", 1, "we passed the day in silence."}
    -- {"gather", 2, "> END"} -- FIXME!

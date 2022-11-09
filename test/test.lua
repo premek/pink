@@ -1,17 +1,9 @@
 #!/usr/bin/env lua
 
 local luaunit = require('test.luaunit')
---local parser = require('pink.parser')
 local parser = require('pink.parser')
-local tokenizer = require('pink.tokenizer')
 local runtime = require('pink.runtime')
 local pink = require('pink.pink')
-
-
---- tokenizer ---
-
-
-function testTokenizer() doTTest('basic') end
 
 
 --- parser ---
@@ -95,29 +87,12 @@ function testRInvisibleDiverts()
 end
 
 
--- TODO test runtime more, test public pink API
-
-function testCLI()
-  -- note the different suffixes
-  os.execute("lua pink/pink.lua parse test/runtime/include.ink > tmp_test.lua")
-  local story = pink.getStory('tmp_test.ink')
-  luaunit.assertEquals(story.continue(), 'hello world')
-  luaunit.assertEquals(story.continue(), 'hello again')
-  luaunit.assertFalse(story.canContinue)
-  os.remove('tmp_test.lua')
-end
 -----------------------------
 
 function doTest(name)
   local test = require ('test.parser.'..name)
-  local parsed = parser(tokenizer(test.ink))
+  local parsed = parser(test.ink)
   luaunit.assertEquals(parsed, test.expected)
-end
-
-function doTTest(name)
-  local test = require ('test.tokenizer.'..name)
-  local parsed = tokenizer(test.ink).getAll()
-  luaunit.assertEquals(parsed, test.expected) --TODO
 end
 
 os.exit( luaunit.LuaUnit.run() )

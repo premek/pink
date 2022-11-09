@@ -23,8 +23,6 @@ expected={
 	{"para", "..."},
 	{"stitch", "missed_the_train"},
 	{"para", "..."},
-	{"knot", "the_orient_express"},
-	{"knot", "the_orient_express"},
-	{"stitch", "stitch"}
+	{"knot", "the_orient_express"}
 }
 }

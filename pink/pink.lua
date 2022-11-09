@@ -3,7 +3,6 @@
 if not arg[1] and not (...) then error("Usage: `require` this file from a script or call `lua pink/pink.lua parse game.ink`") end
 local folderOfThisFile = arg[1] and string.sub(..., 1, string.len(arg[1]))==arg[1] and arg[0]:match("(.-)[^/\\]+$") or (...):match("(.-)[^%.]+$")
 local parser = require(folderOfThisFile .. 'parser')
-local tokenizer = require(folderOfThisFile .. 'tokenizer')
 local runtime = require(folderOfThisFile .. 'runtime')
 
 
@@ -38,7 +37,7 @@ local parse;
 parse = function(file)
   local parsed = {}
   local reader = getFileReader()
-  for _,t in ipairs(parser(tokenizer(reader(file)))) do
+  for _,t in ipairs(parser(reader(file))) do
     if t[2] and t[1]=='include' then
       for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
         table.insert(parsed, included)
@@ -52,47 +51,11 @@ end
 
 local api = {
   getStory = function (filename)
-    local parsed
-    if not pcall(function ()
-      parsed = require (string.sub(filename, 1, -5))
-      --print('loaded precompiled story')
-    end) then
-      parsed = parse(filename)
-      --print('story compiled')
-    end
-    return runtime(parsed)
+    return runtime(parse(filename))
   end
 }
 
 
-
-local function dump ( t ) -- tables only
-    local function sub_print_r(t)
-            if (type(t)=="table") then
-                local b = ""
-                for pos,val in pairs(t) do
-                    if (type(val)=="table") then
-                        b = b .. "{"..sub_print_r(val).."},"
-                    elseif (type(val)=="string") then
-                        b = b .. '"'..string.gsub(val,'"', '\\"')..'",'
-                    else
-                        b = b .. tostring(val) .. ','
-                    end
-                end
-                return b
-            else
-                return tostring(t)
-            end
-    end
-    return "-- This file was generated from an .ink file using the pink library - do not edit\nreturn {" .. sub_print_r(t) .. "}"
-end
-
-
-
-
-if arg[1] == 'parse' and arg[2] then
-  print(dump(parse(arg[2])))
-end
 
 
 return api
