@@ -21,46 +21,7 @@ return function (tree)
 
     -- TODO state should contain tree/pointer to be able to save / load
 
-    local preProcess = function ()
-
-        local aboveTags = {}
-        local lastPara = {}
-        local lastKnotName
-
-        for p, n in ipairs(tree) do
-            if is('knot', n) then -- FIXME stitches
-                knots[n[2]] = p
-                --print(v[2],k)
-            end
-
-            --  if is('tag', n) then
-            --if n[2] == 'global' then 
-            --      table.insert(s.globalTags, n[3])
-            --    end
-            --if n[2] == 'above' then
-            --      if lastKnotName then table.insert(tagsForContentAtPath[lastKnotName], n[3]) end
-            --      table.insert(aboveTags, n[3])
-            --    end
-            --if n[2] == 'end' then 
-            --    if tags[lastPara] then
-            --         table.insert(tags[lastPara], n[2])
-            --    end
-            --    end
-            --  end
-
-            if is('knot', n) or is('stitch', n) then
-                lastKnotName = n[2]
-                tagsForContentAtPath[lastKnotName] = {}
-            end      
-
-            if is('para', n) then
-                tags[p] = aboveTags
-                aboveTags = {}
-                lastPara = p
-            end
-
-        end
-    end
+    
 
     local goToKnot = function(knotName)
         if knots[knotName] then
@@ -94,7 +55,6 @@ return function (tree)
         end
 
         if isNext('tag') then 
-
             pointer = pointer + 1
             update()
             return      
@@ -128,7 +88,49 @@ return function (tree)
         end
     end
 
-    local step = function ()
+
+
+    local preProcess = function ()
+
+        while isNext('tag') do
+            table.insert(s.globalTags, tree[pointer][2])
+            pointer = pointer + 1
+        end
+
+        local aboveTags = {}
+        local lastPara = {}
+        local lastKnotName
+
+        for p, n in ipairs(tree) do
+            if is('knot', n) then -- FIXME stitches
+                knots[n[2]] = p
+                --print(v[2],k)
+            end
+
+            --  if is('tag', n) then
+            --if n[2] == 'above' then
+            --      if lastKnotName then table.insert(tagsForContentAtPath[lastKnotName], n[3]) end
+            --      table.insert(aboveTags, n[3])
+            --    end
+            --if n[2] == 'end' then 
+            --    if tags[lastPara] then
+            --         table.insert(tags[lastPara], n[2])
+            --    end
+            --    end
+            --  end
+
+            if is('knot', n) or is('stitch', n) then
+                lastKnotName = n[2]
+                tagsForContentAtPath[lastKnotName] = {}
+            end      
+
+            if is('para', n) then
+                tags[p] = aboveTags
+                aboveTags = {}
+                lastPara = p
+            end
+
+        end
     end
 
     s.canContinue = nil
@@ -137,6 +139,7 @@ return function (tree)
 
         local res = getPara()
         s.currentTags = tags[pointer] or {}
+
 
         pointer = pointer + 1
         update()
