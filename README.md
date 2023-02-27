@@ -1,7 +1,7 @@
 [![status](https://travis-ci.org/premek/pink.svg)](https://travis-ci.org/premek/pink)
 
 # pink
-An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua using [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg)
+An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua
 
 _Ink is inkle's scripting language for writing interactive narrative, both for text-centric games as well as more graphical games that contain highly branching stories._
 
