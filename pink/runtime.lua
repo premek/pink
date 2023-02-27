@@ -182,5 +182,7 @@ return function (tree)
     -- debug
     s._tree = tree
 
+    update()
+
     return s
 end
