@@ -40,6 +40,16 @@ return function(source)
         return str == peek(#str)
     end
 
+    local aheadAnyOf = function(...)
+        for _, str in ipairs{...} do
+            if ahead(str) then
+                return true
+            end
+        end
+        return false
+    end
+
+
     local errorAt = function(msg, ...)
         local formattedMsg = string.format(msg, unpack(...)) -- unpack must be last argument
         error(string.format(formattedMsg .. " at line %s, column %s", line, column))
@@ -62,14 +72,14 @@ return function(source)
 
 
     local singleLineComment = function()
-        while peek() ~= '\n' and not isAtEnd() do
+        while not ahead('\n') and not isAtEnd() do
             next()
         end
     end
 
     local multiLineComment = function()
-        while peek(2) ~= '*/' and not isAtEnd() do
-            if peek() == '\n' then
+        while not ahead('*/') and not isAtEnd() do
+            if ahead('\n') then
                 newline()
             end
             next()
@@ -87,17 +97,8 @@ return function(source)
     local text = function()
         local s = current
 
-        while peek() ~= '#'
-            and peek(2) ~= '->'
-            and peek(2) ~= '=='
-            and peek(2) ~= '<>'
-            and peek(2) ~= '//'
-            and peek() ~= ']' -- TODO different kind of "text' when we are inside an option?
-            and peek() ~= '['
-            and peek(2) ~= '/*'
-            and peek() ~= '\n'
-            and not isAtEnd() do
-
+        -- TODO different kind of "text' when we are inside an option?
+        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '/*', '\n') and not isAtEnd() do
             next()
         end
         return currentText(s)
@@ -111,7 +112,7 @@ return function(source)
 
     local textLine = function()
         local s = current
-        while peek() ~= '\n' and not isAtEnd() do --FIXME -- TODO make sure isAtEnd is not forgotten in any loop
+        while not ahead('\n') and not isAtEnd() do --FIXME -- TODO make sure isAtEnd is not forgotten in any loop
             next()
         end
         return currentText(s)
@@ -123,8 +124,8 @@ return function(source)
 
     local identifier = function()
         local s = current
-        --FIXME -- TODO make sure isAtEnd is not forgotten in any loop
-        while peek() ~= '\n' and peek() ~= ' ' and not isAtEnd() do
+        --FIXME -- TODO make sure isAtEnd is not forgotten in any loop // TODO parse line by line
+        while not aheadAnyOf('\n', ' ') and not isAtEnd() do
             next()
         end
         return currentText(s)
@@ -132,13 +133,8 @@ return function(source)
 
 
     local consumeWhitespace = function()
-        while true do
-            local c = peek()
-            if c == ' ' or c == '\r' or c == '\t' then
-                next()
-            else
-                return
-            end
+        while aheadAnyOf(' ', '\r', '\t') do
+            next()
         end
     end
 
@@ -241,13 +237,9 @@ return function(source)
 
         start = current
 
-        local c = peek() --FIXME peek or advance
-        --print(c)
+        consumeWhitespace()
 
-        if c == ' ' or c == '\r' or c == '\t' then
-            next()
-            -- skip
-        elseif c == '\n' then
+        if ahead('\n') then
             next()
             newline()
         elseif ahead('//') then
