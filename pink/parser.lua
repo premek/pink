@@ -1,7 +1,6 @@
 local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
 return function(source)
-    local start=1
     local current=1
     local line = 1
     local column = 1
@@ -89,7 +88,6 @@ return function(source)
 
 
     local currentText = function(s)
-        s = s or start
         return source:sub(s, current-1)
     end
 
@@ -234,8 +232,6 @@ return function(source)
             --        addStatement('eof', nil, line, column, '')
             break
         end
-
-        start = current
 
         consumeWhitespace()
 
