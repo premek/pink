@@ -194,11 +194,11 @@ return function(input, source)
 
     local gather = function()
         local nesting = 0
-        repeat
+        while ahead("-") do
             consume("-")
             nesting = nesting + 1
             consumeWhitespace()
-        until not ahead("-")
+        end
 
         addStatement('gather', nesting, text())
     end
