@@ -71,7 +71,7 @@ function testRTags()
     -- TODO
   local story = pink.getStory('test/runtime/tags.ink')
   luaunit.assertEquals(story.globalTags, {"author: Joseph Humfrey", "title: My Wonderful Ink Story"})
-  story.choosePathString('content');
+  -- assert we can start with a divert
   luaunit.assertEquals(story.continue(), 'This is the line of content. ')
   --luaunit.assertEquals(story.currentTags, {"the first tag", "the second tag", "the third tag"})
   story.continue()
