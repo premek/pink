@@ -37,7 +37,7 @@ local parse;
 parse = function(file)
   local parsed = {}
   local reader = getFileReader()
-  for _,t in ipairs(parser(reader(file))) do
+  for _,t in ipairs(parser(reader(file), file)) do
     if t[2] and t[1]=='include' then
       for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
         table.insert(parsed, included)

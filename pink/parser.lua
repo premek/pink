@@ -1,13 +1,14 @@
 local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
-return function(source)
+return function(input, source)
+    local source = source or 'unknown source'
     local current=1
     local line = 1
     local column = 1
     local statements = {}
 
     local isAtEnd = function()
-        return current >= #source
+        return current >= #input
     end
 
     local newline = function()
@@ -15,14 +16,8 @@ return function(source)
         column = 1
     end
 
-
     local addStatement = function(...)
         table.insert(statements, {...})
-    end
-
-    local currentChar = function(chars)
-        chars = chars or 1
-        return source:sub(current, current+chars-1)
     end
 
     local next = function(chars)
@@ -33,8 +28,9 @@ return function(source)
 
     local peek = function(chars)
         if isAtEnd() then return nil end -- FIXME?
-        return currentChar(chars)
+        return input:sub(current, current+chars-1)
     end
+
     local ahead = function(str)
         return str == peek(#str)
     end
@@ -50,12 +46,12 @@ return function(source)
 
 
     local errorAt = function(msg, ...)
-        local formattedMsg = string.format(msg, unpack(...)) -- unpack must be last argument
-        error(string.format(formattedMsg .. " at line %s, column %s", line, column))
+        local formattedMsg = string.format(msg, ...)
+        error(string.format(formattedMsg .. " at '%s', line %s, column %s", source, line, column))
     end
 
     local consume = function(str)
-        if str ~= source:sub(current, current+#str-1) then
+        if str ~= input:sub(current, current+#str-1) then
             errorAt("expected '%s'", str)
         end
         next(#str)
@@ -88,7 +84,7 @@ return function(source)
 
 
     local currentText = function(s)
-        return source:sub(s, current-1)
+        return input:sub(s, current-1)
     end
 
 

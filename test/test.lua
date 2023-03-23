@@ -91,7 +91,7 @@ end
 
 function doTest(name)
   local test = require ('test.parser.'..name)
-  local parsed = parser(test.ink)
+  local parsed = parser(test.ink, 'test.parser.'..name..'.ink')
   luaunit.assertEquals(parsed, test.expected)
 end
 
