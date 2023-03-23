@@ -51,7 +51,7 @@ return function(input, source)
     end
 
     local consume = function(str)
-        if str ~= input:sub(current, current+#str-1) then
+        if not ahead(str) then
             errorAt("expected '%s'", str)
         end
         next(#str)
@@ -172,16 +172,20 @@ return function(input, source)
 
     local option = function()
         local nesting = 0
-        repeat
+        while ahead("*") do
             consume("*")
             nesting = nesting + 1
             consumeWhitespace()
-        until not ahead("*")
+        end
 
         local t1 = text()
-        if ahead('[') then next() end
-        local t2 = text()
-        if ahead(']') then next() end
+        
+        local t2 = ""
+        if ahead('[') then
+            next() 
+            t2 = text()
+            consume(']')
+        end
         local t3 = text()
 
 
