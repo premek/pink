@@ -28,7 +28,8 @@ return function (tree)
             s.state.visitCount[knotName] = s.state.visitCountAtPathString(knotName) + 1
             pointer = knots[knotName] + 1 -- go to the line after the knot
         else
-            print('unknown knot', knotName)
+            -- print('unknown knot', knotName) -- TODO check at compile time?
+            pointer = #tree + 1 -- end
         end
     end
 

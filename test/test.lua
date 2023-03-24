@@ -47,6 +47,12 @@ function testRChoices()
   luaunit.assertFalse(story.canContinue)
 end
 
+function testInvalidKnot()
+  local story = pink.getStory('test/runtime/branching.ink')
+  story.choosePathString('nonexistent');
+  luaunit.assertFalse(story.canContinue)  
+end
+
 
 function testRVisitCount()
   local story = pink.getStory('test/runtime/branching.ink')
