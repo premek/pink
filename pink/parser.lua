@@ -136,6 +136,13 @@ return function(input, source)
         return currentText(s)
     end
 
+    local value = function()
+        local s = current
+        while not aheadAnyOf(' ', ',') and not eolAhead() do -- FIXME
+            next()
+        end
+        return currentText(s)
+    end
 
     local consumeWhitespace = function()
         while whitespaceAhead() do
@@ -222,6 +229,34 @@ return function(input, source)
         addStatement('tag', text())
     end
 
+    local variable = function()
+        consume("VAR")
+        consumeWhitespace()
+        local name = identifier()
+        consumeWhitespace()
+        consume("=")
+        consumeWhitespace()
+        local value = value()
+        addStatement('var', name, value)
+    end
+
+    local list = function()
+        consume("LIST")
+        consumeWhitespace()
+        local name = identifier()
+        consumeWhitespace()
+        consume("=")
+        consumeWhitespace()
+        local values = {value()}
+        while not eolAhead() do
+            consumeWhitespace()
+            consume(",")
+            consumeWhitespace()
+            table.insert(values, value())
+        end
+        addStatement('list', name, table.unpack(values))
+    end
+
 
 
     local maxIter = 3000 -- just for debugging -- TODO better safety catch
@@ -272,6 +307,10 @@ return function(input, source)
             gather()
         elseif ahead('#') then
             tag()
+        elseif ahead('VAR') then
+            variable()
+        elseif ahead('LIST') then
+            list()
         else
             para()
         end

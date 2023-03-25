@@ -10,7 +10,8 @@ return function (tree)
         globalTags = {},
         state = {
             visitCount = {},
-        }
+        },
+        variables = {}
     }
 
     local pointer = 1
@@ -60,6 +61,21 @@ return function (tree)
             update()
             return      
         end
+
+        if isNext('var') then
+            s.variables[tree[pointer][2]] = tree[pointer][3]
+            pointer = pointer + 1            
+            update()
+            return
+        end
+
+        if isNext('list') then
+            s.variables[tree[pointer][2]] = { table.unpack(tree[pointer], 3) }
+            pointer = pointer + 1            
+            update()
+            return
+        end
+
 
         s.canContinue = isNext('para')
 
