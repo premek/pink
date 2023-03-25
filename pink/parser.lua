@@ -101,7 +101,7 @@ return function(input, source)
 
         -- TODO different kind of "text' when we are inside an option? 
         -- or treat text differently than other tokens?
-        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '/*', '\n') and not isAtEnd() do
+        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '/*', '\n') and not isAtEnd() do
             next()
         end
         return currentText(s)
@@ -130,18 +130,29 @@ return function(input, source)
 
     local identifier = function()
         local s = current
-        while not ahead(' ') and not eolAhead() do
+        -- TODO list allowed chars instead?
+        while not aheadAnyOf(' ', '}') and not eolAhead() do
             next()
         end
         return currentText(s)
     end
 
-    local value = function()
+    local stringValue = function()
+        consume('"')
         local s = current
-        while not aheadAnyOf(' ', ',') and not eolAhead() do -- FIXME
+        while not ahead('"') and not eolAhead() do
             next()
         end
-        return currentText(s)
+        local str = currentText(s)
+        consume('"')
+        return str -- TODO indicate it's a string and not a variable reference
+    end
+
+    local value = function()
+        if ahead('"') then
+            return stringValue()
+        end
+        return identifier()
     end
 
     local consumeWhitespace = function()
@@ -257,6 +268,11 @@ return function(input, source)
         addStatement('list', name, table.unpack(values))
     end
 
+    local alternative = function()
+        consume("{")
+        addStatement('alt', identifier()) -- TODO other types
+        consume("}")
+    end
 
 
     local maxIter = 3000 -- just for debugging -- TODO better safety catch
@@ -311,6 +327,8 @@ return function(input, source)
             variable()
         elseif ahead('LIST') then
             list()
+        elseif ahead('{') then
+            alternative()
         else
             para()
         end

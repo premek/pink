@@ -38,9 +38,6 @@ return function (tree)
         return is(what, tree[pointer])
     end
 
-    local getPara = function ()
-        if isNext('para') then return tree[pointer][2] end
-    end
 
     local update
     update = function ()
@@ -154,14 +151,24 @@ return function (tree)
 
     s.continue = function()
 
-        local res = getPara()
-        s.currentTags = tags[pointer] or {}
+        local res = ''
+        if isNext('para') then 
+            res = tree[pointer][2]
+        end
 
+        s.currentTags = tags[pointer] or {}
 
         pointer = pointer + 1
         update()
 
         if isNext('glue') then
+            pointer = pointer + 1
+            update()
+            res = res .. s.continue()
+        end
+
+        if isNext('alt') then
+            res = res .. s.variables[tree[pointer][2]] 
             pointer = pointer + 1
             update()
             res = res .. s.continue()
