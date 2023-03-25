@@ -44,6 +44,14 @@ return function(input, source)
         return false
     end
 
+    local whitespaceAhead = function()
+        return aheadAnyOf(' ', '\r', '\t')
+    end    
+
+    local eolAhead = function()
+        return ahead('\n') or isAtEnd()
+    end
+
 
     local errorAt = function(msg, ...)
         local formattedMsg = string.format(msg, ...)
@@ -67,7 +75,7 @@ return function(input, source)
 
 
     local singleLineComment = function()
-        while not ahead('\n') and not isAtEnd() do
+        while not eolAhead() do
             next()
         end
     end
@@ -91,7 +99,8 @@ return function(input, source)
     local text = function()
         local s = current
 
-        -- TODO different kind of "text' when we are inside an option?
+        -- TODO different kind of "text' when we are inside an option? 
+        -- or treat text differently than other tokens?
         while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '/*', '\n') and not isAtEnd() do
             next()
         end
@@ -100,13 +109,16 @@ return function(input, source)
 
 
     local para = function()
-        addStatement('para', text())
+        local s = current
+        local t = text()
+        if current > s then
+            addStatement('para', t)
+        end
     end
-
 
     local textLine = function()
         local s = current
-        while not ahead('\n') and not isAtEnd() do --FIXME -- TODO make sure isAtEnd is not forgotten in any loop
+        while not eolAhead() do
             next()
         end
         return currentText(s)
@@ -118,8 +130,7 @@ return function(input, source)
 
     local identifier = function()
         local s = current
-        --FIXME -- TODO make sure isAtEnd is not forgotten in any loop // TODO parse line by line
-        while not aheadAnyOf('\n', ' ') and not isAtEnd() do
+        while not ahead(' ') and not eolAhead() do
             next()
         end
         return currentText(s)
@@ -127,7 +138,7 @@ return function(input, source)
 
 
     local consumeWhitespace = function()
-        while aheadAnyOf(' ', '\r', '\t') do
+        while whitespaceAhead() do
             next()
         end
     end
@@ -147,6 +158,7 @@ return function(input, source)
     local glue = function()
         consume("<>")
         addStatement('glue')
+        para() -- don't ignore whitespace after glue
     end
 
     local divert = function()
@@ -247,7 +259,7 @@ return function(input, source)
         elseif ahead('INCLUDE') then
             include()
         elseif ahead('<>') then
-            glue() -- TODO should probably be handled inside text(), to preserve whitespace? or not?
+            glue()
         elseif ahead('->') then
             divert()
         elseif ahead('==') then
