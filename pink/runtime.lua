@@ -66,6 +66,13 @@ return function (tree)
             return
         end
 
+        if isNext('const') then
+            s.variables[tree[pointer][2]] = tree[pointer][3] -- TODO const
+            pointer = pointer + 1            
+            update()
+            return
+        end
+
         if isNext('list') then
             s.variables[tree[pointer][2]] = { table.unpack(tree[pointer], 3) }
             pointer = pointer + 1            
@@ -74,7 +81,7 @@ return function (tree)
         end
 
 
-        s.canContinue = isNext('para')
+        s.canContinue = isNext('para') or isNext('alt')-- FIXME
 
         s.currentChoices = {}
         currentChoicesPointers = {}

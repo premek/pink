@@ -240,6 +240,17 @@ return function(input, source)
         addStatement('tag', text())
     end
 
+    local constant = function()
+        consume("CONST")
+        consumeWhitespace()
+        local name = identifier()
+        consumeWhitespace()
+        consume("=")
+        consumeWhitespace()
+        local value = value()
+        addStatement('const', name, value)
+    end
+
     local variable = function()
         consume("VAR")
         consumeWhitespace()
@@ -323,6 +334,8 @@ return function(input, source)
             gather()
         elseif ahead('#') then
             tag()
+        elseif ahead('CONST') then
+            constant()
         elseif ahead('VAR') then
             variable()
         elseif ahead('LIST') then
