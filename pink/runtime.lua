@@ -2,7 +2,7 @@ local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
 local is = function (what, node)
     return node ~= nil
-    and (type(node) == "table" and node[1] == what)
+        and (type(node) == "table" and node[1] == what)
 end
 
 return function (tree)
@@ -22,7 +22,7 @@ return function (tree)
 
     -- TODO state should contain tree/pointer to be able to save / load
 
-    
+
 
     local goToKnot = function(knotName)
         if knots[knotName] then
@@ -43,8 +43,8 @@ return function (tree)
     update = function ()
 
         if isNext('knot') then
-            -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
-            --next = goToKnot(next[2])
+        -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
+        --next = goToKnot(next[2])
         end
 
         if isNext('divert') then
@@ -53,29 +53,29 @@ return function (tree)
             return
         end
 
-        if isNext('tag') then 
+        if isNext('tag') then
             pointer = pointer + 1
             update()
-            return      
+            return
         end
 
         if isNext('var') then
             s.variables[tree[pointer][2]] = tree[pointer][3]
-            pointer = pointer + 1            
+            pointer = pointer + 1
             update()
             return
         end
 
         if isNext('const') then
             s.variables[tree[pointer][2]] = tree[pointer][3] -- TODO const
-            pointer = pointer + 1            
+            pointer = pointer + 1
             update()
             return
         end
 
         if isNext('list') then
             s.variables[tree[pointer][2]] = { table.unpack(tree[pointer], 3) }
-            pointer = pointer + 1            
+            pointer = pointer + 1
             update()
             return
         end
@@ -92,14 +92,14 @@ return function (tree)
             for p=pointer, #tree do
                 local n = tree[p]
                 --print('looking for options', choiceDepth, n[1], n[2])
-                if is('knot', n) or is('stitch', n) or (is('option', n) and n[2] < choiceDepth) then 
+                if is('knot', n) or is('stitch', n) or (is('option', n) and n[2] < choiceDepth) then
                     --print('stop looking for options');
                     break
                 end
 
                 if is('option', n) and n[2] == choiceDepth then
                     -- print('adding', p, n[3])
-                    table.insert(currentChoicesPointers, p)	
+                    table.insert(currentChoicesPointers, p)
                     table.insert(s.currentChoices, {
                         text = (n[3] or '') .. (n[4] or ''),
                         choiceText = n[3] .. (n[5] or ''),
@@ -133,7 +133,7 @@ return function (tree)
             --      if lastKnotName then table.insert(tagsForContentAtPath[lastKnotName], n[3]) end
             --      table.insert(aboveTags, n[3])
             --    end
-            --if n[2] == 'end' then 
+            --if n[2] == 'end' then
             --    if tags[lastPara] then
             --         table.insert(tags[lastPara], n[2])
             --    end
@@ -143,7 +143,7 @@ return function (tree)
             if is('knot', n) or is('stitch', n) then
                 lastKnotName = n[2]
                 tagsForContentAtPath[lastKnotName] = {}
-            end      
+            end
 
             if is('para', n) then
                 tags[p] = aboveTags
@@ -159,7 +159,7 @@ return function (tree)
     s.continue = function()
 
         local res = ''
-        if isNext('para') then 
+        if isNext('para') then
             res = tree[pointer][2]
         end
 
@@ -175,7 +175,7 @@ return function (tree)
         end
 
         if isNext('alt') then
-            res = res .. s.variables[tree[pointer][2]] 
+            res = res .. s.variables[tree[pointer][2]]
             pointer = pointer + 1
             update()
             res = res .. s.continue()

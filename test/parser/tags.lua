@@ -1,5 +1,5 @@
 return {
-ink=[[
+  ink=[[
 # author: Joseph Humfrey
 # title: My Wonderful Ink Story
 
@@ -12,7 +12,7 @@ This is the line of content. # the third tag # really_monsieur.ogg
 #tag
 aaa
 ]],
-expected={
+  expected={
     {"tag", "author: Joseph Humfrey"},
     {"tag", "title: My Wonderful Ink Story"},
     {"knot", "content"},
@@ -24,6 +24,6 @@ expected={
     {"tag", "really_monsieur.ogg"},
     {"tag", "tag"},
     {"para", "aaa"}
-}
+  }
 }
 

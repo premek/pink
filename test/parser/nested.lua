@@ -1,5 +1,5 @@
 return {
-ink=[[
+  ink=[[
         *   "Murder!"
             ** A
             * 	* A

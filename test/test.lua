@@ -50,7 +50,7 @@ end
 function testInvalidKnot()
   local story = pink.getStory('test/runtime/branching.ink')
   story.choosePathString('nonexistent');
-  luaunit.assertFalse(story.canContinue)  
+  luaunit.assertFalse(story.canContinue)
 end
 
 
@@ -74,7 +74,7 @@ function testRInclude()
 end
 
 function testRTags()
-    -- TODO
+  -- TODO
   local story = pink.getStory('test/runtime/tags.ink')
   luaunit.assertEquals(story.globalTags, {"author: Joseph Humfrey", "title: My Wonderful Ink Story"})
   -- assert we can start with a divert

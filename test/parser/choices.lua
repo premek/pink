@@ -1,5 +1,5 @@
 return {
-ink=[[
+  ink=[[
 == start ==
 *   I dont know
 *   "I am somewhat tired[."]," I repeated.
@@ -11,7 +11,7 @@ ink=[[
     "Ah,". "I see you"
 == finale ==
 ]],
-expected= {
+  expected= {
     {"knot", "start"},
     {"option", 1, "I dont know", "", ""},
     {"option", 1, '"I am somewhat tired', '."', '," I repeated.'},
@@ -22,5 +22,5 @@ expected= {
     {"option", 1, "I said no more", "", ""},
     {"para", '"Ah,". "I see you"'},
     {"knot", "finale"}
-}
+  }
 }

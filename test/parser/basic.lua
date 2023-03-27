@@ -1,5 +1,5 @@
 return {
-ink=[[
+  ink=[[
 Hello, world!
 Hello?
 "What do you make of this?" she asked.
@@ -17,7 +17,7 @@ stiiii
 =st2
 222stiiii ->END
 ]],
-expected= {
+  expected= {
     {"para", "Hello, world!"},
     {"para", "Hello?"},
     {"para", '"What do you make of this?" she asked.'},
@@ -34,4 +34,4 @@ expected= {
     {"stitch", "st2"},
     {"para", "222stiiii "},
     {"divert", "END"}
-}}
+  }}

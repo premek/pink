@@ -22,11 +22,11 @@ end
 
 
 function getFileReader() -- TODO allow provide implementation from client code or pass an ink content in a string
-  if love and love.filesystem then 
-      return loveFileReader
-  else
-      return ioFileReader
-  end
+    if love and love.filesystem then
+        return loveFileReader
+else
+    return ioFileReader
+end
 end
 
 local function basename(str) return string.gsub(str, "(.*/)(.*)", "%2") end
@@ -35,24 +35,24 @@ local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
 
 local parse;
 parse = function(file)
-  local parsed = {}
-  local reader = getFileReader()
-  for _,t in ipairs(parser(reader(file), file)) do
-    if t[2] and t[1]=='include' then
-      for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
-        table.insert(parsed, included)
-      end
-    else
-      table.insert(parsed, t)
+    local parsed = {}
+    local reader = getFileReader()
+    for _,t in ipairs(parser(reader(file), file)) do
+        if t[2] and t[1]=='include' then
+            for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
+                table.insert(parsed, included)
+            end
+        else
+            table.insert(parsed, t)
+        end
     end
-  end
-  return parsed
+    return parsed
 end
 
 local api = {
-  getStory = function (filename)
-    return runtime(parse(filename))
-  end
+    getStory = function (filename)
+        return runtime(parse(filename))
+    end
 }
 
 

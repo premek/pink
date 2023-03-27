@@ -1,5 +1,5 @@
 return {
-ink=[[
+  ink=[[
 === back_in_london ===
 
 We arrived into London at 9.45pm exactly.
@@ -26,15 +26,15 @@ He insisted that we hurried home to Savile Row
 === as_fast_as_we_could ===
 <> as fast as we could.
 ]],
-expected= {
+  expected= {
     {"knot", "back_in_london"},
     {"para", "We arrived into London at 9.45pm exactly."},
     {"option", 1, '"There is not a moment to lose!"', "", " I declared."},
     {"divert", "hurry_outside"},
     {"option", 1, '"Monsieur, let us savour this moment!"', "", " I declared."},
     {
-        "para",
-        "My master clouted me firmly around the head and dragged me out of the door."
+      "para",
+      "My master clouted me firmly around the head and dragged me out of the door."
     },
     {"glue"},
     {"divert", "dragged_outside"},
@@ -49,5 +49,5 @@ expected= {
     {"knot", "as_fast_as_we_could"},
     {"glue"},
     {"para", "as fast as we could."}
-}
+  }
 }

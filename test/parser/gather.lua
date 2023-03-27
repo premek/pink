@@ -1,5 +1,5 @@
 return {
-ink=[[
+  ink=[[
 I looked at Monsieur Fogg
 *	... and I could contain myself no longer.
 	'What is the purpose of our journey, Monsieur?'
@@ -34,11 +34,11 @@ I looked at Monsieur Fogg
     {"option", 3, "'A modest wager, I trust?'", "", ""},
     {"para", "'Twenty thousand pounds,' he replied, quite flatly."},
     {
-        "option",
-        3,
-        "I asked nothing further of him then",
-        ".",
-        ", and after a final, polite cough, he offered nothing more to me. "
+      "option",
+      3,
+      "I asked nothing further of him then",
+      ".",
+      ", and after a final, polite cough, he offered nothing more to me. "
     },
     {"glue"},
     {"option", 2, "'Ah", ".'", ",' I replied, uncertain what I thought."},

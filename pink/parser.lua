@@ -46,7 +46,7 @@ return function(input, source)
 
     local whitespaceAhead = function()
         return aheadAnyOf(' ', '\r', '\t')
-    end    
+    end
 
     local eolAhead = function()
         return ahead('\n') or isAtEnd()
@@ -99,7 +99,7 @@ return function(input, source)
     local text = function()
         local s = current
 
-        -- TODO different kind of "text' when we are inside an option? 
+        -- TODO different kind of "text' when we are inside an option?
         -- or treat text differently than other tokens?
         while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '/*', '\n') and not isAtEnd() do
             next()
@@ -209,10 +209,10 @@ return function(input, source)
         end
 
         local t1 = text()
-        
+
         local t2 = ""
         if ahead('[') then
-            next() 
+            next()
             t2 = text()
             consume(']')
         end
