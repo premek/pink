@@ -1,15 +1,19 @@
 -- FIXME clean up
 
-if not arg[1] and not (...) then error("Usage: `require` this file from a script or call `lua pink/pink.lua parse game.ink`") end
-local folderOfThisFile = arg[1] and string.sub(..., 1, string.len(arg[1]))==arg[1] and arg[0]:match("(.-)[^/\\]+$") or (...):match("(.-)[^%.]+$")
+if not arg[1] and not (...) then
+    error("Usage: `require` this file from a script or call `lua pink/pink.lua parse game.ink`")
+end
+local folderOfThisFile = arg[1]
+    and string.sub(..., 1, string.len(arg[1]))==arg[1]
+    and arg[0]:match("(.-)[^/\\]+$")
+    or (...):match("(.-)[^%.]+$")
 local parser = require(folderOfThisFile .. 'parser')
 local runtime = require(folderOfThisFile .. 'runtime')
 
 
 local function loveFileReader(file)
     if not love.filesystem.getInfo(file, "file") then error('failed to open "'..file..'"') end
-    local content, size = love.filesystem.read(file)
-    return content
+    return love.filesystem.read(file)
 end
 
 local function ioFileReader(file)
@@ -21,7 +25,7 @@ local function ioFileReader(file)
 end
 
 
-function getFileReader() -- TODO allow provide implementation from client code or pass an ink content in a string
+local function getFileReader() -- TODO allow provide implementation from client code or pass an ink content in a string
     if love and love.filesystem then
         return loveFileReader
 else
@@ -29,7 +33,6 @@ else
 end
 end
 
-local function basename(str) return string.gsub(str, "(.*/)(.*)", "%2") end
 local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
 
 

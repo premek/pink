@@ -8,7 +8,7 @@ story.choosePathString('back_in_london');
 local currentText = nil
 local a=10
 
-function love.update(dt)
+function love.update()
   if not currentText then
     if story.canContinue then
       currentText = story.continue() .. '\n\n(press space to continue)'

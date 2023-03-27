@@ -1,7 +1,8 @@
-local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
+local _debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
 return function(input, source)
-    local source = source or 'unknown source'
+    source = source or 'unknown source'
+
     local current=1
     local line = 1
     local column = 1
@@ -247,8 +248,7 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        local value = value()
-        addStatement('const', name, value)
+        addStatement('const', name, value())
     end
 
     local variable = function()
@@ -258,8 +258,7 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        local value = value()
-        addStatement('var', name, value)
+        addStatement('var', name, value())
     end
 
     local list = function()

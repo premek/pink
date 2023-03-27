@@ -1,4 +1,4 @@
-local debug = function(x) print( require('test/luaunit').prettystr(x) ) end
+local _debug = function(x) print( require('test/luaunit').prettystr(x) ) end
 
 local is = function (what, node)
     return node ~= nil
@@ -42,10 +42,10 @@ return function (tree)
     local update
     update = function ()
 
-        if isNext('knot') then
+        -- if isNext('knot') then
         -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
         --next = goToKnot(next[2])
-        end
+        -- end
 
         if isNext('divert') then
             goToKnot(tree[pointer][2])
@@ -119,7 +119,7 @@ return function (tree)
         end
 
         local aboveTags = {}
-        local lastPara = {}
+        --local lastPara = {}
         local lastKnotName
 
         for p, n in ipairs(tree) do
@@ -148,7 +148,7 @@ return function (tree)
             if is('para', n) then
                 tags[p] = aboveTags
                 aboveTags = {}
-                lastPara = p
+                -- lastPara = p
             end
 
         end

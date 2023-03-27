@@ -4,8 +4,8 @@ Hello, world!
 Hello?
 "What do you make of this?" she asked.
 "I couldn't possibly comment," I replied.
-we <> 
-hurr ied-> to_savile_row 
+we <>
+hurr ied-> to_savile_row
 
   === to_savile_row ==
   === to_savile_row2

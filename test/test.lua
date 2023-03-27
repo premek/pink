@@ -2,8 +2,13 @@
 
 local luaunit = require('test.luaunit')
 local parser = require('pink.parser')
-local runtime = require('pink.runtime')
 local pink = require('pink.pink')
+
+local function doTest(name)
+  local test = require ('test.parser.'..name)
+  local parsed = parser(test.ink, 'test.parser.'..name..'.ink')
+  luaunit.assertEquals(parsed, test.expected)
+end
 
 
 --- parser ---
@@ -83,7 +88,8 @@ function testRTags()
   story.continue()
   --luaunit.assertEquals(story.currentTags, {"not this one"})
   luaunit.assertFalse(story.canContinue)
-  --luaunit.assertEquals(story.tagsForContentAtPath('Munich'), {"location: Germany", "overview: munich.ogg", "require: Train ticket"})
+  --luaunit.assertEquals(story.tagsForContentAtPath('Munich'),
+  --{"location: Germany", "overview: munich.ogg", "require: Train ticket"})
 end
 
 function testRInvisibleDiverts()
@@ -94,11 +100,5 @@ end
 
 
 -----------------------------
-
-function doTest(name)
-  local test = require ('test.parser.'..name)
-  local parsed = parser(test.ink, 'test.parser.'..name..'.ink')
-  luaunit.assertEquals(parsed, test.expected)
-end
 
 os.exit( luaunit.LuaUnit.run() )

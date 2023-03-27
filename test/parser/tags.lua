@@ -3,7 +3,7 @@ return {
 # author: Joseph Humfrey
 # title: My Wonderful Ink Story
 
-=== content 
+=== content
 # location: Germany
 # overview: munich.ogg
 # require: Train ticket
