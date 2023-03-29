@@ -3,6 +3,11 @@ An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua
 
 _Ink is inkle's scripting language for writing interactive narrative, both for text-centric games as well as more graphical games that contain highly branching stories._
 
+  <a href="https://premek.github.io/ink-proof/#!/tests?overview=ink" alt="pink test results">
+    <img src="https://premek.github.io/ink-proof/pink_compiler.svg"/>
+  </a>
+
+
 ## Parser
 Supported:
 - Paragraphs
@@ -109,3 +114,6 @@ And this example shows [LÖVE](https://love2d.org) integration:
 
 ## How to run tests
     $ lua test/test.lua
+
+- [More tests](https://premek.github.io/ink-proof/#!/tests?overview=ink) - source: [premek/ink-proof](https://github.com/premek/ink-proof) 
+    
