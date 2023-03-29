@@ -24,7 +24,7 @@ return function(input, source)
     local next = function(chars)
         chars = chars or 1
         column = column + chars
-        current = current + chars
+        current = current + chars -- todo error on unexpected eof
     end
 
     local peek = function(chars)
@@ -34,6 +34,14 @@ return function(input, source)
 
     local ahead = function(str)
         return str == peek(#str)
+    end
+    
+    local consumeIfAhead = function(str) -- TODO better name?
+        if not ahead(str) then 
+            return false
+        end
+        consume(str)
+        return true
     end
 
     local aheadAnyOf = function(...)
@@ -144,16 +152,27 @@ return function(input, source)
         while not ahead('"') and not eolAhead() do
             next()
         end
-        local str = currentText(s)
+        local val = currentText(s)
         consume('"')
-        return str -- TODO indicate it's a string and not a variable reference
+        return {'str', val}
+    end
+
+    local intValue = function()
+        local s = current
+        while aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') do
+            next()
+        end
+        local val = currentText(s)
+        return {'int', val}
     end
 
     local value = function()
         if ahead('"') then
             return stringValue()
+        elseif aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') then -- TODO
+            return intValue()
         end
-        return identifier()
+        return {'ref', identifier()}
     end
 
     local consumeWhitespace = function()
@@ -278,10 +297,17 @@ return function(input, source)
         addStatement('list', name, table.unpack(values))
     end
 
-    local alternative = function()
+    local alternative = function() --TODO name?
         consume("{")
-        addStatement('alt', identifier()) -- TODO other types
+        local vals = {}
+
+        repeat
+            table.insert(vals, {'ref', identifier()})
+        until not consumeIfAhead('|') -- TODO more readable?
+
+        -- TODO other types
         consume("}")
+        addStatement('alt', table.unpack(vals)) -- TODO name
     end
 
 
