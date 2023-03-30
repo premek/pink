@@ -40,11 +40,20 @@ return function (tree)
 
     local getValue
     getValue=function(val)
-        --_debug(val)
+        -- _debug(val, val[2])
         if val[1] == 'ref' then
-            return getValue(s.variables[val[2]])
+            local name = val[2]
+            local var = s.variables[val[2]]
+            if var == nil then
+                -- TODO log code location, need info from parser
+                -- FIXME detect on compile time
+                error('unresolved variable: ' .. name)
+            end
+            return getValue(var)
+        elseif val[1] == 'str' or val[1] == 'int' then
+            return val[2]
         else
-            return val[2] -- TODO str, num ,...?
+            error('unsupported value type: '..val[2])
         end
     end
 

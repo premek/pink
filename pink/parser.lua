@@ -35,14 +35,6 @@ return function(input, source)
     local ahead = function(str)
         return str == peek(#str)
     end
-    
-    local consumeIfAhead = function(str) -- TODO better name?
-        if not ahead(str) then 
-            return false
-        end
-        consume(str)
-        return true
-    end
 
     local aheadAnyOf = function(...)
         for _, str in ipairs{...} do
@@ -78,6 +70,14 @@ return function(input, source)
         while ahead(c) do
             next()
         end
+    end
+
+    local consumeIfAhead = function(str) -- TODO better name?
+        if not ahead(str) then
+            return false
+    end
+    consume(str)
+    return true
     end
 
 
@@ -139,8 +139,8 @@ return function(input, source)
 
     local identifier = function()
         local s = current
-        -- TODO list allowed chars instead?
-        while not aheadAnyOf(' ', '}') and not eolAhead() do
+        -- TODO list allowed chars instead!
+        while not aheadAnyOf(' ', '}', ',') and not eolAhead() do
             next()
         end
         return currentText(s)
