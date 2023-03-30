@@ -169,7 +169,8 @@ return function(input, source)
     local value = function()
         if ahead('"') then
             return stringValue()
-        elseif aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') then -- TODO
+        end
+        if aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') then -- TODO
             return intValue()
         end
         return {'ref', identifier()}
@@ -297,12 +298,12 @@ return function(input, source)
         addStatement('list', name, table.unpack(values))
     end
 
-    local alternative = function() --TODO name?
+    local alternative = function() --TODO name? used for sequences, variable printing, conditional text
         consume("{")
         local vals = {}
 
         repeat
-            table.insert(vals, {'ref', identifier()})
+            table.insert(vals, value())
         until not consumeIfAhead('|') -- TODO more readable?
 
         -- TODO other types
