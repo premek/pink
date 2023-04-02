@@ -11,7 +11,15 @@ return function (tree)
         state = {
             visitCount = {},
         },
-        variables = {}
+        variables = {
+            FLOOR=math.floor,
+            CEILING=math.ceil,
+            INT=function(a) if tonumber(a)>0 then return math.floor(a) else return math.ceil(a) end end, -- FIXME
+            ['+']=function(a,b) return a+b end,
+            ['-']=function(a,b) return a-b end,
+            ['*']=function(a,b) return a*b end,
+            ['/']=function(a,b) return a/b end, -- FIXME integer division on integers
+        }
     }
 
     local pointer = 1
@@ -43,17 +51,34 @@ return function (tree)
         -- _debug(val, val[2])
         if val[1] == 'ref' then
             local name = val[2]
-            local var = s.variables[val[2]]
+            local var = s.variables[name]
             if var == nil then
                 -- TODO log code location, need info from parser
                 -- FIXME detect on compile time
                 error('unresolved variable: ' .. name)
             end
             return getValue(var)
-        elseif val[1] == 'str' or val[1] == 'int' then
+
+        elseif val[1] == 'str' or val[1] == 'int' or val[1] == 'float' then
             return val[2]
+
+        elseif val[1] == 'call' then
+            local name = val[2]
+            local fn = s.variables[name]
+            if fn == nil then
+                -- TODO log code location, need info from parser
+                -- FIXME detect on compile time
+                error('unresolved function: ' .. name)
+            end
+            local arguments = {}
+            for i=3, #val do
+                table.insert(arguments, getValue(val[i]))
+            end
+            local returnValue = fn(table.unpack(arguments))
+            return returnValue
+
         else
-            error('unsupported value type: '..val[2])
+            error('unsupported value type: '..val[1])
         end
     end
 

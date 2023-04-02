@@ -32,6 +32,12 @@ return function(input, source)
         return input:sub(current, current+chars-1)
     end
 
+    local peekCode = function()
+        if isAtEnd() then return nil end
+        return input:byte(current, current)
+    end
+
+
     local ahead = function(str)
         return str == peek(#str)
     end
@@ -78,6 +84,12 @@ return function(input, source)
     end
     consume(str)
     return true
+    end
+
+    local consumeWhitespace = function()
+        while whitespaceAhead() do
+            next()
+        end
     end
 
 
@@ -139,14 +151,19 @@ return function(input, source)
 
     local identifier = function()
         local s = current
-        -- TODO list allowed chars instead!
-        while not aheadAnyOf(' ', '}', ',') and not eolAhead() do
+        -- FIXME: https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md#part-6-international-character-support-in-identifiers
+        local c = peekCode()
+        while c ~= nil and ((c>65 and c<90) or (c>97 and c<122)) do -- TODO!
             next()
+            c = peekCode()
+        end
+        if s == current then -- nothing consumed
+            errorAt('identifier expected')
         end
         return currentText(s)
     end
 
-    local stringValue = function()
+    local stringLiteral = function()
         consume('"')
         local s = current
         while not ahead('"') and not eolAhead() do
@@ -157,30 +174,77 @@ return function(input, source)
         return {'str', val}
     end
 
-    local intValue = function()
+    local number = function()
         local s = current
-        while aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') do
+        if ahead('-') then
             next()
         end
-        local val = currentText(s)
+        while aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') do -- TODO
+            next()
+        end
+        return currentText(s)
+    end
+
+    local floatLiteral = function(intPart)
+        consume('.')
+        return {'float', intPart..'.'..number()} -- TODO cast
+    end
+
+    local intLiteral = function()
+        local val = number()
+        if ahead('.') then
+            return floatLiteral(val)
+        end
         return {'int', val}
     end
 
-    local value = function()
-        if ahead('"') then
-            return stringValue()
+    local term, expression; -- cross dependency, must be defined earlier
+
+    local functionCall = function(functionName)
+        consume('(')
+        local result = {'call', functionName}
+        while not ahead(')') do
+            table.insert(result, expression())
+            consumeWhitespace()
+            if ahead(',') then
+                consume(",")
+                consumeWhitespace()
+            end
         end
-        if aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') then -- TODO
-            return intValue()
-        end
-        return {'ref', identifier()}
+        consume(')')
+        return result
     end
 
-    local consumeWhitespace = function()
-        while whitespaceAhead() do
-            next()
+
+    term = function()
+        if ahead('"') then
+            return stringLiteral()
         end
+        if aheadAnyOf('-', '0','1', '2','3','4','5','6','7','8','9') then -- TODO
+            return intLiteral()
+        end
+        local id = identifier()
+        consumeWhitespace()
+        if ahead('(') then
+            return functionCall(id)
+        end
+        return {'ref', id}
     end
+
+    expression = function()
+        local first = term()
+        consumeWhitespace()
+        if aheadAnyOf('+', '-', '*', '/') then
+            local operator = peek(1)
+            next()
+            consumeWhitespace()
+            local second = term()
+            return {'call', operator, first, second}
+        end
+        return first
+    end
+
+
 
     local include = function()
         consume("INCLUDE")
@@ -268,7 +332,7 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        addStatement('const', name, value())
+        addStatement('const', name, expression())
     end
 
     local variable = function()
@@ -278,7 +342,7 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        addStatement('var', name, value())
+        addStatement('var', name, expression())
     end
 
     local list = function()
@@ -288,14 +352,15 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        local values = {value()}
+
+        local list = {'list', name, expression()}
         while not eolAhead() do
             consumeWhitespace()
             consume(",")
             consumeWhitespace()
-            table.insert(values, value())
+            table.insert(list, expression())
         end
-        addStatement('list', name, table.unpack(values))
+        addStatement(list)
     end
 
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text
@@ -303,7 +368,7 @@ return function(input, source)
         local vals = {}
 
         repeat
-            table.insert(vals, value())
+            table.insert(vals, expression())
         until not consumeIfAhead('|') -- TODO more readable?
 
         -- TODO other types
