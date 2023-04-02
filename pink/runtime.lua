@@ -19,6 +19,7 @@ return function (tree)
             ['-']=function(a,b) return a-b end,
             ['*']=function(a,b) return a*b end,
             ['/']=function(a,b) return a/b end, -- FIXME integer division on integers
+            ['==']=function(a,b) return a==b end, -- FIXME type coercion
         }
     }
 
@@ -134,7 +135,7 @@ return function (tree)
         end
 
 
-        s.canContinue = isNext('para') or isNext('alt')-- FIXME
+        s.canContinue = isNext('para') or isNext('alt') or isNext('if')-- FIXME
 
         s.currentChoices = {}
         currentChoicesPointers = {}
@@ -209,6 +210,10 @@ return function (tree)
 
     s.canContinue = nil
 
+
+    local isTruthy = function(a)
+        return not not a
+    end
     s.continue = function()
 
         local res = ''
@@ -219,6 +224,15 @@ return function (tree)
             res = res .. s.continue()
         elseif isNext('alt') then
             res = getValue(tree[pointer][2])
+            pointer = pointer + 1
+            update()
+            res = res .. s.continue()
+        elseif isNext('if') then
+            if isTruthy(getValue(tree[pointer][2])) then
+                res=tree[pointer][3]
+            elseif tree[pointer][4] ~= nil then
+                res=tree[pointer][4]
+            end
             pointer = pointer + 1
             update()
             res = res .. s.continue()

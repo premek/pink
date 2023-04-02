@@ -78,12 +78,15 @@ return function(input, source)
         end
     end
 
-    local consumeIfAhead = function(str) -- TODO better name?
-        if not ahead(str) then
-            return false
-    end
-    consume(str)
-    return true
+    local consumeIfAnyOf = function(...)
+        for _, str in ipairs{...} do
+            if ahead(str) then
+                consume(str)
+                return true, str
+            end
+        end
+        return false, nil
+
     end
 
     local consumeWhitespace = function()
@@ -122,7 +125,8 @@ return function(input, source)
 
         -- TODO different kind of "text' when we are inside an option?
         -- or treat text differently than other tokens?
-        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '/*', '\n') and not isAtEnd() do
+        -- TODO list allowed chars only
+        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n') and not isAtEnd() do
             next()
         end
         return currentText(s)
@@ -153,7 +157,7 @@ return function(input, source)
         local s = current
         -- FIXME: https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md#part-6-international-character-support-in-identifiers
         local c = peekCode()
-        while c ~= nil and ( 
+        while c ~= nil and (
             -- TODO
             c==95 -- _
             or c==46 -- .
@@ -242,9 +246,8 @@ return function(input, source)
     expression = function()
         local first = term()
         consumeWhitespace()
-        if aheadAnyOf('+', '-', '*', '/') then
-            local operator = peek(1)
-            next()
+        local consumedAny, operator = consumeIfAnyOf('+', '-', '*', '/', '==')
+        if consumedAny then
             consumeWhitespace()
             local second = term()
             return {'call', operator, first, second}
@@ -395,15 +398,30 @@ return function(input, source)
 
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text
         consume("{")
-        local vals = {}
+        local first = expression()
 
-        repeat
-            table.insert(vals, expression())
-        until not consumeIfAhead('|') -- TODO more readable?
+        if ahead(':') then
+            consume(':')
+            local ifTrue = text()--expression()
+            local ifFalse = nil
+            if ahead('|') then
+                consume('|')
+                ifFalse = text()--expression()
+            end
+            addStatement('if', first, ifTrue, ifFalse)
 
+        elseif ahead('|') then
+            local vals = {first}
+            while ahead('|') do
+                consume('|')
+                table.insert(vals, expression())
+            end
+            addStatement('alt', table.unpack(vals))
+        else
+            addStatement('alt', first) -- TODO name - variable printing
+        end
         -- TODO other types
         consume("}")
-        addStatement('alt', table.unpack(vals)) -- TODO name
     end
 
     local returnStatement = function()
