@@ -7,9 +7,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
 DIR="$(dirname "$0")"
 
-DIFF="diff"
 DIFF="colordiff"
-DIFF="delta --light --line-numbers --side-by-side"
 
 RET=0
 TESTS=0
@@ -53,8 +51,7 @@ for P in $PATTERNS; do
     for D in "./$DIR/runtime/"$P; do
       TESTCASE=$(basename "$D")
       TESTS=$((TESTS+1))
-      "./$DIR/pink-runner.lua" "$D/story.ink" < "$D/input.txt" > "$TMP/$TESTCASE-output" &&
-         $DIFF "$D/transcript.txt" "$TMP/$TESTCASE-output" &&
+      "./$DIR/pink-runner.lua" "$D/story.ink" < "$D/input.txt" | $DIFF "$D/transcript.txt" - &&
          echo "$TESTCASE OK" && PASSES=$((PASSES+1)) || RET=1
     done
   fi

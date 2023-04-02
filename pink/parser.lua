@@ -153,7 +153,15 @@ return function(input, source)
         local s = current
         -- FIXME: https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md#part-6-international-character-support-in-identifiers
         local c = peekCode()
-        while c ~= nil and ((c>65 and c<90) or (c>97 and c<122)) do -- TODO!
+        while c ~= nil and ( 
+            -- TODO
+            c==95 -- _
+            or c==46 -- .
+            or (c>=65 and c<=90) -- A-Z
+            or (c>=97 and c<=122) -- a-z
+            ) do -- TODO!
+
+
             next()
             c = peekCode()
         end
@@ -270,11 +278,23 @@ return function(input, source)
         addStatement('divert', identifier())
     end
 
+    local fn = function(name)
+        consumeWhitespace()
+        addStatement('fn', identifier())
+        consumeWhitespace()
+        consumeAll('=')
+    end
+
     local knot = function()
         consume("==")
         consumeAll('=')
         consumeWhitespace()
-        addStatement('knot', identifier())
+        local id = identifier()
+        if id == 'function' then
+            return fn()
+        end
+
+        addStatement('knot', id)
         consumeWhitespace()
         consumeAll('=')
     end
