@@ -111,6 +111,14 @@ return function (tree)
             return
         end
 
+        if isNext('tempvar') then
+            -- TODO scope
+            s.variables[tree[pointer][2]] = tree[pointer][3]
+            pointer = pointer + 1
+            update()
+            return
+        end
+
         if isNext('const') then
             s.variables[tree[pointer][2]] = tree[pointer][3] -- TODO const
             pointer = pointer + 1

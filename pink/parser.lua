@@ -365,6 +365,16 @@ return function(input, source)
         addStatement('var', name, expression())
     end
 
+    local tempVariable = function()
+        consume("temp")
+        consumeWhitespace()
+        local name = identifier()
+        consumeWhitespace()
+        consume("=")
+        consumeWhitespace()
+        addStatement('tempvar', name, expression()) --TODO better name? local var? var?
+    end
+
     local list = function()
         consume("LIST")
         consumeWhitespace()
@@ -394,6 +404,24 @@ return function(input, source)
         -- TODO other types
         consume("}")
         addStatement('alt', table.unpack(vals)) -- TODO name
+    end
+
+    local returnStatement = function()
+        consume('return')
+        consumeWhitespace()
+        addStatement('return', expression())
+    end
+
+    local statement = function()
+        consume("~")
+        consumeWhitespace()
+        if ahead('return') then
+            returnStatement()
+        elseif ahead('temp') then
+            tempVariable()
+        else
+            errorAt('unexpected statement')
+        end
     end
 
 
@@ -453,6 +481,8 @@ return function(input, source)
             list()
         elseif ahead('{') then
             alternative()
+        elseif ahead('~') then
+            statement()
         else
             para()
         end
