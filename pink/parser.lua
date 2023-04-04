@@ -157,17 +157,20 @@ return function(input, source)
         local s = current
         -- FIXME: https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md#part-6-international-character-support-in-identifiers
         local c = peekCode()
+        local first = true
         while c ~= nil and (
             -- TODO
             c==95 -- _
             or c==46 -- .
             or (c>=65 and c<=90) -- A-Z
             or (c>=97 and c<=122) -- a-z
+            or (not first and c>=48 and c<=57)
             ) do -- TODO!
 
 
             next()
             c = peekCode()
+            first = false
         end
         if s == current then -- nothing consumed
             errorAt('identifier expected')
