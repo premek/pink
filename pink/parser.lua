@@ -243,7 +243,7 @@ return function(input, source)
         if ahead('(') then
             return functionCall(id)
         end
-        return {'ref', id}
+        return {'ref', id} -- FIXME same name as function argument passed as a reference
     end
 
     expression = function()
@@ -286,7 +286,35 @@ return function(input, source)
 
     local fn = function(name)
         consumeWhitespace()
-        addStatement('fn', identifier())
+        local res = {'fn', identifier()}
+        if ahead('(') then
+            consume('(')
+            consumeWhitespace()
+            local param = {'param', identifier()}
+            if param[2] == 'ref' then
+                consumeWhitespace()
+                param[2] = identifier()
+                param[3] = 'ref'
+            end
+            table.insert(res, param)
+            consumeWhitespace()
+            while ahead(',') do
+                consume(',')
+                consumeWhitespace()
+                -- FIXME duplicate
+                local param = {'param', identifier()}
+                if param[2] == 'ref' then
+                    consumeWhitespace()
+                    param[2] = identifier()
+                    param[3] = 'ref'
+                end
+                table.insert(res, param)
+                consumeWhitespace()
+            end
+            consume(')')
+        end
+
+        addStatement(table.unpack(res)) -- TODO unpack??
         consumeWhitespace()
         consumeAll('=')
     end
@@ -401,15 +429,16 @@ return function(input, source)
 
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text
         consume("{")
+        consumeWhitespace()
         local first = expression()
 
         if ahead(':') then
             consume(':')
-            local ifTrue = text()--expression()
+            local ifTrue = text() -- FIXME ink text
             local ifFalse = nil
             if ahead('|') then
                 consume('|')
-                ifFalse = text()--expression()
+                ifFalse = text() -- FIXME ink text
             end
             addStatement('if', first, ifTrue, ifFalse)
 
@@ -441,7 +470,19 @@ return function(input, source)
         elseif ahead('temp') then
             tempVariable()
         else
-            errorAt('unexpected statement')
+            local id = identifier()
+            consumeWhitespace()
+            if ahead('(') then
+                addStatement(table.unpack(functionCall(id))) -- TODO unpack??
+                return
+            elseif ahead('=') then
+                consume('=')
+                consumeWhitespace()
+                addStatement('assign', id, expression())
+                return
+            end
+
+            errorAt('unexpected statement near ' .. id)
         end
     end
 
