@@ -95,6 +95,15 @@ return function(input, source)
         end
     end
 
+    local consumeWhitespaceAndNewlines
+    consumeWhitespaceAndNewlines = function()
+        consumeWhitespace()
+        if ahead('\n') then
+            next()
+            newline()
+            consumeWhitespaceAndNewlines()
+        end
+    end
 
 
 
@@ -434,7 +443,9 @@ return function(input, source)
 
         if ahead(':') then
             consume(':')
+            consumeWhitespaceAndNewlines()
             local ifTrue = text() -- FIXME ink text
+            consumeWhitespaceAndNewlines()
             local ifFalse = nil
             if ahead('|') then
                 consume('|')
