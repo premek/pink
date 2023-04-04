@@ -65,6 +65,17 @@ return function (tree)
 
         elseif val[1] == 'call' then
             local name = val[2]
+            -- TODO use 'ref' attributes to call this the same as other functions
+            -- TODO check var type
+            if name == '++' then
+                s.variables[val[3]][2] = tostring(tonumber(s.variables[val[3]][2]) + 1)
+                return
+            end
+            if name == '--' then
+                s.variables[val[3]][2] = tostring(tonumber(s.variables[val[3]][2]) - 1) -- FIXME var types
+                return
+            end
+
             local fn = s.variables[name]
             if fn == nil then
                 -- TODO log code location, need info from parser
@@ -135,7 +146,7 @@ return function (tree)
         end
 
 
-        s.canContinue = isNext('para') or isNext('alt') or isNext('if')-- FIXME
+        s.canContinue = isNext('para') or isNext('alt') or isNext('if') or isNext('call')-- FIXME
 
         s.currentChoices = {}
         currentChoicesPointers = {}
@@ -224,6 +235,11 @@ return function (tree)
             res = res .. s.continue()
         elseif isNext('alt') then
             res = getValue(tree[pointer][2])
+            pointer = pointer + 1
+            update()
+            res = res .. s.continue()
+        elseif isNext('call') then
+            getValue(tree[pointer])
             pointer = pointer + 1
             update()
             res = res .. s.continue()

@@ -438,7 +438,7 @@ return function(input, source)
 
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text
         consume("{")
-        consumeWhitespace()
+        consumeWhitespaceAndNewlines()
         local first = expression()
 
         if ahead(':') then
@@ -485,6 +485,14 @@ return function(input, source)
             consumeWhitespace()
             if ahead('(') then
                 addStatement(table.unpack(functionCall(id))) -- TODO unpack??
+                return
+            elseif ahead('++') then
+                consume('++')
+                addStatement('call', '++', id)
+                return
+            elseif ahead('--') then
+                consume('--')
+                addStatement('call', '--', id)
                 return
             elseif ahead('=') then
                 consume('=')
