@@ -43,8 +43,15 @@ return function (tree)
         end
     end
 
+    local isEnd = function()
+        return tree[pointer] == nil
+    end
     local isNext = function (what)
         return is(what, tree[pointer])
+    end
+
+    local isTruthy = function(a)
+        return not not a
     end
 
     local getValue
@@ -59,6 +66,15 @@ return function (tree)
                 error('unresolved variable: ' .. name)
             end
             return getValue(var)
+
+        elseif val[1] == 'if' then
+            if isTruthy(getValue(val[2])) then
+                return val[3]
+            elseif val[4] ~= nil then
+                return val[4]
+            else
+                return ""
+            end
 
         elseif val[1] == 'str' or val[1] == 'int' or val[1] == 'float' then
             return val[2]
@@ -146,7 +162,7 @@ return function (tree)
         end
 
 
-        s.canContinue = isNext('para') or isNext('alt') or isNext('if') or isNext('call')-- FIXME
+        s.canContinue = isNext('nl') or isNext('str') or isNext('alt') or isNext('if') or isNext('call')-- FIXME
 
         s.currentChoices = {}
         currentChoicesPointers = {}
@@ -222,14 +238,13 @@ return function (tree)
     s.canContinue = nil
 
 
-    local isTruthy = function(a)
-        return not not a
-    end
+
     s.continue = function()
+        local lastpointer=pointer
 
         local res = ''
-        if isNext('para') then
-            res = tree[pointer][2]
+        if isNext('str') or isNext('ref') then
+            res = res..getValue(tree[pointer])
             pointer = pointer + 1
             update()
             res = res .. s.continue()
@@ -252,13 +267,34 @@ return function (tree)
             pointer = pointer + 1
             update()
             res = res .. s.continue()
-        elseif isNext('glue') then
+        end
+
+
+        if isNext('glue') then
             pointer = pointer + 1
+            update()
+            res = res .. s.continue()
+        elseif isNext('divert') then
+            goToKnot(tree[pointer][2])
             update()
             res = res .. s.continue()
         end
 
+        while isNext('nl') do
+            pointer = pointer + 1
+            update()
+        end
+        if isEnd() then
+            pointer = pointer + 1
+            update()
+        end
+
+
         s.currentTags = tags[pointer] or {}
+
+        if lastpointer == pointer then
+            error('nothing consumed in continue at pointer '..pointer)
+        end
         return res;
     end
 

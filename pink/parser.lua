@@ -142,14 +142,6 @@ return function(input, source)
     end
 
 
-    local para = function()
-        local s = current
-        local t = text()
-        if current > s then
-            addStatement('para', t)
-        end
-    end
-
     local textLine = function()
         local s = current
         while not eolAhead() do
@@ -281,19 +273,13 @@ return function(input, source)
         addStatement('todo', textLine())
     end
 
-    local glue = function()
-        consume("<>")
-        addStatement('glue')
-        para() -- don't ignore whitespace after glue
-    end
-
     local divert = function()
         consume("->")
         consumeWhitespace()
         addStatement('divert', identifier())
     end
 
-    local fn = function(name)
+    local fn = function()
         consumeWhitespace()
         local res = {'fn', identifier()}
         if ahead('(') then
@@ -340,12 +326,14 @@ return function(input, source)
         addStatement('knot', id)
         consumeWhitespace()
         consumeAll('=')
+        consumeWhitespaceAndNewlines()
     end
 
     local stitch = function()
         consume("=")
         consumeWhitespace()
         addStatement('stitch', identifier())
+        consumeWhitespaceAndNewlines()
     end
 
     local option = function()
@@ -368,6 +356,7 @@ return function(input, source)
 
 
         addStatement('option', nesting, t1, t2, t3)
+        consumeWhitespaceAndNewlines()
     end
 
     local gather = function()
@@ -396,6 +385,7 @@ return function(input, source)
         consume("=")
         consumeWhitespace()
         addStatement('const', name, expression())
+        consumeWhitespaceAndNewlines()
     end
 
     local variable = function()
@@ -406,6 +396,7 @@ return function(input, source)
         consume("=")
         consumeWhitespace()
         addStatement('var', name, expression())
+        consumeWhitespaceAndNewlines()
     end
 
     local tempVariable = function()
@@ -416,6 +407,7 @@ return function(input, source)
         consume("=")
         consumeWhitespace()
         addStatement('tempvar', name, expression()) --TODO better name? local var? var?
+        consumeWhitespaceAndNewlines()
     end
 
     local list = function()
@@ -434,6 +426,11 @@ return function(input, source)
             table.insert(list, expression())
         end
         addStatement(list)
+        consumeWhitespaceAndNewlines()
+    end
+
+    local para = function()
+        addStatement('str', text())
     end
 
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text
@@ -465,12 +462,29 @@ return function(input, source)
         end
         -- TODO other types
         consume("}")
+        para() -- don't ignore whitespace (TODO, same like glue)
+
+    end
+
+
+    local glue = function()
+        consume("<>")
+        addStatement('glue')
+        if ahead('\n') then
+            newline()
+            next()
+        end
+        para() -- don't ignore whitespace after glue
     end
 
     local returnStatement = function()
         consume('return')
         consumeWhitespace()
-        addStatement('return', expression())
+        if eolAhead() then
+            addStatement('return')
+        else
+            addStatement('return', expression())
+        end
     end
 
     local statement = function()
@@ -532,6 +546,7 @@ return function(input, source)
         if ahead('\n') then
             next()
             newline()
+            addStatement('nl')
         elseif ahead('//') then
             singleLineComment()
         elseif ahead('/*') then
