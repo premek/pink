@@ -285,18 +285,7 @@ return function(input, source)
         if ahead('(') then
             consume('(')
             consumeWhitespace()
-            local param = {'param', identifier()}
-            if param[2] == 'ref' then
-                consumeWhitespace()
-                param[2] = identifier()
-                param[3] = 'ref'
-            end
-            table.insert(res, param)
-            consumeWhitespace()
-            while ahead(',') do
-                consume(',')
-                consumeWhitespace()
-                -- FIXME duplicate
+            if not ahead(')') then
                 local param = {'param', identifier()}
                 if param[2] == 'ref' then
                     consumeWhitespace()
@@ -305,6 +294,19 @@ return function(input, source)
                 end
                 table.insert(res, param)
                 consumeWhitespace()
+                while ahead(',') do
+                    consume(',')
+                    consumeWhitespace()
+                    -- FIXME duplicate
+                    local param = {'param', identifier()}
+                    if param[2] == 'ref' then
+                        consumeWhitespace()
+                        param[2] = identifier()
+                        param[3] = 'ref'
+                    end
+                    table.insert(res, param)
+                    consumeWhitespace()
+                end
             end
             consume(')')
         end
@@ -430,7 +432,10 @@ return function(input, source)
     end
 
     local para = function()
-        addStatement('str', text())
+        local t = text()
+        if #t > 0 then
+            addStatement('str', t)
+        end
     end
 
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text
@@ -586,3 +591,4 @@ return function(input, source)
 
     return statements
 end
+
