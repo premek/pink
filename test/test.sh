@@ -51,7 +51,7 @@ for P in $PATTERNS; do
     for D in "./$DIR/runtime/"$P; do
       TESTCASE=$(basename "$D")
       TESTS=$((TESTS+1))
-      printf '%s ' "$TESTCASE" && "./$DIR/pink-runner.lua" "$D/story.ink" < "$D/input.txt" | $DIFF "$D/transcript.txt" - &&
+      printf '%s ' "$TESTCASE" && "./$DIR/pink-runner.lua" "$D/story.ink" < "$D/input.txt" | $DIFF -C5 "$D/transcript.txt" - &&
          echo "OK" && PASSES=$((PASSES+1)) || RET=1
     done
   fi
