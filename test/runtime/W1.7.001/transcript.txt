@@ -1,0 +1,11 @@
+
+You search desperately for a friendly face in the crowd.
+
+1: The woman in the hat?
+2: The man with the briefcase?
+?> The woman in the hat pushes you roughly aside. You search desperately for a friendly face in the crowd.
+
+1: The man with the briefcase?
+?> The man with the briefcase looks disgusted as you stumble past him. You search desperately for a friendly face in the crowd.
+
+TODO Line 6: ran out of content. Do you need a '-> DONE' or '-> END'?
