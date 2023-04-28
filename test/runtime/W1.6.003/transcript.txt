@@ -1,0 +1,12 @@
+
+We boarded the train, but where?
+
+1: First class
+2: Second class
+?>  
+I settled my master.
+
+1: Move to second class
+?> 
+second
+

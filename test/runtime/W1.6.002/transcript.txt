@@ -1,0 +1,6 @@
+
+1: Travel in first class
+2: Travel in second class
+?> 
+"First class, Monsieur. Where else?"
+first
