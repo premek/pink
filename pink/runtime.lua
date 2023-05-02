@@ -239,6 +239,8 @@ return function (tree)
 
 
 
+    local lastOut = nil
+
     s.continue = function()
         local lastpointer=pointer
 
@@ -280,6 +282,7 @@ return function (tree)
             res = res .. s.continue()
         end
 
+        -- separates "a -> b" from "a\n -> b"
         while isNext('nl') do
             pointer = pointer + 1
             update()
@@ -295,6 +298,13 @@ return function (tree)
         if lastpointer == pointer then
             error('nothing consumed in continue at pointer '..pointer)
         end
+
+        -- if last output ended with a space and this one starts with one, we want just one space
+        if res:sub(1,1) == ' ' and lastOut:sub(-1) == ' ' then
+            res = res:sub(1)
+        end
+
+        lastOut = res;
         return res;
     end
 

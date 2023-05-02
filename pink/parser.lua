@@ -125,7 +125,7 @@ return function(input, source)
 
 
     local currentText = function(s)
-        return input:sub(s, current-1)
+        return input:sub(s, current-1):gsub("%s+", " ")
     end
 
 
@@ -347,12 +347,21 @@ return function(input, source)
         end
 
         local t1 = text()
+        local t1EndWithWhitespace = t1:sub(-1) == ' '
 
         local t2 = ""
         if ahead('[') then
-            next()
+            consume('[')
+            if t1EndWithWhitespace then
+                consumeWhitespace()
+            end
+
             t2 = text()
             consume(']')
+        end
+
+        if t1EndWithWhitespace then
+            consumeWhitespace()
         end
         local t3 = text()
 
@@ -589,6 +598,7 @@ return function(input, source)
         end
     end
 
+     --_debug(statements)
     return statements
 end
 
