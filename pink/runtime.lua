@@ -32,15 +32,19 @@ return function (tree)
     -- TODO state should contain tree/pointer to be able to save / load
 
 
-
-    local goToKnot = function(knotName)
-        if knots[knotName] then
-            s.state.visitCount[knotName] = s.state.visitCountAtPathString(knotName) + 1
-            pointer = knots[knotName] + 1 -- go to the line after the knot
+    local currentKnot = nil
+    local goTo = function(path)
+        if path == 'END' then
+            pointer = #tree+1
+        elseif knots[currentKnot] and knots[currentKnot][path] then
+            pointer = knots[currentKnot][path].pointer + 1
+        elseif knots[path] then
+            pointer = knots[path].pointer + 1
+            currentKnot = path
         else
-            -- print('unknown knot', knotName) -- TODO check at compile time?
-            pointer = #tree + 1 -- end
+            error("unknown path: " .. path) -- TODO check at compile time?
         end
+        s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
     end
 
     local isEnd = function()
@@ -121,7 +125,7 @@ return function (tree)
         -- end
 
         if isNext('divert') then
-            goToKnot(tree[pointer][2])
+            goTo(tree[pointer][2])
             update()
             return
         end
@@ -204,8 +208,11 @@ return function (tree)
         local lastKnotName
 
         for p, n in ipairs(tree) do
-            if is('knot', n) then -- FIXME stitches
-                knots[n[2]] = p
+            if is('knot', n) then
+                knots[n[2]] = {pointer=p}
+            end
+            if is('stitch', n) then
+                knots[lastKnotName][n[2]] = {pointer=p}
                 --print(v[2],k)
             end
 
@@ -221,7 +228,7 @@ return function (tree)
             --    end
             --  end
 
-            if is('knot', n) or is('stitch', n) then
+            if is('knot', n) then
                 lastKnotName = n[2]
                 tagsForContentAtPath[lastKnotName] = {}
             end
@@ -276,8 +283,8 @@ return function (tree)
             pointer = pointer + 1
             update()
             res = res .. s.continue()
-        elseif isNext('divert') then
-            goToKnot(tree[pointer][2])
+        elseif isNext('divert') then -- TODO duplicated code in update
+            goTo(tree[pointer][2])
             update()
             res = res .. s.continue()
         end
@@ -316,7 +323,7 @@ return function (tree)
     end
 
     s.choosePathString = function(knotName)
-        goToKnot(knotName)
+        goTo(knotName)
         update()
     end
 
@@ -334,8 +341,9 @@ return function (tree)
     -- s.state.ToJson();s.state.LoadJson(savedJson);
 
     preProcess()
-    --debug(tree)
-    --debug(tags)
+    --_debug(tree)
+    --_debug(tags)
+    --_debug(knots)
 
     -- debug
     s._tree = tree

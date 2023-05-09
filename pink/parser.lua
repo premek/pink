@@ -64,10 +64,17 @@ return function(input, source)
         local formattedMsg = string.format(msg, ...)
         error(string.format(formattedMsg .. " at '%s', line %s, column %s", source, line, column))
     end
+    local readable = function(s)
+        if s == '\n' then
+            return "newline"
+        else
+            return "'"..s.."'"
+        end
+    end
 
     local consume = function(str)
         if not ahead(str) then
-            errorAt("expected '%s'", str)
+            errorAt("expected " .. readable(str))
         end
         next(#str)
     end
@@ -333,6 +340,8 @@ return function(input, source)
         consume("=")
         consumeWhitespace()
         addStatement('stitch', identifier())
+        consumeWhitespace()
+        consume('\n')
         consumeWhitespaceAndNewlines()
     end
 
