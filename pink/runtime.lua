@@ -44,8 +44,21 @@ return function (tree)
     local goTo = function(path)
         if path == 'END' then
             pointer = #tree+1
+
+        elseif path:find('%.') ~= nil then
+            -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
+            local _, _, knot, stitch = path:find("(.+)%.(.+)")
+            pointer = knots[knot][stitch].pointer + 1
+            -- FIXME duplicates
+            currentKnot = knot
+            -- automatically go to the first stitch (only) if there is no other content in the knot
+            if isNext('stitch') then
+                pointer = pointer + 1
+            end
+
         elseif knots[currentKnot] and knots[currentKnot][path] then
             pointer = knots[currentKnot][path].pointer + 1
+
         elseif knots[path] then
             pointer = knots[path].pointer + 1
             currentKnot = path
@@ -53,6 +66,7 @@ return function (tree)
             if isNext('stitch') then
                 pointer = pointer + 1
             end
+
         else
             error("unknown path: " .. path) -- TODO check at compile time?
         end
