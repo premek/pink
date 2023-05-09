@@ -156,7 +156,8 @@ return function(input, source)
 
     local identifier = function()
         local s = current
-        -- FIXME: https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md#part-6-international-character-support-in-identifiers
+        -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
+        -- /WritingWithInk.md#part-6-international-character-support-in-identifiers
         local c = peekCode()
         local first = true
         while c ~= nil and (
@@ -279,39 +280,35 @@ return function(input, source)
         addStatement('divert', identifier())
     end
 
+    -- == function add(x,y) ==
     local fn = function()
         consumeWhitespace()
-        local res = {'fn', identifier()}
+        local name = identifier()
+        local params = {}
+
         if ahead('(') then
             consume('(')
             consumeWhitespace()
-            if not ahead(')') then
-                local param = {'param', identifier()}
-                if param[2] == 'ref' then
+            while not ahead(')') do
+                local paramName = identifier()
+                local passedByReference = false
+                if paramName == 'ref' then
+                    -- === function alter(ref x, k) ===
                     consumeWhitespace()
-                    param[2] = identifier()
-                    param[3] = 'ref'
+                    paramName = identifier()
+                    passedByReference = true
                 end
-                table.insert(res, param)
+                table.insert(params, {'param', paramName, passedByReference})
                 consumeWhitespace()
-                while ahead(',') do
+                if ahead(',') then
                     consume(',')
-                    consumeWhitespace()
-                    -- FIXME duplicate
-                    local param = {'param', identifier()}
-                    if param[2] == 'ref' then
-                        consumeWhitespace()
-                        param[2] = identifier()
-                        param[3] = 'ref'
-                    end
-                    table.insert(res, param)
                     consumeWhitespace()
                 end
             end
             consume(')')
         end
 
-        addStatement(table.unpack(res)) -- TODO unpack??
+        addStatement('fn', name, table.unpack(params))
         consumeWhitespace()
         consumeAll('=')
     end
@@ -322,7 +319,8 @@ return function(input, source)
         consumeWhitespace()
         local id = identifier()
         if id == 'function' then
-            return fn()
+            fn()
+            return
         end
 
         addStatement('knot', id)
@@ -598,7 +596,7 @@ return function(input, source)
         end
     end
 
-     --_debug(statements)
+    --_debug(statements)
     return statements
 end
 
