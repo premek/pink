@@ -385,7 +385,14 @@ return function(input, source)
             consumeWhitespace()
         end
 
-        addStatement('gather', nesting, text())
+        local label = nil
+        if ahead('(') then
+            consume('(')
+            label = identifier()
+            consume(')')
+            consumeWhitespace()
+        end
+        addStatement('gather', nesting, text(), label)
     end
 
 

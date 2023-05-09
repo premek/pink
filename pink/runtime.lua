@@ -42,15 +42,23 @@ return function (tree)
 
     local currentKnot = nil
     local goTo = function(path)
+        --_debug(knots)
         if path == 'END' or path == 'DONE' then
             pointer = #tree+1
 
         elseif path:find('%.') ~= nil then
             -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
-            local _, _, knot, stitch = path:find("(.+)%.(.+)")
-            pointer = knots[knot][stitch].pointer + 1
+            local _, _, p1, p2 = path:find("(.+)%.(.+)")
+
+            pointer = knots[p1][p2].pointer
+
+            -- enter inside the knot
+            if isNext('knot') then
+                pointer = pointer + 1
+            end
+
             -- FIXME duplicates
-            currentKnot = knot
+            currentKnot = p1
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
                 pointer = pointer + 1
@@ -70,6 +78,7 @@ return function (tree)
         else
             error("unknown path: " .. path) -- TODO check at compile time?
         end
+        
         s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
     end
 
@@ -79,7 +88,7 @@ return function (tree)
 
     local getValue
     getValue=function(val)
-        -- _debug(val, val[2])
+        --_debug(val, val[2])
         if val[1] == 'ref' then
             local name = val[2]
             local var = s.variables[name]
@@ -101,6 +110,9 @@ return function (tree)
 
         elseif val[1] == 'str' or val[1] == 'int' or val[1] == 'float' then
             return val[2]
+
+        elseif val[1] == 'gather' then -- diverted into a labelled gather
+            return val[3]
 
         elseif val[1] == 'call' then
             local name = val[2]
@@ -143,6 +155,8 @@ return function (tree)
             update()
             return
         end
+        
+
 
         if isNext('tag') then
             pointer = pointer + 1
@@ -180,7 +194,7 @@ return function (tree)
         end
 
 
-        s.canContinue = isNext('nl') or isNext('str') or isNext('alt') or isNext('if') or isNext('call')-- FIXME
+        s.canContinue = isNext('nl') or isNext('str') or isNext('alt') or isNext('if') or isNext('gather') or isNext('call')-- FIXME
 
         s.currentChoices = {}
         currentChoicesPointers = {}
@@ -219,15 +233,26 @@ return function (tree)
 
         local aboveTags = {}
         --local lastPara = {}
-        local lastKnotName
+        local lastKnot, lastStitch
 
         for p, n in ipairs(tree) do
             if is('knot', n) then
                 knots[n[2]] = {pointer=p}
+                lastKnot = n[2]
+                lastStitch = nil
+
+                tagsForContentAtPath[lastKnot] = {}                
             end
             if is('stitch', n) then
-                knots[lastKnotName][n[2]] = {pointer=p}
-                --print(v[2],k)
+                knots[lastKnot][n[2]] = {pointer=p}
+                lastStitch = n[2]
+            end
+            if is('gather', n) and n[4] then -- gather with a label
+                if lastStitch then 
+                    knots[lastKnot][lastStitch][n[4]] = {pointer=p}
+                else
+                    knots[lastKnot][n[4]] = {pointer=p}
+                end
             end
 
             --  if is('tag', n) then
@@ -241,11 +266,6 @@ return function (tree)
             --    end
             --    end
             --  end
-
-            if is('knot', n) then
-                lastKnotName = n[2]
-                tagsForContentAtPath[lastKnotName] = {}
-            end
 
             if is('para', n) then
                 tags[p] = aboveTags
@@ -271,6 +291,7 @@ return function (tree)
             pointer = pointer + 1
             update()
             res = res .. s.continue()
+
         elseif isNext('alt') then
             res = getValue(tree[pointer][2])
             if type(res) == 'number' then
@@ -303,6 +324,13 @@ return function (tree)
             pointer = pointer + 1
             update()
             res = res .. s.continue()
+
+        elseif isNext('gather') then -- diverted into a labeled gather
+            res = res..getValue(tree[pointer])
+            pointer = pointer + 1
+            update()
+            res = res .. s.continue()
+
         elseif isNext('divert') then -- TODO duplicated code in update
             goTo(tree[pointer][2])
             update()
