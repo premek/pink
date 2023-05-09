@@ -4,7 +4,7 @@ An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua
 _Ink is inkle's scripting language for writing interactive narrative, both for text-centric games as well as more graphical games that contain highly branching stories._
 
   <a href="https://premek.github.io/ink-proof/#!/tests?overview=ink" alt="pink test results">
-    <img src="https://premek.github.io/ink-proof/pink_compiler.svg"/>
+    <img src="https://premek.github.io/ink-proof/pink_compiler.svg"/> 
   </a>
 
 
