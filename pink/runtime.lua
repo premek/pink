@@ -42,7 +42,7 @@ return function (tree)
 
     local currentKnot = nil
     local goTo = function(path)
-        if path == 'END' then
+        if path == 'END' or path == 'DONE' then
             pointer = #tree+1
 
         elseif path:find('%.') ~= nil then
@@ -273,6 +273,12 @@ return function (tree)
             res = res .. s.continue()
         elseif isNext('alt') then
             res = getValue(tree[pointer][2])
+            if type(res) == 'number' then
+                local int, frac = math.modf(res)
+                if frac ~= 0 then
+                    res = string.format("%.7f", res)
+                end
+            end
             pointer = pointer + 1
             update()
             res = res .. s.continue()

@@ -482,6 +482,7 @@ return function(input, source)
             addStatement('alt', first) -- TODO name - variable printing
         end
         -- TODO other types
+        consumeWhitespace()
         consume("}")
         para() -- don't ignore whitespace (TODO, same like glue)
 
