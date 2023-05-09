@@ -32,6 +32,14 @@ return function (tree)
     -- TODO state should contain tree/pointer to be able to save / load
 
 
+    local isEnd = function()
+        return tree[pointer] == nil
+    end
+    local isNext = function (what)
+        return is(what, tree[pointer])
+    end
+
+
     local currentKnot = nil
     local goTo = function(path)
         if path == 'END' then
@@ -41,17 +49,14 @@ return function (tree)
         elseif knots[path] then
             pointer = knots[path].pointer + 1
             currentKnot = path
+            -- automatically go to the first stitch (only) if there is no other content in the knot
+            if isNext('stitch') then
+                pointer = pointer + 1
+            end
         else
             error("unknown path: " .. path) -- TODO check at compile time?
         end
         s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
-    end
-
-    local isEnd = function()
-        return tree[pointer] == nil
-    end
-    local isNext = function (what)
-        return is(what, tree[pointer])
     end
 
     local isTruthy = function(a)
@@ -118,11 +123,6 @@ return function (tree)
 
     local update
     update = function ()
-
-        -- if isNext('knot') then
-        -- FIXME: we shouldn't continue to next knot automatically probably - how about stitches?
-        --next = goToKnot(next[2])
-        -- end
 
         if isNext('divert') then
             goTo(tree[pointer][2])
