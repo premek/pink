@@ -248,6 +248,16 @@ return function(input, source)
         if aheadAnyOf('-', '0','1', '2','3','4','5','6','7','8','9') then -- TODO
             return intLiteral()
         end
+
+        if ahead('(') then
+            consume('(')
+            consumeWhitespace()
+            local exp = expression()
+            consumeWhitespace()
+            consume(')')
+            return exp
+        end
+
         local id = identifier()
         consumeWhitespace()
         if ahead('(') then
