@@ -12,15 +12,17 @@ return function (tree)
             visitCount = {},
         },
         variables = {
-            FLOOR=math.floor,
-            CEILING=math.ceil,
-            INT=function(a) if tonumber(a)>0 then return math.floor(a) else return math.ceil(a) end end, -- FIXME
-            ['+']=function(a,b) return a+b end,
-            ['-']=function(a,b) return a-b end,
-            ['*']=function(a,b) return a*b end,
-            ['/']=function(a,b) return a/b end, -- FIXME integer division on integers
-            ['==']=function(a,b) return a==b end, -- FIXME type coercion
-        }
+            FLOOR={'native', math.floor},
+            CEILING={'native', math.ceil},
+            -- FIXME
+            INT={'native', function(a) if tonumber(a)>0 then return math.floor(a) else return math.ceil(a) end end},
+            ['+']={'native', function(a,b) return a+b end},
+            ['-']={'native', function(a,b) return a-b end},
+            ['*']={'native', function(a,b) return a*b end},
+            ['/']={'native', function(a,b) return a/b end}, -- FIXME integer division on integers
+            ['==']={'native', function(a,b) return a==b end}, -- FIXME type coercion
+        },
+        callstack = {}
     }
 
     local pointer = 1
@@ -43,7 +45,11 @@ return function (tree)
     local currentKnot = nil
     local goTo = function(path)
         --_debug(knots)
-        if path == 'END' or path == 'DONE' then
+        --
+        if type(path) == 'number' then
+            pointer = path -- TODO function call, add parameters
+
+        elseif path == 'END' or path == 'DONE' then
             pointer = #tree+1
 
         elseif path:find('%.') ~= nil then
@@ -78,7 +84,7 @@ return function (tree)
         else
             error("unknown path: " .. path) -- TODO check at compile time?
         end
-        
+
         s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
     end
 
@@ -88,7 +94,6 @@ return function (tree)
 
     local getValue
     getValue=function(val)
-        --_debug(val, val[2])
         if val[1] == 'ref' then
             local name = val[2]
             local var = s.variables[name]
@@ -127,18 +132,30 @@ return function (tree)
                 return
             end
 
-            local fn = s.variables[name]
-            if fn == nil then
+            local target = s.variables[name]
+            if target == nil then
                 -- TODO log code location, need info from parser
                 -- FIXME detect on compile time
                 error('unresolved function: ' .. name)
             end
-            local arguments = {}
-            for i=3, #val do
-                table.insert(arguments, getValue(val[i]))
+
+            if target[1] == 'native' then
+                local arguments = {}
+                for i=3, #val do
+                    table.insert(arguments, getValue(val[i]))
+                end
+
+                return target[2](table.unpack(arguments))
+
+            elseif target[1] == 'fn' then
+                table.insert(s.callstack, pointer)
+                goTo(target[2]+1) -- jump after fn declaration
+                -- TODO arguments
+                -- TODO return value
+                return ""
+            else
+                error('invalid call target: ' .. target[1])
             end
-            local returnValue = fn(table.unpack(arguments))
-            return returnValue
 
         else
             error('unsupported value type: '..val[1])
@@ -155,7 +172,7 @@ return function (tree)
             update()
             return
         end
-        
+
 
 
         if isNext('tag') then
@@ -164,6 +181,7 @@ return function (tree)
             return
         end
 
+        -- TODO check if var can be redefined, e.g. VAR cannot be set if it has the same name as a function
         if isNext('var') then
             s.variables[tree[pointer][2]] = tree[pointer][3]
             pointer = pointer + 1
@@ -174,6 +192,14 @@ return function (tree)
         if isNext('tempvar') then
             -- TODO scope
             s.variables[tree[pointer][2]] = tree[pointer][3]
+            pointer = pointer + 1
+            update()
+            return
+        end
+
+        if isNext('assign') then
+            -- TODO scope
+            -- TODO s.variables[tree[pointer][2]] = tree[pointer][3]
             pointer = pointer + 1
             update()
             return
@@ -193,8 +219,13 @@ return function (tree)
             return
         end
 
-
-        s.canContinue = isNext('nl') or isNext('str') or isNext('alt') or isNext('if') or isNext('gather') or isNext('call')-- FIXME
+        -- FIXME
+        s.canContinue = isNext('nl')
+            or isNext('str')
+            or isNext('alt')
+            or isNext('if')
+            or isNext('gather')
+            or isNext('call')
 
         s.currentChoices = {}
         currentChoicesPointers = {}
@@ -241,18 +272,23 @@ return function (tree)
                 lastKnot = n[2]
                 lastStitch = nil
 
-                tagsForContentAtPath[lastKnot] = {}                
+                tagsForContentAtPath[lastKnot] = {}
             end
             if is('stitch', n) then
                 knots[lastKnot][n[2]] = {pointer=p}
                 lastStitch = n[2]
             end
             if is('gather', n) and n[4] then -- gather with a label
-                if lastStitch then 
+                if lastStitch then
                     knots[lastKnot][lastStitch][n[4]] = {pointer=p}
-                else
-                    knots[lastKnot][n[4]] = {pointer=p}
-                end
+            else
+                knots[lastKnot][n[4]] = {pointer=p}
+            end
+            end
+
+            -- function declarations could be after function calls in source code
+            if is('fn', n) then
+                s.variables[n[2]] = {'fn', p}
             end
 
             --  if is('tag', n) then
@@ -295,7 +331,7 @@ return function (tree)
         elseif isNext('alt') then
             res = getValue(tree[pointer][2])
             if type(res) == 'number' then
-                local int, frac = math.modf(res)
+                local _int, frac = math.modf(res)
                 if frac ~= 0 then
                     res = string.format("%.7f", res)
                 end
@@ -303,11 +339,13 @@ return function (tree)
             pointer = pointer + 1
             update()
             res = res .. s.continue()
+
         elseif isNext('call') then
             getValue(tree[pointer])
             pointer = pointer + 1
             update()
             res = res .. s.continue()
+
         elseif isNext('if') then
             if isTruthy(getValue(tree[pointer][2])) then
                 res=tree[pointer][3]
@@ -342,7 +380,20 @@ return function (tree)
             pointer = pointer + 1
             update()
         end
+
+        if isNext('return') then
+            -- TODO return value
+            goTo(table.remove(s.callstack))
+            pointer = pointer + 1
+            update()
+
+        end
+
         if isEnd() then
+            local returnTo = table.remove(s.callstack)
+            if returnTo ~= nil then
+                goTo(returnTo)
+            end
             pointer = pointer + 1
             update()
         end
