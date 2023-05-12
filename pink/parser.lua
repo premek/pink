@@ -132,7 +132,8 @@ return function(input, source)
 
 
     local currentText = function(s)
-        return input:sub(s, current-1):gsub("%s+", " ")
+        local result, _ = input:sub(s, current-1):gsub("%s+", " ")
+        return result
     end
 
 
