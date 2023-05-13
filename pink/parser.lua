@@ -85,14 +85,14 @@ return function(input, source)
         end
     end
 
-    local consumeIfAnyOf = function(...)
+    local consumeAnyOf = function(...)
         for _, str in ipairs{...} do
             if ahead(str) then
                 consume(str)
-                return true, str
+                return str
             end
         end
-        return false, nil
+        errorAt("expected any of " .. table.concat(..., ", "))
 
     end
 
@@ -266,18 +266,51 @@ return function(input, source)
         return {'ref', id} -- FIXME same name as function argument passed as a reference
     end
 
-    expression = function()
-        local first = term()
-        consumeWhitespace()
-        local consumedAny, operator = consumeIfAnyOf('+', '-', '*', '/', '==')
-        if consumedAny then
-            consumeWhitespace()
-            local second = term()
-            return {'call', operator, first, second}
-        end
-        return first
+    local operators = {'==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
+    local precedence = {}
+    for i = 1, #operators do
+        precedence[operators[i]] = i
     end
 
+    -- The shunting yard algorithm
+    expression = function()
+        local operandStack = {}
+        local operatorStack = {}
+
+        table.insert(operandStack, term())
+        consumeWhitespace()
+
+        while aheadAnyOf(table.unpack(operators)) do
+            local operator = consumeAnyOf(table.unpack(operators))
+            consumeWhitespace()
+
+            while operatorStack[#operatorStack] ~= nil and precedence[operator] < precedence[operatorStack[#operatorStack]] do
+                local right = table.remove(operandStack)
+                local left = table.remove(operandStack)
+                local operator = table.remove(operatorStack)
+                table.insert(operandStack, {'call', operator, left, right})                
+            end
+
+            table.insert(operatorStack, operator)
+
+            table.insert(operandStack, term())
+            consumeWhitespace()            
+        end
+
+        -- TODO cleanup
+        while operatorStack[#operatorStack] ~= nil do
+            local right = table.remove(operandStack)
+            local left = table.remove(operandStack)
+            local operator = table.remove(operatorStack)
+            table.insert(operandStack, {'call', operator, left, right})                
+        end
+
+        if #operandStack ~= 1 or #operatorStack ~= 0 then
+            errorAt('expression parsing error')
+        end
+
+        return operandStack[1]
+    end
 
 
     local include = function()

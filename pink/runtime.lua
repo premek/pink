@@ -19,6 +19,8 @@ return function (tree)
             ['+']={'native', function(a,b) return a+b end},
             ['-']={'native', function(a,b) return a-b end},
             ['*']={'native', function(a,b) return a*b end},
+            ['%']={'native', function(a,b) return math.fmod(a,b) end},
+            ['mod']={'native', function(a,b) return math.fmod(a,b) end},
             ['/']={'native', function(a,b) return a/b end}, -- FIXME integer division on integers
             ['==']={'native', function(a,b) return a==b end}, -- FIXME type coercion
         },
