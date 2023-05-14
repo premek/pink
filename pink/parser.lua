@@ -258,6 +258,17 @@ return function(input, source)
             return exp
         end
 
+        if ahead('true') then
+            consume('true')
+            return {'bool', true}
+        end
+        if ahead('false') then
+            consume('false')
+            return {'bool', false}
+        end
+
+
+
         local id = identifier()
         consumeWhitespace()
         if ahead('(') then
