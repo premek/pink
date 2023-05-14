@@ -411,15 +411,7 @@ return function (tree)
 
 
 
-        if isNext('tag') then
-            pointer = pointer + 1
-            update()
-            return
-        end
-
-        -- TODO check if var can be redefined, e.g. VAR cannot be set if it has the same name as a function
-        if isNext('var') then
-            s.variables[tree[pointer][2]] = tree[pointer][3]
+        if isNext('tag') or isNext('var') or isNext('const') then
             pointer = pointer + 1
             update()
             return
@@ -441,12 +433,6 @@ return function (tree)
             return
         end
 
-        if isNext('const') then
-            s.variables[tree[pointer][2]] = tree[pointer][3] -- TODO const
-            pointer = pointer + 1
-            update()
-            return
-        end
 
         if isNext('list') then
             s.variables[tree[pointer][2]] = { table.unpack(tree[pointer], 3) }
@@ -526,6 +512,17 @@ return function (tree)
             if is('fn', n) then
                 s.variables[n[2]] = {'fn', p}
             end
+
+            
+        -- TODO check if var can be redefined, e.g. VAR cannot be set if it has the same name as a function
+        if is('var', n) then
+            s.variables[n[2]] = n[3]
+        end
+        if is('const', n) then
+            s.variables[n[2]] = n[3] -- TODO const
+        end
+
+
 
             --  if is('tag', n) then
             --if n[2] == 'above' then
