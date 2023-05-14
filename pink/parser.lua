@@ -284,25 +284,27 @@ return function(input, source)
             local operator = consumeAnyOf(table.unpack(operators))
             consumeWhitespace()
 
-            while operatorStack[#operatorStack] ~= nil and precedence[operator] < precedence[operatorStack[#operatorStack]] do
+            while operatorStack[#operatorStack] ~= nil
+                and precedence[operator] < precedence[operatorStack[#operatorStack]] do
+
                 local right = table.remove(operandStack)
                 local left = table.remove(operandStack)
-                local operator = table.remove(operatorStack)
-                table.insert(operandStack, {'call', operator, left, right})                
+                local operatorFromStack = table.remove(operatorStack)
+                table.insert(operandStack, {'call', operatorFromStack, left, right})
             end
 
             table.insert(operatorStack, operator)
 
             table.insert(operandStack, term())
-            consumeWhitespace()            
+            consumeWhitespace()
         end
 
         -- TODO cleanup
         while operatorStack[#operatorStack] ~= nil do
             local right = table.remove(operandStack)
             local left = table.remove(operandStack)
-            local operator = table.remove(operatorStack)
-            table.insert(operandStack, {'call', operator, left, right})                
+            local operatorFromStack = table.remove(operatorStack)
+            table.insert(operandStack, {'call', operatorFromStack, left, right})
         end
 
         if #operandStack ~= 1 or #operatorStack ~= 0 then
