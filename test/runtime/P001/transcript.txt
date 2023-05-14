@@ -1,0 +1,33 @@
+2 = 2
+2.0 = 2
+2.333 = 2.333
+2 + 3 = 5
+2-3 = -1
+3-2 = 1
+2-3.0 = -1
+2.0 - 3 = -1
+2 * 3 = 6
+2/3 = 0
+2.0/3 = 0.6666667
+2/3.0 = 0.6666667
+2 mod 3 = 2
+2%3 = 2
+2.0 + 3 = 5
+2 + 3.0 = 5
+2 + true = 3
+true + 2 = 3
+"s" + true = strue
+true + "s" = trues
+"string" + 1 = string1
+1 + "string" = 1string
+"foo" + "bar" = foobar
+"string" + 1.125 = string1.125
+1.125 + "string" = 1.125string
+"42" = 42 = true
+42 = "42" = true
+"42" = 43 = false
+43 = "42" = false
+"42" != 42 = false
+42 != "42" = false
+43 != "42" = true
+"42" != 43 = true

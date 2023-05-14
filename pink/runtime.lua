@@ -5,25 +5,249 @@ local is = function (what, node)
         and (type(node) == "table" and node[1] == what)
 end
 
+-- requires a table where the first element is a string name of the type, e.g. {'int', 9}
+local requirePinkType = function(a)
+    if type(a) ~= 'table' then
+        error('table expected')
+    end
+    if #a < 1 or type(a[1]) ~= 'string' then
+        error('pink type expected')
+    end
+end
+
+local isNum = function(a)
+    return a[1] == 'int' or a[1] == 'float'
+end
+
+-- converts pink type to lua string type
+-- TODO name?
+local output = function(a)
+    requirePinkType(a)
+
+    if a[1] == 'str' then
+        return a[2]
+
+    elseif a[1] == 'int' then
+        return tostring(math.floor(a[2]))
+
+    elseif a[1] == 'float' then
+        local int, frac = math.modf(a[2])
+        if frac == 0 then
+            return tostring(int)
+        else
+            return string.format("%.7f", a[2]):gsub("%.?0+$", "")
+        end
+
+    elseif a[1] == 'bool' then
+        return tostring(a[2])
+
+    else
+        error('cannot output: '..a[1])
+    end
+end
+
+-- casting (not conversion; int->float possible, float->int not possible)
+
+local toInt = function(a)
+    requirePinkType(a)
+
+    if a[1] == 'int' then
+        return a
+    elseif a[1] == 'bool' then
+        return {'int', a[2] and 1 or 0}
+    else
+        error('cannot convert: '..a[1])
+    end
+end
+
+
+local toFloat = function(a)
+    requirePinkType(a)
+
+    if a[1] == 'float' then
+        return a
+    elseif a[1] == 'int' then
+        return {'float', a[2]}
+    elseif a[1] == 'bool' then
+        return {'float', a[2] and 1 or 0}
+    else
+        error('cannot convert: '..a[1])
+    end
+end
+
+
+local toStr = function(a)
+    requirePinkType(a)
+
+    if a[1] == 'str' then
+        return a
+    else
+        return {'str', output(a)}
+    end
+end
+
+local toBool = function(a)
+    requirePinkType(a)
+
+    if a[1] == 'bool' then
+        return a
+    elseif a[1] == 'int' or a[1] == 'float' then
+        return {'bool', a[2] ~= 0}
+    elseif a[1] == 'str' then
+        return  {'bool', #a[2] ~= 0}
+    else
+        error('cannot convert: '..a[1])
+    end
+end
+
+
+local requireType = function(a, ...)
+    requirePinkType(a)
+    for _, requiredType in ipairs{...} do
+        if a[1] == requiredType then
+            return
+        end
+    end
+    error("unexpected type")
+end
+
+
+-- builtin functions
+
+local floor = function(a)
+    requireType(a, 'float', 'int')
+    return {'int', math.floor(a[2])}
+end
+
+local ceil = function(a)
+    requireType(a, 'float', 'int')
+    -- int -> int, float -> float
+    return {a[1], math.ceil(a[2])}
+end
+
+local int = function(a)
+    requireType(a, 'float', 'int')
+    --_debug(a)
+
+    if a[2] > 0 then
+        return {'int', math.floor(a[2])}
+    else
+        return {'int', math.ceil(a[2])}
+    end
+end
+
+local add = function(a,b)
+    requireType(a, 'bool', 'str', 'float', 'int')
+    requireType(b, 'bool', 'str', 'float', 'int')
+
+    if a[1] == 'str' or b[1] == 'str' then
+        return {"str", toStr(a)[2] .. toStr(b)[2]}
+    end
+
+    if a[1] == 'bool' then
+        a = toInt(a)
+    end
+    if b[1] == 'bool' then
+        b = toInt(b)
+    end
+
+    if a[1] == 'float' or b[1] == 'float' then
+        return {"float", toFloat(a)[2] + toFloat(b)[2]}
+    end
+
+    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+    return {t, a[2] + b[2]}
+end
+
+local sub = function(a,b)
+    requireType(a, 'float', 'int', 'bool')
+    requireType(b, 'float', 'int', 'bool')
+
+    if a[1] == 'bool' then
+        a = toInt(a)
+    end
+    if b[1] == 'bool' then
+        b = toInt(b)
+    end
+
+    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+    return {t, a[2] - b[2]}
+end
+
+local mul = function(a,b)
+    requireType(a, 'float', 'int')
+    requireType(b, 'float', 'int')
+
+    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+
+    return {t, a[2] * b[2]}
+end
+
+local div = function(a,b)
+    requireType(a, 'float', 'int')
+    requireType(b, 'float', 'int')
+
+    if a[1] == 'float' or b[1] == 'float' then
+        return {'float', a[2]/b[2]}
+    else
+        return {"int", math.floor(a[2]/b[2])}
+    end
+end
+
+local mod = function(a,b)
+    requireType(a, 'float', 'int')
+    requireType(b, 'float', 'int')
+
+    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+
+    return {t, math.fmod(a[2],b[2])}
+end
+
+
+local eq = function(a,b)
+    requireType(a, 'bool', 'str', 'float', 'int')
+    requireType(b, 'bool', 'str', 'float', 'int')
+
+    if a[1] == 'str' or b[1] == 'str' then
+        return {"bool", toStr(a)[2] == toStr(b)[2]}
+    end
+
+    if a[1] == 'bool' or b[1] == 'bool' then
+        -- bool and number -> only '1' evaluates to true
+        if isNum(a) then
+            return {"bool", (a[2] == 1) == b[2]}
+        elseif isNum(b) then
+            return {"bool", (b[2] == 1) == a[2]}
+        end
+    end
+    return {"bool", a[1]==b[1] and a[2]==b[2]}
+end
+
+local notEq = function(a,b)
+    return {"bool", not eq(a,b)[2]}
+end
+
 return function (tree)
+    local variables = {
+        FLOOR={'native', floor},
+        CEILING={'native', ceil},
+        INT={'native', int},
+        ['+']={'native', add},
+        ['-']={'native', sub},
+        ['*']={'native', mul},
+        ['%']={'native', mod},
+        ['/']={'native', div},
+        ['mod']={'native', mod},
+        ['==']={'native', eq},
+        ['!=']={'native', notEq},
+    }
+
     local s = {
         globalTags = {},
         state = {
             visitCount = {},
         },
-        variables = {
-            FLOOR={'native', math.floor},
-            CEILING={'native', math.ceil},
-            -- FIXME
-            INT={'native', function(a) if tonumber(a)>0 then return math.floor(a) else return math.ceil(a) end end},
-            ['+']={'native', function(a,b) return a+b end},
-            ['-']={'native', function(a,b) return a-b end},
-            ['*']={'native', function(a,b) return a*b end},
-            ['%']={'native', function(a,b) return math.fmod(a,b) end},
-            ['mod']={'native', function(a,b) return math.fmod(a,b) end},
-            ['/']={'native', function(a,b) return a/b end}, -- FIXME integer division on integers
-            ['==']={'native', function(a,b) return a==b end}, -- FIXME type coercion
-        },
+        variables = variables,
         callstack = {}
     }
 
@@ -91,12 +315,17 @@ return function (tree)
     end
 
     local isTruthy = function(a)
-        return not not a
+        return toBool(a)[2]
     end
 
     local getValue
     getValue=function(val)
-        if val[1] == 'ref' then
+        --_debug(val)
+
+        if val[1] == 'str' or val[1] == 'int' or val[1] == 'float' or val[1] == 'bool' then
+            return val
+
+        elseif val[1] == 'ref' then
             local name = val[2]
             local var = s.variables[name]
             if var == nil then
@@ -114,9 +343,6 @@ return function (tree)
             else
                 return ""
             end
-
-        elseif val[1] == 'str' or val[1] == 'int' or val[1] == 'float' then
-            return val[2]
 
         elseif val[1] == 'gather' then -- diverted into a labelled gather
             return val[3]
@@ -325,19 +551,13 @@ return function (tree)
 
         local res = ''
         if isNext('str') or isNext('ref') then
-            res = res..getValue(tree[pointer])
+            res = res..output(getValue(tree[pointer]))
             pointer = pointer + 1
             update()
             res = res .. s.continue()
 
         elseif isNext('alt') then
-            res = getValue(tree[pointer][2])
-            if type(res) == 'number' then
-                local _int, frac = math.modf(res)
-                if frac ~= 0 then
-                    res = string.format("%.7f", res)
-                end
-            end
+            res = output(getValue(tree[pointer][2]))
             pointer = pointer + 1
             update()
             res = res .. s.continue()

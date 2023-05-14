@@ -1,8 +1,12 @@
 #!/bin/env sh
 
-[ -z "$3" ] && echo "missing argument" && exit 1
+[ -z "$1" ] && echo "missing argument" && exit 1
 
-D=$(printf '%s/W%d.%d.%03d' "$(dirname -- "$0")" "$1" "$2" "$3")
+if [ -z "$2" ]; then
+    D=$(printf '%s/P%03d' "$(dirname -- "$0")" "$1")
+else
+    D=$(printf '%s/W%d.%d.%03d' "$(dirname -- "$0")" "$1" "$2" "$3")
+fi
 
 [ -e "$D" ] && echo "$D already exists" && exit 1
 
