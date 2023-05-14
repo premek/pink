@@ -277,7 +277,7 @@ return function(input, source)
         return {'ref', id} -- FIXME same name as function argument passed as a reference
     end
 
-    local operators = {'!=', '==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
+    local operators = {'?', '!=', '==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
     local precedence = {}
     for i = 1, #operators do
         precedence[operators[i]] = i

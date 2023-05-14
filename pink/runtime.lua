@@ -227,6 +227,13 @@ local notEq = function(a,b)
     return {"bool", not eq(a,b)[2]}
 end
 
+local contains = function(a,b)
+    requireType(a, 'str')
+    requireType(b, 'str')
+
+    return {"bool", string.find(a[2], b[2])}
+end
+
 return function (tree)
     local variables = {
         FLOOR={'native', floor},
@@ -240,6 +247,7 @@ return function (tree)
         ['mod']={'native', mod},
         ['==']={'native', eq},
         ['!=']={'native', notEq},
+        ['?']={'native', contains},
     }
 
     local s = {
