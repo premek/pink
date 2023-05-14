@@ -277,14 +277,21 @@ return function(input, source)
         return {'ref', id} -- FIXME same name as function argument passed as a reference
     end
 
+    local unary = {'not'}
     local operators = {'?', '!=', '==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
     local precedence = {}
     for i = 1, #operators do
         precedence[operators[i]] = i
     end
 
-    -- The shunting yard algorithm
     expression = function()
+        if aheadAnyOf(table.unpack(unary)) then
+            local operator = consumeAnyOf(table.unpack(unary))
+            consumeWhitespace()
+            return {'call', operator, expression()}
+        end
+
+        -- The shunting yard algorithm
         local operandStack = {}
         local operatorStack = {}
 

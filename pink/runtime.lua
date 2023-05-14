@@ -234,6 +234,13 @@ local contains = function(a,b)
     return {"bool", string.find(a[2], b[2])}
 end
 
+local notFn = function(a)
+    requireType(a, 'bool', 'int', 'float') -- str not allowed
+
+    return {"bool", not toBool(a)[2]}
+end
+
+
 return function (tree)
     local variables = {
         FLOOR={'native', floor},
@@ -248,6 +255,7 @@ return function (tree)
         ['==']={'native', eq},
         ['!=']={'native', notEq},
         ['?']={'native', contains},
+        ['not']={'native', notFn},
     }
 
     local s = {
@@ -513,14 +521,14 @@ return function (tree)
                 s.variables[n[2]] = {'fn', p}
             end
 
-            
-        -- TODO check if var can be redefined, e.g. VAR cannot be set if it has the same name as a function
-        if is('var', n) then
-            s.variables[n[2]] = n[3]
-        end
-        if is('const', n) then
-            s.variables[n[2]] = n[3] -- TODO const
-        end
+
+            -- TODO check if var can be redefined, e.g. VAR cannot be set if it has the same name as a function
+            if is('var', n) then
+                s.variables[n[2]] = n[3]
+            end
+            if is('const', n) then
+                s.variables[n[2]] = n[3] -- TODO const
+            end
 
 
 
