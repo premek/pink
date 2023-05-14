@@ -380,7 +380,7 @@ return function (tree)
                 goTo(target[2]+1) -- jump after fn declaration
                 -- TODO arguments
                 -- TODO return value
-                return ""
+                return {"str", ''}
             else
                 error('invalid call target: ' .. target[1])
             end
