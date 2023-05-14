@@ -212,7 +212,7 @@ return function(input, source)
 
     local floatLiteral = function(intPart)
         consume('.')
-        return {'float', intPart..'.'..number()} -- TODO cast
+        return {'float', tonumber(intPart..'.'..number())}
     end
 
     local intLiteral = function()
@@ -220,7 +220,7 @@ return function(input, source)
         if ahead('.') then
             return floatLiteral(val)
         end
-        return {'int', val}
+        return {'int', tonumber(val)}
     end
 
     local term, expression; -- cross dependency, must be defined earlier
@@ -266,7 +266,7 @@ return function(input, source)
         return {'ref', id} -- FIXME same name as function argument passed as a reference
     end
 
-    local operators = {'==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
+    local operators = {'!=', '==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
     local precedence = {}
     for i = 1, #operators do
         precedence[operators[i]] = i
