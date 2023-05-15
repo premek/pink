@@ -277,7 +277,7 @@ return function(input, source)
         return {'ref', id} -- FIXME same name as function argument passed as a reference
     end
 
-    local unary = {'not'}
+    local unary = {'not', '!'}
     -- higher precedence last
     local operatorList = {{'?'}, {'or', '||', 'and', '&&'}, {'!=', '=='}, {'-', '+'}, {'mod', '%', '/', '*'}}
     local operators = {}

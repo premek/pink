@@ -269,6 +269,7 @@ return function (tree)
         ['!=']={'native', notEq},
         ['?']={'native', contains},
         ['not']={'native', notFn},
+        ['!']={'native', notFn},
         ['||']={'native', orFn},
         ['&&']={'native', andFn},
         ['or']={'native', orFn},
@@ -631,6 +632,8 @@ return function (tree)
         while isNext('nl') do
             pointer = pointer + 1
             update()
+            -- TODO res = res .. s.continue()
+
         end
 
         if isNext('return') then
