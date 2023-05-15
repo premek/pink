@@ -313,8 +313,6 @@ return function (tree)
 
     local currentKnot = nil
     local goTo = function(path)
-        --_debug(knots)
-        --
         if type(path) == 'number' then
             pointer = path -- TODO function call, add parameters
 
@@ -343,6 +341,10 @@ return function (tree)
 
         elseif knots[currentKnot] and knots[currentKnot][path] then
             pointer = knots[currentKnot][path].pointer + 1
+
+        -- FIXME hack
+        elseif knots["//no-knot"] and knots["//no-knot"][path] then
+            pointer = knots["//no-knot"][path].pointer + 1
 
         elseif knots[path] then
             pointer = knots[path].pointer + 1
@@ -503,11 +505,11 @@ return function (tree)
                 end
 
                 if is('option', n) and n[2] == choiceDepth then
-                    local _sticky = n[6] == "sticky" -- TODO
+                    local _sticky = n[7] == "sticky" -- TODO
                     local displayOption = true
 
                     -- evaluate conditions
-                    for i=7, #n do
+                    for i=8, #n do
                         if not isTruthy(getValue(n[i])) then
                             displayOption = false
                             break
@@ -537,7 +539,9 @@ return function (tree)
 
         local aboveTags = {}
         --local lastPara = {}
-        local lastKnot, lastStitch
+        local lastKnot = "//no-knot"
+        local lastStitch = nil
+        knots[lastKnot]={} -- TODO use proper paths instead
 
         for p, n in ipairs(tree) do
             if is('knot', n) then
@@ -550,15 +554,26 @@ return function (tree)
             end
             if is('stitch', n) then
                 knots[lastKnot][n[2]] = {pointer=p}
+                -- TODO s.variables[n[2]] = {'int', 0} -- seen counter                
                 lastStitch = n[2]
             end
             if is('gather', n) and n[4] then -- gather with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[4]] = {pointer=p}
-            else
-                knots[lastKnot][n[4]] = {pointer=p}
+                else
+                    knots[lastKnot][n[4]] = {pointer=p}
+                end
+                s.variables[n[4]] = {'int', 0} -- seen counter / FIXME
             end
+            if is('option', n) and n[6] then -- option with a label
+                if lastStitch then
+                    knots[lastKnot][lastStitch][n[6]] = {pointer=p}
+                else
+                    knots[lastKnot][n[6]] = {pointer=p}
+                end
+                s.variables[n[6]] = {'int', 0} -- seen counter / FIXME
             end
+
 
             -- function declarations could be after function calls in source code
             if is('fn', n) then

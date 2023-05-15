@@ -425,6 +425,15 @@ return function(input, source)
             consumeWhitespace()
         end
 
+        -- FIXME { or ( first?
+        local label = nil
+        if ahead('(') then
+            consume('(')
+            label = identifier()
+            consume(')')
+            consumeWhitespace()
+        end
+
         while ahead('{') do
             consume('{')
             consumeWhitespace()
@@ -453,8 +462,7 @@ return function(input, source)
         end
         local t3 = text()
 
-
-        addStatement('option', nesting, t1, t2, t3, sticky, table.unpack(conditions))
+        addStatement('option', nesting, t1, t2, t3, label, sticky, table.unpack(conditions))
         consumeWhitespaceAndNewlines()
     end
 
