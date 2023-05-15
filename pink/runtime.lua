@@ -301,6 +301,15 @@ return function (tree)
         return is(what, tree[pointer])
     end
 
+    -- var = var + a
+    local addVariable = function(name, a)
+        s.variables[name] = toInt(s.variables[name]) -- TODO float
+        s.variables[name][2] = s.variables[name][2] + a
+    end
+
+    local incrementSeenCounter = function(path)
+        addVariable(path, 1)
+    end
 
     local currentKnot = nil
     local goTo = function(path)
@@ -323,6 +332,8 @@ return function (tree)
                 pointer = pointer + 1
             end
 
+            incrementSeenCounter(p1) -- TODO not just knots
+
             -- FIXME duplicates
             currentKnot = p1
             -- automatically go to the first stitch (only) if there is no other content in the knot
@@ -335,6 +346,9 @@ return function (tree)
 
         elseif knots[path] then
             pointer = knots[path].pointer + 1
+
+            incrementSeenCounter(path) -- TODO not just knots
+
             currentKnot = path
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
@@ -351,6 +365,7 @@ return function (tree)
     local isTruthy = function(a)
         return toBool(a)[2]
     end
+
 
     local getValue
     getValue=function(val)
@@ -386,11 +401,11 @@ return function (tree)
             -- TODO use 'ref' attributes to call this the same as other functions
             -- TODO check var type
             if name == '++' then
-                s.variables[val[3]][2] = tostring(tonumber(s.variables[val[3]][2]) + 1)
+                addVariable(val[3], 1)
                 return
             end
             if name == '--' then
-                s.variables[val[3]][2] = tostring(tonumber(s.variables[val[3]][2]) - 1) -- FIXME var types
+                addVariable(val[3], -1)
                 return
             end
 
@@ -483,19 +498,29 @@ return function (tree)
             -- find all choices on the same level in the same knot and in the same super-choice
             for p=pointer, #tree do
                 local n = tree[p]
-                --print('looking for options', choiceDepth, n[1], n[2])
                 if is('knot', n) or is('stitch', n) or (is('option', n) and n[2] < choiceDepth) then
-                    --print('stop looking for options');
                     break
                 end
 
                 if is('option', n) and n[2] == choiceDepth then
-                    -- print('adding', p, n[3])
-                    table.insert(currentChoicesPointers, p)
-                    table.insert(s.currentChoices, {
-                        text = (n[3] or '') .. (n[4] or ''),
-                        choiceText = n[3] .. (n[5] or ''),
-                    })
+                    local _sticky = n[6] == "sticky" -- TODO
+                    local displayOption = true
+
+                    -- evaluate conditions
+                    for i=7, #n do
+                        if not isTruthy(getValue(n[i])) then
+                            displayOption = false
+                            break
+                        end
+                    end
+
+                    if displayOption then
+                        table.insert(currentChoicesPointers, p)
+                        table.insert(s.currentChoices, {
+                            text = (n[3] or '') .. (n[4] or ''),
+                            choiceText = n[3] .. (n[5] or ''),
+                        })
+                    end
                 end
             end
         end
@@ -517,6 +542,7 @@ return function (tree)
         for p, n in ipairs(tree) do
             if is('knot', n) then
                 knots[n[2]] = {pointer=p}
+                s.variables[n[2]] = {'int', 0} -- seen counter
                 lastKnot = n[2]
                 lastStitch = nil
 

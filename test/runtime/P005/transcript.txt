@@ -1,0 +1,12 @@
+
+1: look for clues
+?>  
+I have seen this clue 1 times
+
+1: look for clues
+?>  
+I have seen this clue 2 times
+
+1: look for clues
+2: Accuse Mr Jefferson
+?>  the end 

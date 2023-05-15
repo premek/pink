@@ -414,11 +414,23 @@ return function(input, source)
         consumeWhitespaceAndNewlines()
     end
 
-    local option = function()
+    local option = function(bulletSymbol)
         local nesting = 0
-        while ahead("*") do
-            consume("*")
+        local sticky = (bulletSymbol == '+') and "sticky" or "nonstick"
+        local conditions = {}
+
+        while ahead(bulletSymbol) do
+            consume(bulletSymbol)
             nesting = nesting + 1
+            consumeWhitespace()
+        end
+
+        while ahead('{') do
+            consume('{')
+            consumeWhitespace()
+            table.insert(conditions, expression())
+            consumeWhitespace()
+            consume('}')
             consumeWhitespace()
         end
 
@@ -442,7 +454,7 @@ return function(input, source)
         local t3 = text()
 
 
-        addStatement('option', nesting, t1, t2, t3)
+        addStatement('option', nesting, t1, t2, t3, sticky, table.unpack(conditions))
         consumeWhitespaceAndNewlines()
     end
 
@@ -530,7 +542,7 @@ return function(input, source)
         end
     end
 
-    local alternative = function() --TODO name? used for sequences, variable printing, conditional text
+    local alternative = function() --TODO name? used for sequences, variable printing, conditional text, cond. option
         consume("{")
         consumeWhitespaceAndNewlines()
         local first = expression()
@@ -561,7 +573,6 @@ return function(input, source)
         consumeWhitespace()
         consume("}")
         para() -- don't ignore whitespace (TODO, same like glue)
-
     end
 
 
@@ -662,7 +673,9 @@ return function(input, source)
         elseif ahead('=') then
             stitch()
         elseif ahead('*') then
-            option()
+            option('*')
+        elseif ahead('+') then
+            option('+')
         elseif ahead('-') then
             gather()
         elseif ahead('#') then
