@@ -278,8 +278,16 @@ return function(input, source)
     end
 
     local unary = {'not', '!'}
-    -- higher precedence last
-    local operatorList = {{'?'}, {'or', '||', 'and', '&&'}, {'!=', '=='}, {'-', '+'}, {'mod', '%', '/', '*'}}
+
+    -- precedence from lowest to highest
+    local operatorList = {
+        {'?'},
+        {'or', '||', 'and', '&&'},
+        {'!=', '=='},
+        {'<=', '>=', '>', '<'},
+        {'-', '+'},
+        {'mod', '%', '/', '*'},
+    }
     local operators = {}
     local precedence = {}
     for operatorPrecedence, operatorGroup in ipairs(operatorList) do

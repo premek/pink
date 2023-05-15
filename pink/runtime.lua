@@ -127,7 +127,6 @@ end
 
 local int = function(a)
     requireType(a, 'float', 'int')
-    --_debug(a)
 
     if a[2] > 0 then
         return {'int', math.floor(a[2])}
@@ -227,6 +226,27 @@ local notEq = function(a,b)
     return {"bool", not eq(a,b)[2]}
 end
 
+local gt = function(a,b)
+    requireType(a, 'bool', 'int', 'float')
+    requireType(b, 'bool', 'int', 'float')
+    return {'bool', toFloat(a)[2] > toFloat(b)[2]}
+end
+local gte = function(a,b)
+    requireType(a, 'bool', 'int', 'float')
+    requireType(b, 'bool', 'int', 'float')
+    return {'bool', toFloat(a)[2] >= toFloat(b)[2]}
+end
+local lt = function(a,b)
+    requireType(a, 'bool', 'int', 'float')
+    requireType(b, 'bool', 'int', 'float')
+    return {'bool', toFloat(a)[2] < toFloat(b)[2]}
+end
+local lte = function(a,b)
+    requireType(a, 'bool', 'int', 'float')
+    requireType(b, 'bool', 'int', 'float')
+    return {'bool', toFloat(a)[2] <= toFloat(b)[2]}
+end
+
 local contains = function(a,b)
     requireType(a, 'str')
     requireType(b, 'str')
@@ -274,6 +294,10 @@ return function (tree)
         ['&&']={'native', andFn},
         ['or']={'native', orFn},
         ['and']={'native', andFn},
+        ['<']={'native', lt},
+        ['<=']={'native', lte},
+        ['>']={'native', gt},
+        ['>=']={'native', gte},
     }
 
     local s = {
@@ -342,7 +366,7 @@ return function (tree)
         elseif knots[currentKnot] and knots[currentKnot][path] then
             pointer = knots[currentKnot][path].pointer + 1
 
-        -- FIXME hack
+            -- FIXME hack
         elseif knots["//no-knot"] and knots["//no-knot"][path] then
             pointer = knots["//no-knot"][path].pointer + 1
 
@@ -554,24 +578,24 @@ return function (tree)
             end
             if is('stitch', n) then
                 knots[lastKnot][n[2]] = {pointer=p}
-                -- TODO s.variables[n[2]] = {'int', 0} -- seen counter                
+                -- TODO s.variables[n[2]] = {'int', 0} -- seen counter
                 lastStitch = n[2]
             end
             if is('gather', n) and n[4] then -- gather with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[4]] = {pointer=p}
-                else
-                    knots[lastKnot][n[4]] = {pointer=p}
-                end
-                s.variables[n[4]] = {'int', 0} -- seen counter / FIXME
+            else
+                knots[lastKnot][n[4]] = {pointer=p}
+            end
+            s.variables[n[4]] = {'int', 0} -- seen counter / FIXME
             end
             if is('option', n) and n[6] then -- option with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[6]] = {pointer=p}
-                else
-                    knots[lastKnot][n[6]] = {pointer=p}
-                end
-                s.variables[n[6]] = {'int', 0} -- seen counter / FIXME
+            else
+                knots[lastKnot][n[6]] = {pointer=p}
+            end
+            s.variables[n[6]] = {'int', 0} -- seen counter / FIXME
             end
 
 
