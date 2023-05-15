@@ -278,10 +278,15 @@ return function(input, source)
     end
 
     local unary = {'not'}
-    local operators = {'?', '!=', '==', '-', '+', 'mod', '%', '/', '*'} -- higher precedence last
+    -- higher precedence last
+    local operatorList = {{'?'}, {'or', '||', 'and', '&&'}, {'!=', '=='}, {'-', '+'}, {'mod', '%', '/', '*'}}
+    local operators = {}
     local precedence = {}
-    for i = 1, #operators do
-        precedence[operators[i]] = i
+    for operatorPrecedence, operatorGroup in ipairs(operatorList) do
+        for _, operator in ipairs(operatorGroup) do
+            precedence[operator] = operatorPrecedence
+            table.insert(operators, operator)
+        end
     end
 
     expression = function()
@@ -303,7 +308,7 @@ return function(input, source)
             consumeWhitespace()
 
             while operatorStack[#operatorStack] ~= nil
-                and precedence[operator] < precedence[operatorStack[#operatorStack]] do
+                and precedence[operator] <= precedence[operatorStack[#operatorStack]] do
 
                 local right = table.remove(operandStack)
                 local left = table.remove(operandStack)

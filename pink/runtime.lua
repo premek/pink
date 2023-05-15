@@ -241,6 +241,19 @@ local notFn = function(a)
 end
 
 
+local orFn = function(a,b)
+    requireType(a, 'bool', 'int', 'float') -- str not allowed
+    requireType(b, 'bool', 'int', 'float') -- str not allowed
+    return {"bool", toBool(a)[2] or toBool(b)[2]}
+end
+
+local andFn = function(a,b)
+    requireType(a, 'bool', 'int', 'float') -- str not allowed
+    requireType(b, 'bool', 'int', 'float') -- str not allowed
+    return {"bool", toBool(a)[2] and toBool(b)[2]}
+end
+
+
 return function (tree)
     local variables = {
         FLOOR={'native', floor},
@@ -249,13 +262,17 @@ return function (tree)
         ['+']={'native', add},
         ['-']={'native', sub},
         ['*']={'native', mul},
-        ['%']={'native', mod},
         ['/']={'native', div},
+        ['%']={'native', mod},
         ['mod']={'native', mod},
         ['==']={'native', eq},
         ['!=']={'native', notEq},
         ['?']={'native', contains},
         ['not']={'native', notFn},
+        ['||']={'native', orFn},
+        ['&&']={'native', andFn},
+        ['or']={'native', orFn},
+        ['and']={'native', andFn},
     }
 
     local s = {
