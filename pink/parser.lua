@@ -440,26 +440,18 @@ return function(input, source)
             table.insert(conditions, expression())
             consumeWhitespace()
             consume('}')
-            consumeWhitespace()
+            consumeWhitespaceAndNewlines()
         end
 
-        local t1 = text()
-        local t1EndWithWhitespace = t1:sub(-1) == ' '
+        local t1 = text():match "(.-)%s*$" -- right trim
 
         local t2 = ""
         if ahead('[') then
             consume('[')
-            if t1EndWithWhitespace then
-                consumeWhitespace()
-            end
-
             t2 = text()
             consume(']')
         end
 
-        if t1EndWithWhitespace then
-            consumeWhitespace()
-        end
         local t3 = text()
 
         addStatement('option', nesting, t1, t2, t3, label, sticky, table.unpack(conditions))
