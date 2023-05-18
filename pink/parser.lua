@@ -17,9 +17,6 @@ return function(input, source)
         column = 1
     end
 
-    local addStatement = function(...)
-        table.insert(statements, {...})
-    end
 
     local next = function(chars)
         chars = chars or 1
@@ -349,26 +346,26 @@ return function(input, source)
     local include = function()
         consume("INCLUDE")
         consumeWhitespace()
-        addStatement('include', filename())
+        return {'include', filename()}
     end
 
     local todo = function()
         consume("TODO:")
         consumeWhitespace()
-        addStatement('todo', textLine())
+        {'todo', textLine()}
     end
 
     local divert = function()
         consume("->")
         consumeWhitespace()
-        addStatement('divert', identifier())
+        return {'divert', identifier()}
     end
 
     -- == function add(x,y) ==
     local fn = function()
         consumeWhitespace()
         local name = identifier()
-        local params = {}
+        local result = {'fn', name}
 
         if ahead('(') then
             consume('(')
@@ -382,7 +379,7 @@ return function(input, source)
                     paramName = identifier()
                     passedByReference = true
                 end
-                table.insert(params, {'param', paramName, passedByReference})
+                table.insert(result, {'param', paramName, passedByReference})
                 consumeWhitespace()
                 if ahead(',') then
                     consume(',')
@@ -392,9 +389,9 @@ return function(input, source)
             consume(')')
         end
 
-        addStatement('fn', name, table.unpack(params))
         consumeWhitespace()
         consumeAll('=')
+        return result
     end
 
     local knot = function()
@@ -403,23 +400,23 @@ return function(input, source)
         consumeWhitespace()
         local id = identifier()
         if id == 'function' then
-            fn()
-            return
+            return fn()
         end
 
-        addStatement('knot', id)
         consumeWhitespace()
         consumeAll('=')
         consumeWhitespaceAndNewlines()
+        return {'knot', id}
     end
 
     local stitch = function()
         consume("=")
         consumeWhitespace()
-        addStatement('stitch', identifier())
+        local id = identifier()
         consumeWhitespace()
         consume('\n')
         consumeWhitespaceAndNewlines()
+        return {'stitch', id}
     end
 
     local option = function(bulletSymbol)
@@ -462,8 +459,8 @@ return function(input, source)
 
         local t3 = text()
 
-        addStatement('option', nesting, t1, t2, t3, label, sticky, table.unpack(conditions))
         consumeWhitespaceAndNewlines()
+        return {'option', nesting, t1, t2, t3, label, sticky, table.unpack(conditions)}
     end
 
     local gather = function()
@@ -481,14 +478,14 @@ return function(input, source)
             consume(')')
             consumeWhitespace()
         end
-        addStatement('gather', nesting, text(), label)
+        return {'gather', nesting, text(), label}
     end
 
 
     local tag = function()
         consume("#")
         consumeWhitespace()
-        addStatement('tag', text())
+        return {'tag', text()}
     end
 
     local constant = function()
@@ -498,8 +495,9 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        addStatement('const', name, expression())
+        local value = expression()
         consumeWhitespaceAndNewlines()
+        return {'const', name, value}
     end
 
     local variable = function()
@@ -509,8 +507,9 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        addStatement('var', name, expression())
+        local value = expression()
         consumeWhitespaceAndNewlines()
+        return {'var', name, value}
     end
 
     local tempVariable = function()
@@ -520,8 +519,9 @@ return function(input, source)
         consumeWhitespace()
         consume("=")
         consumeWhitespace()
-        addStatement('tempvar', name, expression()) --TODO better name? local var? var?
+        local value = expression()
         consumeWhitespaceAndNewlines()
+        return {'tempvar', name, value} --TODO better name? local var? var?
     end
 
     local list = function()
@@ -539,14 +539,14 @@ return function(input, source)
             consumeWhitespace()
             table.insert(list, expression())
         end
-        addStatement(list)
         consumeWhitespaceAndNewlines()
+        return list
     end
 
     local para = function()
         local t = text()
         if #t > 0 then
-            addStatement('str', t)
+            return {'str', t}
         end
     end
 
@@ -554,6 +554,7 @@ return function(input, source)
         consume("{")
         consumeWhitespaceAndNewlines()
         local first = expression()
+        local result -- FIXME
 
         if ahead(':') then
             consume(':')
@@ -565,7 +566,7 @@ return function(input, source)
                 consume('|')
                 ifFalse = text() -- FIXME ink text
             end
-            addStatement('if', first, ifTrue, ifFalse)
+            result = {'if', first, ifTrue, ifFalse}
 
         elseif ahead('|') then
             local vals = {first}
@@ -573,34 +574,35 @@ return function(input, source)
                 consume('|')
                 table.insert(vals, expression())
             end
-            addStatement('alt', table.unpack(vals))
+            result= {'alt', table.unpack(vals)}
         else
-            addStatement('alt', first) -- TODO name - variable printing
+            result={'alt', first} -- TODO name - variable printing
         end
         -- TODO other types
         consumeWhitespace()
         consume("}")
         para() -- don't ignore whitespace (TODO, same like glue)
+        return result
     end
 
 
     local glue = function()
         consume("<>")
-        addStatement('glue')
         if ahead('\n') then
             newline()
             next()
         end
-        para() -- don't ignore whitespace after glue
+        para() -- don't ignore whitespace after glue TODO
+        return {'glue'}
     end
 
     local returnStatement = function()
         consume('return')
         consumeWhitespace()
         if eolAhead() then
-            addStatement('return')
+            return {'return'}
         else
-            addStatement('return', expression())
+            return {'return', expression()}
         end
     end
 
@@ -608,47 +610,89 @@ return function(input, source)
         consume("~")
         consumeWhitespace()
         if ahead('return') then
-            returnStatement()
+            return returnStatement()
         elseif ahead('temp') then
-            tempVariable()
+            return tempVariable()
         else
             local id = identifier()
             consumeWhitespace()
             if ahead('(') then
-                addStatement(table.unpack(functionCall(id))) -- TODO unpack??
-                return
+                return functionCall(id)
             elseif ahead('++') then
                 consume('++')
-                addStatement('call', '++', id)
-                return
+                return {'call', '++', id}
             elseif ahead('--') then
                 consume('--')
-                addStatement('call', '--', id)
-                return
+                return {'call', '--', id}
             elseif ahead('=') then
                 consume('=')
                 consumeWhitespace()
-                addStatement('assign', id, expression())
-                return
+                return {'assign', id, expression()}
             end
 
             errorAt('unexpected statement near ' .. id)
         end
     end
 
+    local inkText = function()
+        if isAtEnd() then
+            return
+        end
+
+        local startCursor = current
+
+        consumeWhitespace()
+
+        if ahead('\n') then
+            next()
+            newline()
+            return {'nl'}
+        elseif ahead('//') then
+            return singleLineComment()
+        elseif ahead('/*') then
+            return multiLineComment()
+        elseif ahead('TODO:') then
+            return todo()
+        elseif ahead('INCLUDE') then
+            return include()
+        elseif ahead('<>') then
+            return glue()
+        elseif ahead('->') then
+            return divert()
+        elseif ahead('==') then
+            return knot()
+        elseif ahead('=') then
+            return stitch()
+        elseif ahead('*') then
+            return option('*')
+        elseif ahead('+') then
+            return option('+')
+        elseif ahead('-') then
+            return gather()
+        elseif ahead('#') then
+            return tag()
+        elseif ahead('CONST') then
+            return constant()
+        elseif ahead('VAR') then
+            return variable()
+        elseif ahead('LIST') then
+            return list()
+        elseif ahead('{') then
+            return alternative()
+        elseif ahead('~') then
+            return statement()
+        else
+            return para()
+        end
+
+        if current == startCursor then
+            errorAt("nothing consumed")
+        end
+    end
 
     local maxIter = 3000 -- just for debugging -- TODO better safety catch
 
-    local last = -1
-
     for i=1, maxIter do
-        -- check something was consumend in last loop -- TODO
-        if last==current then
-            errorAt("nothing consumed")
-        end
-        last = current
-
-
         if i == maxIter then
             error('parser error? or input too long') -- FIXME
         end
@@ -658,49 +702,9 @@ return function(input, source)
             break
         end
 
-        consumeWhitespace()
+        local node = inkText()
+        table.insert(statements, node)
 
-        if ahead('\n') then
-            next()
-            newline()
-            addStatement('nl')
-        elseif ahead('//') then
-            singleLineComment()
-        elseif ahead('/*') then
-            multiLineComment()
-        elseif ahead('TODO:') then
-            todo()
-        elseif ahead('INCLUDE') then
-            include()
-        elseif ahead('<>') then
-            glue()
-        elseif ahead('->') then
-            divert()
-        elseif ahead('==') then
-            knot()
-        elseif ahead('=') then
-            stitch()
-        elseif ahead('*') then
-            option('*')
-        elseif ahead('+') then
-            option('+')
-        elseif ahead('-') then
-            gather()
-        elseif ahead('#') then
-            tag()
-        elseif ahead('CONST') then
-            constant()
-        elseif ahead('VAR') then
-            variable()
-        elseif ahead('LIST') then
-            list()
-        elseif ahead('{') then
-            alternative()
-        elseif ahead('~') then
-            statement()
-        else
-            para()
-        end
     end
 
     --_debug(statements)
