@@ -138,22 +138,31 @@ return function(input, source)
     end
 
 
-    local currentText = function(s)
-        local result, _ = input:sub(s, current-1):gsub("%s+", " ")
+    local currentText = function(startPos)
+        local result, _ = input:sub(startPos, current-1):gsub("%s+", " ")
         return result
     end
 
 
-    local text = function()
+    local text
+    text = function()
         local s = current
+        local result = ""
 
         -- TODO different kind of "text' when we are inside an option?
         -- or treat text differently than other tokens?
         -- TODO list allowed chars only
         while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n') and not isAtEnd() do
+            if ahead('\\') then
+                result = result .. currentText(s)
+                next() -- skip the backslash
+                result = result .. peek(1)
+                next()
+                s = current
+            end
             next()
         end
-        return currentText(s)
+        return result .. currentText(s)
     end
 
 
