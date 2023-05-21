@@ -393,9 +393,16 @@ return function (tree)
     end
 
 
+    -- "run" the node and return the return value
     local getValue
     getValue=function(val)
-        --_debug(val)
+
+        if val == nil then
+            error('nil value')
+        elseif val[1] == nil then
+            error('nil value type')
+        end
+
 
         if val[1] == 'str' or val[1] == 'int' or val[1] == 'float' or val[1] == 'bool' then
             return val
@@ -416,8 +423,11 @@ return function (tree)
             elseif val[4] ~= nil then
                 return val[4]
             else
-                return ""
+                return nil
             end
+
+        elseif val[1] == 'seq' then
+            return getValue(val[2]) -- TODO track visits, return next value each time
 
         elseif val[1] == 'gather' then -- diverted into a labelled gather
             return val[3]
@@ -511,10 +521,13 @@ return function (tree)
         -- FIXME
         s.canContinue = isNext('nl')
             or isNext('str')
-            or isNext('alt')
+            or isNext('seq')
             or isNext('if')
             or isNext('gather')
             or isNext('call')
+            or isNext('ref')
+            or isNext('var')
+            or isNext('const')
 
         s.currentChoices = {}
         currentChoicesPointers = {}
@@ -646,29 +659,16 @@ return function (tree)
         local lastpointer=pointer
 
         local res = ''
-        if isNext('str') or isNext('ref') then
-            res = res..output(getValue(tree[pointer]))
-            pointer = pointer + 1
-            update()
-            res = res .. s.continue()
 
-        elseif isNext('alt') then
-            res = output(getValue(tree[pointer][2]))
-            pointer = pointer + 1
-            update()
-            res = res .. s.continue()
+        if isNext('str')
+            or isNext('ref')
+            or isNext('seq')
+            or isNext('call')
+            or isNext('if') then
 
-        elseif isNext('call') then
-            getValue(tree[pointer])
-            pointer = pointer + 1
-            update()
-            res = res .. s.continue()
-
-        elseif isNext('if') then
-            if isTruthy(getValue(tree[pointer][2])) then
-                res=tree[pointer][3]
-            elseif tree[pointer][4] ~= nil then
-                res=tree[pointer][4]
+            local val = getValue(tree[pointer])
+            if val ~= nil then
+                res = res..output(val)
             end
             pointer = pointer + 1
             update()

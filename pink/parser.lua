@@ -110,6 +110,16 @@ return function(input, source)
     end
 
 
+    local nl = function()
+        if not ahead('\n') then
+            errorAt('expected newline')
+        end
+        next()
+        consumeWhitespace()
+        return {'nl'}
+    end
+
+
 
     local singleLineComment = function()
         while not eolAhead() do
@@ -185,6 +195,9 @@ return function(input, source)
         return currentText(s)
     end
 
+
+    local term, expression, inkText; -- cross dependency, must be defined earlier
+
     local stringLiteral = function()
         consume('"')
         local s = current
@@ -220,7 +233,6 @@ return function(input, source)
         return {'int', tonumber(val)}
     end
 
-    local term, expression; -- cross dependency, must be defined earlier
 
     local functionCall = function(functionName)
         consume('(')
@@ -352,7 +364,7 @@ return function(input, source)
     local todo = function()
         consume("TODO:")
         consumeWhitespace()
-        {'todo', textLine()}
+        return {'todo', textLine()}
     end
 
     local divert = function()
@@ -553,36 +565,55 @@ return function(input, source)
     local alternative = function() --TODO name? used for sequences, variable printing, conditional text, cond. option
         consume("{")
         consumeWhitespaceAndNewlines()
-        local first = expression()
-        local result -- FIXME
 
-        if ahead(':') then
+        local beginning = current
+        local first = expression()
+        consumeWhitespace()
+
+        if ahead('}') then
+            -- variable printing: {expression}
+            consume("}")
+            return first
+
+        elseif ahead(':') then
+            -- Conditional block: {expr:textIfTrue} or {expr:textIfTrue|textIfFalse}
             consume(':')
             consumeWhitespaceAndNewlines()
-            local ifTrue = text() -- FIXME ink text
+            local ifTrue = inkText()
             consumeWhitespaceAndNewlines()
             local ifFalse = nil
             if ahead('|') then
                 consume('|')
-                ifFalse = text() -- FIXME ink text
+                ifFalse = inkText()
             end
-            result = {'if', first, ifTrue, ifFalse}
 
-        elseif ahead('|') then
-            local vals = {first}
+            consumeWhitespace()
+            consume("}")
+            return {'if', first, ifTrue, ifFalse}
+        end
+
+        -- reset parser pointer back after the opening '{'
+        -- and read the first element again, this time as ink text
+        current = beginning
+        first = inkText()
+        consumeWhitespace()
+
+        if ahead('|') then
+            -- sequence: {text|text|...}
+            local result = {'seq', first}
             while ahead('|') do
                 consume('|')
-                table.insert(vals, expression())
+                local element = inkText()
+                if element ~= nil then
+                    table.insert(result, element)
+                end
             end
-            result= {'alt', table.unpack(vals)}
-        else
-            result={'alt', first} -- TODO name - variable printing
+            consumeWhitespace()
+            consume("}")
+            return result
         end
         -- TODO other types
-        consumeWhitespace()
-        consume("}")
-        para() -- don't ignore whitespace (TODO, same like glue)
-        return result
+        errorAt('invalid alternative')
     end
 
 
@@ -592,7 +623,6 @@ return function(input, source)
             newline()
             next()
         end
-        para() -- don't ignore whitespace after glue TODO
         return {'glue'}
     end
 
@@ -634,19 +664,13 @@ return function(input, source)
         end
     end
 
-    local inkText = function()
+    inkText = function()
         if isAtEnd() then
             return
         end
 
-        local startCursor = current
-
-        consumeWhitespace()
-
         if ahead('\n') then
-            next()
-            newline()
-            return {'nl'}
+            return nl()
         elseif ahead('//') then
             return singleLineComment()
         elseif ahead('/*') then
@@ -671,7 +695,7 @@ return function(input, source)
             return gather()
         elseif ahead('#') then
             return tag()
-        elseif ahead('CONST') then
+        elseif ahead('CONST') then -- TODO must be on new line?
             return constant()
         elseif ahead('VAR') then
             return variable()
@@ -683,10 +707,6 @@ return function(input, source)
             return statement()
         else
             return para()
-        end
-
-        if current == startCursor then
-            errorAt("nothing consumed")
         end
     end
 
@@ -702,8 +722,12 @@ return function(input, source)
             break
         end
 
+        local startCursor = current
         local node = inkText()
         table.insert(statements, node)
+        if current == startCursor then
+            errorAt("nothing consumed")
+        end
 
     end
 
