@@ -6,7 +6,6 @@ return function(input, source)
     local current=1
     local line = 1
     local column = 1
-    local statements = {}
 
     local isAtEnd = function()
         return current >= #input
@@ -145,14 +144,16 @@ return function(input, source)
 
 
     local text
-    text = function()
+    text = function(opts)
         local s = current
         local result = ""
 
         -- TODO different kind of "text' when we are inside an option?
         -- or treat text differently than other tokens?
         -- TODO list allowed chars only
-        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n') and not isAtEnd() do
+        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
+            and not isAtEnd()
+            and not (opts and opts.stopAtQuote and ahead('"')) do -- FIXME hack or not?
             if ahead('\\') then
                 result = result .. currentText(s)
                 next() -- skip the backslash
@@ -164,7 +165,6 @@ return function(input, source)
         end
         return result .. currentText(s)
     end
-
 
     local textLine = function()
         local s = current
@@ -209,13 +209,9 @@ return function(input, source)
 
     local stringLiteral = function()
         consume('"')
-        local s = current
-        while not ahead('"') and not eolAhead() do
-            next()
-        end
-        local val = currentText(s)
+        local result = inkText{stopAtQuote=true} -- TODO more tests
         consume('"')
-        return {'str', val}
+        return result
     end
 
     local number = function()
@@ -564,8 +560,8 @@ return function(input, source)
         return list
     end
 
-    local para = function()
-        local t = text()
+    local para = function(opts)
+        local t = text(opts)
         if #t > 0 then
             return {'str', t}
         end
@@ -673,11 +669,7 @@ return function(input, source)
         end
     end
 
-    inkText = function()
-        if isAtEnd() then
-            return
-        end
-
+    local inkNode = function(opts)
         if ahead('\n') then
             return nl()
         elseif ahead('//') then
@@ -715,31 +707,42 @@ return function(input, source)
         elseif ahead('~') then
             return statement()
         else
-            return para()
+            return para(opts)
         end
     end
 
-    local maxIter = 3000 -- just for debugging -- TODO better safety catch
+    inkText = function(opts)
+        local result = {} -- TODO give it a name, then evaluate the root node with getValue
 
-    for i=1, maxIter do
-        if i == maxIter then
-            error('parser error? or input too long') -- FIXME
+        local maxIter = 3000 -- just for debugging -- TODO better safety catch
+
+        for i=1, maxIter do
+            if i == maxIter then
+                error('parser error? or input too long') -- FIXME
+            end
+
+            if isAtEnd() then
+                --        addStatement('eof', nil, line, column, '')
+                break
+            end
+
+            local startCursor = current
+
+            local node = inkNode(opts)
+            if node ~= nil then
+                table.insert(result, node)
+            end
+
+            if current == startCursor then
+                break
+                --errorAt("nothing consumed")
+            end
+
         end
-
-        if isAtEnd() then
-            --        addStatement('eof', nil, line, column, '')
-            break
-        end
-
-        local startCursor = current
-        local node = inkText()
-        table.insert(statements, node)
-        if current == startCursor then
-            errorAt("nothing consumed")
-        end
-
+        return result
     end
 
+    local statements = inkText()
     --_debug(statements)
     return statements
 end

@@ -399,13 +399,12 @@ return function (tree)
 
         if val == nil then
             error('nil value')
-        elseif val[1] == nil then
-            error('nil value type')
         end
 
 
         if val[1] == 'str' or val[1] == 'int' or val[1] == 'float' or val[1] == 'bool' then
             return val
+
 
         elseif val[1] == 'ref' then
             local name = val[2]
@@ -419,9 +418,9 @@ return function (tree)
 
         elseif val[1] == 'if' then
             if isTruthy(getValue(val[2])) then
-                return val[3]
+                return getValue(val[3])
             elseif val[4] ~= nil then
-                return val[4]
+                return getValue(val[4])
             else
                 return nil
             end
@@ -470,7 +469,20 @@ return function (tree)
                 error('invalid call target: ' .. target[1])
             end
 
+        elseif #val == 0 or type(val[1]) == 'table' then
+            -- {} or {{'xxx', ...}, {'xxx', ...}}
+            -- FIXME I006 - consolidate continue(), update() and getValue() and call recursively here
+            local result = ""
+            for i=1, #val do
+                local value = getValue(val[i])
+                if value ~= nil then
+                    result = result .. output(value)
+                end
+            end
+            return {'str', result}
+
         else
+            _debug(val)
             error('unsupported value type: '..val[1])
         end
     end
@@ -664,19 +676,18 @@ return function (tree)
             or isNext('ref')
             or isNext('seq')
             or isNext('call')
-            or isNext('if') then
+            or isNext('if')
+            or tree[pointer] and type(tree[pointer][1]) == 'table' then
 
             local val = getValue(tree[pointer])
             if val ~= nil then
-                res = res..output(val)
+                res = res .. output(val)
             end
             pointer = pointer + 1
             update()
             res = res .. s.continue()
-        end
 
-
-        if isNext('glue') then
+        elseif isNext('glue') then
             pointer = pointer + 1
             update()
             res = res .. s.continue()
