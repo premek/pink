@@ -472,6 +472,10 @@ return function(input, source)
             consume('[')
             t2 = text()
             consume(']')
+
+            if #t1 == 0 then
+                consumeWhitespaceAndNewlines()
+            end
         end
 
         local t3 = text()
