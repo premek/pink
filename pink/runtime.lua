@@ -567,9 +567,14 @@ return function (tree)
 
                     if displayOption then
                         table.insert(currentChoicesPointers, p)
+                        local choiceText = n[3] .. (n[5] or '')
+                        if #choiceText == 0 then
+                            choiceText = nil
+                        end
+
                         table.insert(s.currentChoices, {
                             text = (n[3] or '') .. (n[4] or ''),
-                            choiceText = n[3] .. (n[5] or ''),
+                            choiceText = choiceText,
                         })
                     end
                 end
@@ -748,6 +753,9 @@ return function (tree)
     s.currentChoices = {}
 
     s.chooseChoiceIndex = function(index)
+        if type(index) ~= 'number' then
+            error('number expected')
+        end
         pointer = currentChoicesPointers[index]+1
         update()
     end
