@@ -495,6 +495,8 @@ return function (tree)
     local update
     update = function ()
 
+        --print('upd', pointer, tree[pointer] and tree[pointer][1])
+
         if isNext('divert') then
             goTo(tree[pointer][2])
             update()
@@ -549,12 +551,17 @@ return function (tree)
 
         if isNext('option') then
             local choiceDepth = tree[pointer][2]
+            local foundGather = nil
+
             -- find all choices on the same level in the same knot and in the same super-choice
             for p=pointer, #tree do
                 local n = tree[p]
                 if is('knot', n) or is('stitch', n) or (is('option', n) and n[2] < choiceDepth) then
                     break
-                    -- TODO gather
+                end
+
+                if not foundGather and is('gather', n) and n[2] == currentDepth then
+                    foundGather = p
                 end
 
                 if is('option', n) and n[2] == choiceDepth and choiceDepth > currentDepth then
@@ -587,6 +594,12 @@ return function (tree)
             if #s.currentChoices > 0 then
                 -- player will need to nest one level deeper
                 currentDepth = currentDepth + 1
+            end
+
+            if #s.currentChoices == 0 and foundGather then
+                pointer = foundGather
+                update()
+                return
             end
 
         end
@@ -685,6 +698,8 @@ return function (tree)
     s.continue = function()
         local lastpointer=pointer
 
+        --print('con', pointer, tree[pointer] and tree[pointer][1])
+
         local res = ''
 
         if isNext('str')
@@ -707,7 +722,7 @@ return function (tree)
             update()
             res = res .. s.continue()
 
-        elseif isNext('gather') then -- diverted into a labeled gather
+        elseif isNext('gather') then 
             res = res..getValue(tree[pointer])
             pointer = pointer + 1
             update()
