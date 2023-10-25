@@ -26,12 +26,15 @@ while true do
     print(i .. ": " .. story.currentChoices[i].text)
   end
   local answer = tonumber(io.read())
+  if not answer then
+    error('missing answer')
+  end
   if not answer or answer > #story.currentChoices then
-    error('invalid answer '..tostring(answer))
+    error('invalid answer: '..tostring(answer))
   end
   io.write('?> ')
   if story.currentChoices[answer].choiceText then
-      print(story.currentChoices[answer].choiceText)
+    print(story.currentChoices[answer].choiceText)
   end
   story.chooseChoiceIndex(answer)
 end

@@ -300,6 +300,7 @@ return function (tree)
         ['>=']={'native', gte},
     }
 
+    -- story - this table will be passed to client code
     local s = {
         globalTags = {},
         state = {
@@ -314,6 +315,8 @@ return function (tree)
     local tags = {} -- maps (pointer to para) -> (list of tags)
     local tagsForContentAtPath = {}
     local currentChoicesPointers = {}
+    local currentDepth = 0 -- root level is 0, first option will nest to level 1 etc
+    -- TODO reset currentDepth on gathers, when jumping to knots
 
     -- TODO state should contain tree/pointer to be able to save / load
 
@@ -551,9 +554,10 @@ return function (tree)
                 local n = tree[p]
                 if is('knot', n) or is('stitch', n) or (is('option', n) and n[2] < choiceDepth) then
                     break
+                    -- TODO gather
                 end
 
-                if is('option', n) and n[2] == choiceDepth then
+                if is('option', n) and n[2] == choiceDepth and choiceDepth > currentDepth then
                     local _sticky = n[7] == "sticky" -- TODO
                     local displayOption = true
 
@@ -579,6 +583,12 @@ return function (tree)
                     end
                 end
             end
+
+            if #s.currentChoices > 0 then
+                -- player will need to nest one level deeper
+                currentDepth = currentDepth + 1
+            end
+
         end
     end
 
