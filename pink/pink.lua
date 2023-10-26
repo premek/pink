@@ -1,14 +1,21 @@
--- FIXME clean up
+#!/bin/env lua
 
 if not arg[1] and not (...) then
-    error("Usage: `require` this file from a script or call `lua pink/pink.lua parse game.ink`")
+    error("Usage: `require` this file from a script or execute `lua pink/pink.lua game.ink`")
 end
+
 local folderOfThisFile = arg[1]
     and string.sub(..., 1, string.len(arg[1]))==arg[1]
     and arg[0]:match("(.-)[^/\\]+$")
     or (...):match("(.-)[^%.]+$")
-local parser = require(folderOfThisFile .. 'parser')
-local runtime = require(folderOfThisFile .. 'runtime')
+
+local function requireLocal(f)
+    return require(folderOfThisFile .. f)
+end
+
+
+local parser = requireLocal('parser')
+local runtime = requireLocal('runtime')
 
 
 local function loveFileReader(file)
@@ -52,13 +59,37 @@ parse = function(file)
     return parsed
 end
 
-local api = {
-    getStory = function (filename)
-        return runtime(parse(filename))
+local function getStory(filename)
+    return runtime(parse(filename))
+end
+
+if not arg[1] then
+    return getStory
+end
+
+local story = getStory(arg[1])
+
+while true do
+    while story.canContinue do
+        print(story.continue())
     end
-}
+    if #story.currentChoices == 0 then break end
+    print()
+    for i = 1, #story.currentChoices do
+        print(i .. ": " .. story.currentChoices[i].text)
+    end
+    io.write('?> ')
+    local answer = tonumber(io.read())
+    if not answer then
+        error('missing answer')
+    end
+    if not answer or answer > #story.currentChoices then
+        error('invalid answer: '..tostring(answer))
+    end
+    if story.currentChoices[answer].choiceText then
+        print(story.currentChoices[answer].choiceText)
+    end
+    story.chooseChoiceIndex(answer)
+end
 
 
-
-
-return api

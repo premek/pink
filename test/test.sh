@@ -5,7 +5,7 @@ test -z "$PATTERNS" && PATTERNS="I* luaformat lua sh"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
-DIR="$(dirname "$0")"
+DIR="$(dirname "$(dirname "$0")")"
 
 DIFF="colordiff  --side-by-side"
 
@@ -48,10 +48,10 @@ for P in $PATTERNS; do
     continue
 
   else
-    for D in "./$DIR/runtime/"$P; do
+    for D in "./$DIR/test/runtime/"$P; do
       TESTCASE=$(basename "$D")
       TESTS=$((TESTS+1))
-      printf '%s ' "$TESTCASE" && "./$DIR/pink-runner.lua" "$D/story.ink" < "$D/input.txt" | $DIFF "$D/transcript.txt" - &&
+      printf '%s ' "$TESTCASE" && "./$DIR/pink/pink.lua" "$D/story.ink" < "$D/input.txt" | $DIFF "$D/transcript.txt" - &&
          echo "OK" && PASSES=$((PASSES+1)) || RET=1
     done
   fi
