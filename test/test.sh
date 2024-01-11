@@ -57,6 +57,8 @@ for P in $PATTERNS; do
   fi
 done
 
-echo "$PASSES/$TESTS passed"
+echo "$(date --iso-8601=seconds) - $PASSES/$TESTS passed" >> test/results.txt
+
+tail test/results.txt
 
 exit $RET
