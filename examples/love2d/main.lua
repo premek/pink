@@ -24,7 +24,6 @@ end
 function love.keypressed(key)
   if key=='space' then currentText=nil end
   if tonumber(key) then
-    currentText = 'Me: ' .. story.currentChoices[tonumber(key)].choiceText .. '\n\n(press space to continue)'
     story.chooseChoiceIndex(tonumber(key))
   end
 end

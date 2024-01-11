@@ -580,16 +580,11 @@ return function (tree)
                     end
 
                     if displayOption then
+                        -- all possible choices printed like this before selecting
+                        local text = trim((n[3] or '') .. (n[4] or ''))
+                        
+                        table.insert(s.currentChoices, {text = text})
                         table.insert(currentChoicesPointers, p)
-                        local choiceText = trim(n[3] .. (n[5] or ''))
-                        if #choiceText == 0 then
-                            choiceText = nil
-                        end
-
-                        table.insert(s.currentChoices, {
-                            text = trim((n[3] or '') .. (n[4] or '')),
-                            choiceText = choiceText,
-                        })
                     end
                 end
             end

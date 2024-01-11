@@ -476,7 +476,8 @@ return function(input, source)
         local t3 = text()
 
         consumeWhitespaceAndNewlines()
-        return {'option', nesting, t1, t2, t3, name, sticky, table.unpack(conditions)} -- choice
+        return {'option', nesting, t1, t2, 'unused', name, sticky, table.unpack(conditions)}, {'str', t1}, {'str', t3}, {'nl'} -- FIXME
+        -- ink parses whole rest of the choice (incl. the "content" until the next choice) as an anonymous function
     end
 
     local gather = function()
@@ -688,7 +689,8 @@ return function(input, source)
         elseif ahead('=') then
             return stitch()
         elseif ahead('*') then
-            return option('*')
+            local n1, n2, n3, n4 = option('*')
+            return n1, n2, n3, n4
         elseif ahead('+') then
             return option('+')
         elseif ahead('-') then
@@ -727,10 +729,15 @@ return function(input, source)
 
             local startCursor = current
 
-            local node = inkNode(opts)
+            -- FIXME
+            local node, n2, n3, n4 = inkNode(opts)
             if node ~= nil then
                 table.insert(result, node)
             end
+            if n2 ~= nil then table.insert(result, n2) end
+            if n3 ~= nil then table.insert(result, n3) end
+            if n4 ~= nil then table.insert(result, n4) end
+
 
             if current == startCursor then
                 break

@@ -95,7 +95,6 @@ while true do
   end
   if #story.currentChoices == 0 then break end -- cannot continue and there are no choices
   local answer=io.read()
-  print (story.currentChoices[tonumber(answer)].choiceText)
   story.chooseChoiceIndex(answer)
 end
 ```

@@ -86,9 +86,6 @@ while true do
     if not answer or answer > #story.currentChoices then
         error('invalid answer: '..tostring(answer))
     end
-    if story.currentChoices[answer].choiceText then
-        print(story.currentChoices[answer].choiceText)
-    end
     story.chooseChoiceIndex(answer)
 end
 
