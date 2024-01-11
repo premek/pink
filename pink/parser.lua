@@ -447,13 +447,12 @@ return function(input, source)
             consumeWhitespace()
         end
 
-        -- FIXME { or ( first?
-        local label = nil
+        local name = nil
         if ahead('(') then
             consume('(')
-            label = identifier()
+            name = identifier()
             consume(')')
-            consumeWhitespace()
+            consumeWhitespaceAndNewlines()
         end
 
         while ahead('{') do
@@ -465,7 +464,7 @@ return function(input, source)
             consumeWhitespaceAndNewlines()
         end
 
-        local t1 = text():match "(.-)%s*$" -- right trim
+        local t1 = text()
 
         local t2 = ""
         if ahead('[') then
@@ -477,7 +476,7 @@ return function(input, source)
         local t3 = text()
 
         consumeWhitespaceAndNewlines()
-        return {'option', nesting, t1, t2, t3, label, sticky, table.unpack(conditions)}
+        return {'option', nesting, t1, t2, t3, name, sticky, table.unpack(conditions)} -- choice
     end
 
     local gather = function()

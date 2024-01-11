@@ -273,6 +273,9 @@ local andFn = function(a,b)
     return {"bool", toBool(a)[2] and toBool(b)[2]}
 end
 
+local trim = function(s)
+  return s:match("^%s*(.-)%s*$")
+end
 
 return function (tree)
     local variables = {
@@ -306,11 +309,11 @@ return function (tree)
         state = {
             visitCount = {},
         },
-        variables = variables,
-        callstack = {}
+        variables = variables
     }
 
     local pointer = 1
+    local callstack = {}
     local knots = {}
     local tags = {} -- maps (pointer to para) -> (list of tags)
     local tagsForContentAtPath = {}
@@ -463,7 +466,7 @@ return function (tree)
                 return target[2](table.unpack(arguments))
 
             elseif target[1] == 'fn' then
-                table.insert(s.callstack, pointer)
+                table.insert(callstack, pointer)
                 goTo(target[2]+1) -- jump after fn declaration
                 -- TODO arguments
                 -- TODO return value
@@ -578,13 +581,13 @@ return function (tree)
 
                     if displayOption then
                         table.insert(currentChoicesPointers, p)
-                        local choiceText = n[3] .. (n[5] or '')
+                        local choiceText = trim(n[3] .. (n[5] or ''))
                         if #choiceText == 0 then
                             choiceText = nil
                         end
 
                         table.insert(s.currentChoices, {
-                            text = (n[3] or '') .. (n[4] or ''),
+                            text = trim((n[3] or '') .. (n[4] or '')),
                             choiceText = choiceText,
                         })
                     end
@@ -722,7 +725,7 @@ return function (tree)
             update()
             res = res .. s.continue()
 
-        elseif isNext('gather') then 
+        elseif isNext('gather') then
             res = res..getValue(tree[pointer])
             pointer = pointer + 1
             update()
@@ -744,14 +747,14 @@ return function (tree)
 
         if isNext('return') then
             -- TODO return value
-            goTo(table.remove(s.callstack))
+            goTo(table.remove(callstack))
             pointer = pointer + 1
             update()
 
         end
 
         if isEnd() then
-            local returnTo = table.remove(s.callstack)
+            local returnTo = table.remove(callstack)
             if returnTo ~= nil then
                 goTo(returnTo)
             end
