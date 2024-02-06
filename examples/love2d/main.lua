@@ -1,6 +1,6 @@
 local pink = require('pink.pink')
 
-local story = pink.getStory('game.ink')
+local story = pink('game.ink')
 
 -- you can also jump to a story knot based on some event in your game
 story.choosePathString('back_in_london');
@@ -22,9 +22,12 @@ function love.update()
 end
 
 function love.keypressed(key)
-  if key=='space' then currentText=nil end
+  if key=='space' then
+      currentText = nil
+  end
   if tonumber(key) then
     story.chooseChoiceIndex(tonumber(key))
+    currentText = nil
   end
 end
 

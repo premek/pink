@@ -1,5 +1,4 @@
 Hello world!
 
 1: Hello back!
-?> 
-Nice to hear from you!
+?> Nice to hear from you!

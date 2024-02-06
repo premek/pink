@@ -1,58 +1,20 @@
 # pink
-An attempt to implement a subset of [ink](https://github.com/inkle/ink) in lua
-
-_Ink is inkle's scripting language for writing interactive narrative, both for text-centric games as well as more graphical games that contain highly branching stories._
+An attempt to implement [ink](https://github.com/inkle/ink) in pure lua,
+currently under development and probably not yet very useful (as of Jan 2024).
 
   <a href="https://premek.github.io/ink-proof/#!/tests?overview=ink" alt="pink test results">
     <img src="https://premek.github.io/ink-proof/pink_compiler.svg"/> 
   </a>
 
+_Ink is [inkle](https://www.inklestudios.com/)'s scripting language for writing interactive narrative,
+both for text-centric games as well as more graphical games that contain highly branching stories._
 
-## Parser
-Supported:
-- Paragraphs
-- Comments
-- Choices
-    - choice and output text
-    - nested choices
-- Knots
-- Diverts
-- Glue
-- Include
-- Tags
-
-
-### Runtime API
-Supported:
-```lua
-boolean story.canContinue
-string story.continue()
-table story.currentChoices
-nil story.chooseChoiceIndex(index)
-nil story.choosePathString(path)
-table story.globalTags
-table story.tagsForContentAtPath(path)
-table story.currentTags
-number story.state.visitCountAtPathString(path)
-```
-TODO: 
-```lua
-string story.state.toJson()
-nil story.state.loadJson(savedJson)
-story.variablesState["variable_name"] = newValue
-value = story.variablesState["variable_name"]
-story.observeVariable ("variable_name", function(string varName, object newValue) ) 
-story.bindExternalFunction ("function_name", function(...))
-});
-
-```
-See [WritingWithInk](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md) and [RunningYourInk](https://github.com/inkle/ink/blob/master/Documentation/RunningYourInk.md) for the description of the reference ink implementation.
+See [WritingWithInk](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md) 
+and [RunningYourInk](https://github.com/inkle/ink/blob/master/Documentation/RunningYourInk.md) 
+for the description of the reference ink implementation.
 
 ## Used by
-pink is used by my small game https://github.com/premek/enjoy
-
-Let me know if you want to use it too - or just use it!
-
+pink was used by my small game https://github.com/premek/enjoy
 
 ## How to use this to run a game
 To use it in your project download the latest source or the latest [release](../../releases). You need just the [pink](../../tree/master/pink) directory.
@@ -83,17 +45,17 @@ He insisted that we hurried home to Savile Row
 ```lua
 local pink = require('pink.pink')
 -- 1) Load story
-local story = pink.getStory('examples/game.ink')
+local story = pink('examples/game.ink')
 while true do
   -- 2) Game content, line by line
   while story.canContinue do
     print(story.continue())
   end
   -- 3) Display story.currentChoices list, allow player to choose one
+  if #story.currentChoices == 0 then break end -- cannot continue and there are no choices
   for i = 1, #story.currentChoices do
     print(i .. "> " .. story.currentChoices[i].text)
   end
-  if #story.currentChoices == 0 then break end -- cannot continue and there are no choices
   local answer=io.read()
   story.chooseChoiceIndex(answer)
 end
@@ -105,14 +67,18 @@ This is how to run the text-based example:
 
     $ lua examples/game.lua
 
+or just:
+
+    $ examples/game.lua
+
 And this example shows [LÖVE](https://love2d.org) integration:
 
     $ love examples/love2d
 
-<!-- TODO: short example here -->
-
 ## How to run tests
-    $ lua test/test.lua
+    $ ./test/test.sh           # all tests
+    $ ./test/test.sh I129      # run a single test case
+    $ ./test/test.sh W1.3.*    # run test cases mathing a pattern
 
 - [More tests](https://premek.github.io/ink-proof/#!/tests?overview=ink) - source: [premek/ink-proof](https://github.com/premek/ink-proof) 
     

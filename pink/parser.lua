@@ -1,755 +1,930 @@
-local _debug = function(x) print( require('test/luaunit').prettystr(x) ) end
+return function(input, source, debug)
 
-return function(input, source)
-    source = source or 'unknown source'
+        local _debug = function(x)
+            if not debug then return end
+            print( require('test/luaunit').prettystr(x) )
+        end
 
-    local current=1
-    local line = 1
-    local column = 1
+        source = source or 'unknown source'
 
-    local isAtEnd = function()
-        return current >= #input
-    end
-
-    local newline = function()
-        line = line + 1
-        column = 1
-    end
+        local current=1
+        local line = 1
+        local column = 1
 
 
-    local next = function(chars)
-        chars = chars or 1
-        column = column + chars
-        current = current + chars -- todo error on unexpected eof
-    end
-
-    local peek = function(chars)
-        if isAtEnd() then return nil end -- FIXME?
-        return input:sub(current, current+chars-1)
-    end
-
-    local peekCode = function()
-        if isAtEnd() then return nil end
-        return input:byte(current, current)
-    end
+        local errorAt = function(msg, ...)
+            local formattedMsg = string.format(msg, ...)
+            error(string.format(formattedMsg .. " at '%s', line %s, column %s", source, line, column))
+        end
 
 
-    local ahead = function(str)
-        return str == peek(#str)
-    end
+        local mark
 
-    local aheadAnyOf = function(...)
-        for _, str in ipairs{...} do
-            if ahead(str) then
-                return true
+        local setMark = function()
+            mark={current=current,
+                line = line,
+                column = column,
+            }
+        end
+
+        local removeMark = function()
+            mark = nil
+        end
+
+        local resetToMark = function()
+            if mark == nil then
+                errorAt('mark not set')
+            end
+            current=mark.current
+            line = mark.line
+            column = mark.column
+            mark = nil
+        end
+
+        local isAtEnd = function()
+            return current >= #input
+        end
+
+        local newline = function()
+            line = line + 1
+            column = 1
+        end
+
+
+        local next = function(chars)
+            chars = chars or 1
+            column = column + chars
+            current = current + chars -- todo error on unexpected eof
+        end
+
+        local peek = function(chars)
+            if isAtEnd() then return nil end -- FIXME?
+            return input:sub(current, current+chars-1)
+        end
+
+        local peekCode = function()
+            if isAtEnd() then return nil end
+            return input:byte(current, current)
+        end
+
+
+        local ahead = function(str)
+            return str == peek(#str)
+        end
+
+        local aheadAnyOf = function(...)
+            for _, str in ipairs{...} do
+                if ahead(str) then
+                    return true
+                end
+            end
+            return false
+        end
+
+        local whitespaceAhead = function()
+            return aheadAnyOf(' ', '\r', '\t')
+        end
+
+        local eolAhead = function()
+            return ahead('\n') or isAtEnd()
+        end
+
+        local readable = function(s)
+            if s == '\n' then
+                return "newline"
+            else
+                return "'"..s.."'"
             end
         end
-        return false
-    end
 
-    local whitespaceAhead = function()
-        return aheadAnyOf(' ', '\r', '\t')
-    end
-
-    local eolAhead = function()
-        return ahead('\n') or isAtEnd()
-    end
-
-
-    local errorAt = function(msg, ...)
-        local formattedMsg = string.format(msg, ...)
-        error(string.format(formattedMsg .. " at '%s', line %s, column %s", source, line, column))
-    end
-    local readable = function(s)
-        if s == '\n' then
-            return "newline"
-        else
-            return "'"..s.."'"
+        local consume = function(str)
+            if not ahead(str) then
+                errorAt("expected " .. readable(str))
+            end
+            next(#str)
         end
-    end
 
-    local consume = function(str)
-        if not ahead(str) then
-            errorAt("expected " .. readable(str))
-        end
-        next(#str)
-    end
-
-    local consumeAll = function(c)
-        while ahead(c) do
-            next()
-        end
-    end
-
-    local consumeAnyOf = function(...)
-        for _, str in ipairs{...} do
-            if ahead(str) then
-                consume(str)
-                return str
+        local consumeAll = function(c)
+            while ahead(c) do
+                next()
             end
         end
-        errorAt("expected any of " .. table.concat(..., ", "))
 
-    end
+        local consumeAnyOf = function(...)
+            for _, str in ipairs{...} do
+                if ahead(str) then
+                    consume(str)
+                    return str
+                end
+            end
+            errorAt("expected any of " .. table.concat(..., ", "))
 
-    local consumeWhitespace = function()
-        while whitespaceAhead() do
-            next()
         end
-    end
 
-    local consumeWhitespaceAndNewlines
-    consumeWhitespaceAndNewlines = function()
-        consumeWhitespace()
-        if ahead('\n') then
+        local consumeWhitespace = function()
+            while whitespaceAhead() do
+                next()
+            end
+        end
+
+        local consumeWhitespaceAndNewlines
+        consumeWhitespaceAndNewlines = function()
+            consumeWhitespace()
+            if ahead('\n') then
+                next()
+                newline()
+                consumeWhitespaceAndNewlines()
+            end
+        end
+
+        local token = function(...)
+            local t = {...}
+            t.location = {source, line, column}
+            return t
+        end
+
+        local nl = function()
+            if not ahead('\n') then return end
             next()
             newline()
-            consumeWhitespaceAndNewlines()
+            consumeWhitespace()
+            return token('nl')
         end
-    end
-
-
-    local nl = function()
-        if not ahead('\n') then
-            errorAt('expected newline')
-        end
-        next()
-        consumeWhitespace()
-        return {'nl'}
-    end
 
 
 
-    local singleLineComment = function()
-        while not eolAhead() do
-            next()
-        end
-    end
-
-    local multiLineComment = function()
-        while not ahead('*/') and not isAtEnd() do
-            if ahead('\n') then
-                newline()
-            end
-            next()
-        end
-        consume('*/')
-    end
-
-
-    local currentText = function(startPos)
-        local result, _ = input:sub(startPos, current-1):gsub("%s+", " ")
-        return result
-    end
-
-
-    local text
-    text = function(opts)
-        local s = current
-        local result = ""
-
-        -- TODO different kind of "text' when we are inside an option?
-        -- or treat text differently than other tokens?
-        -- TODO list allowed chars only
-        while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
-            and not isAtEnd()
-            and not (opts and opts.stopAtQuote and ahead('"')) do -- FIXME hack or not?
-            if ahead('\\') then
-                result = result .. currentText(s)
-                next() -- skip the backslash
-                result = result .. peek(1)
+        local singleLineComment = function()
+            if not ahead('//') then return end
+            consume('//')
+            while not eolAhead() do
                 next()
-                s = current
-            end
-            next()
-        end
-        return result .. currentText(s)
-    end
-
-    local textLine = function()
-        local s = current
-        while not eolAhead() do
-            next()
-        end
-        return currentText(s)
-    end
-
-    local filename = function()
-        return textLine()
-    end
-
-    local identifier = function()
-        local s = current
-        -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
-        -- /WritingWithInk.md#part-6-international-character-support-in-identifiers
-        local c = peekCode()
-        local first = true
-        while c ~= nil and (
-            -- TODO
-            c==95 -- _
-            or c==46 -- .
-            or (c>=65 and c<=90) -- A-Z
-            or (c>=97 and c<=122) -- a-z
-            or (not first and c>=48 and c<=57)
-            ) do -- TODO!
-
-
-            next()
-            c = peekCode()
-            first = false
-        end
-        if s == current then -- nothing consumed
-            errorAt('identifier expected')
-        end
-        return currentText(s)
-    end
-
-
-    local term, expression, inkText; -- cross dependency, must be defined earlier
-
-    local stringLiteral = function()
-        consume('"')
-        local result = inkText{stopAtQuote=true} -- TODO more tests
-        consume('"')
-        return result
-    end
-
-    local number = function()
-        local s = current
-        if ahead('-') then
-            next()
-        end
-        while aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') do -- TODO
-            next()
-        end
-        return currentText(s)
-    end
-
-    local floatLiteral = function(intPart)
-        consume('.')
-        return {'float', tonumber(intPart..'.'..number())}
-    end
-
-    local intLiteral = function()
-        local val = number()
-        if ahead('.') then
-            return floatLiteral(val)
-        end
-        return {'int', tonumber(val)}
-    end
-
-
-    local functionCall = function(functionName)
-        consume('(')
-        local result = {'call', functionName}
-        while not ahead(')') do
-            table.insert(result, expression())
-            consumeWhitespace()
-            if ahead(',') then
-                consume(",")
-                consumeWhitespace()
             end
         end
-        consume(')')
-        return result
-    end
 
-
-    term = function()
-        if ahead('"') then
-            return stringLiteral()
-        end
-        if aheadAnyOf('-', '0','1', '2','3','4','5','6','7','8','9') then -- TODO
-            return intLiteral()
-        end
-
-        if ahead('(') then
-            consume('(')
-            consumeWhitespace()
-            local exp = expression()
-            consumeWhitespace()
-            consume(')')
-            return exp
-        end
-
-        if ahead('true') then
-            consume('true')
-            return {'bool', true}
-        end
-        if ahead('false') then
-            consume('false')
-            return {'bool', false}
-        end
-
-
-
-        local id = identifier()
-        consumeWhitespace()
-        if ahead('(') then
-            return functionCall(id)
-        end
-        return {'ref', id} -- FIXME same name as function argument passed as a reference
-    end
-
-    local unary = {'not', '!'}
-
-    -- precedence from lowest to highest
-    local operatorList = {
-        {'?'},
-        {'or', '||', 'and', '&&'},
-        {'!=', '=='},
-        {'<=', '>=', '>', '<'},
-        {'-', '+'},
-        {'mod', '%', '/', '*'},
-    }
-    local operators = {}
-    local precedence = {}
-    for operatorPrecedence, operatorGroup in ipairs(operatorList) do
-        for _, operator in ipairs(operatorGroup) do
-            precedence[operator] = operatorPrecedence
-            table.insert(operators, operator)
-        end
-    end
-
-    expression = function()
-        if aheadAnyOf(table.unpack(unary)) then
-            local operator = consumeAnyOf(table.unpack(unary))
-            consumeWhitespace()
-            return {'call', operator, expression()}
-        end
-
-        -- The shunting yard algorithm
-        local operandStack = {}
-        local operatorStack = {}
-
-        table.insert(operandStack, term())
-        consumeWhitespace()
-
-        while aheadAnyOf(table.unpack(operators)) do
-            local operator = consumeAnyOf(table.unpack(operators))
-            consumeWhitespace()
-
-            while operatorStack[#operatorStack] ~= nil
-                and precedence[operator] <= precedence[operatorStack[#operatorStack]] do
-
-                local right = table.remove(operandStack)
-                local left = table.remove(operandStack)
-                local operatorFromStack = table.remove(operatorStack)
-                table.insert(operandStack, {'call', operatorFromStack, left, right})
-            end
-
-            table.insert(operatorStack, operator)
-
-            table.insert(operandStack, term())
-            consumeWhitespace()
-        end
-
-        -- TODO cleanup
-        while operatorStack[#operatorStack] ~= nil do
-            local right = table.remove(operandStack)
-            local left = table.remove(operandStack)
-            local operatorFromStack = table.remove(operatorStack)
-            table.insert(operandStack, {'call', operatorFromStack, left, right})
-        end
-
-        if #operandStack ~= 1 or #operatorStack ~= 0 then
-            errorAt('expression parsing error')
-        end
-
-        return operandStack[1]
-    end
-
-
-    local include = function()
-        consume("INCLUDE")
-        consumeWhitespace()
-        return {'include', filename()}
-    end
-
-    local todo = function()
-        consume("TODO:")
-        consumeWhitespace()
-        return {'todo', textLine()}
-    end
-
-    local divert = function()
-        consume("->")
-        consumeWhitespace()
-        return {'divert', identifier()}
-    end
-
-    -- == function add(x,y) ==
-    local fn = function()
-        consumeWhitespace()
-        local name = identifier()
-        local result = {'fn', name}
-
-        if ahead('(') then
-            consume('(')
-            consumeWhitespace()
-            while not ahead(')') do
-                local paramName = identifier()
-                local passedByReference = false
-                if paramName == 'ref' then
-                    -- === function alter(ref x, k) ===
-                    consumeWhitespace()
-                    paramName = identifier()
-                    passedByReference = true
+        local multiLineComment = function()
+            if not ahead('/*') then return end
+            consume('/*')
+            while not ahead('*/') and not isAtEnd() do
+                if ahead('\n') then
+                    newline()
                 end
-                table.insert(result, {'param', paramName, passedByReference})
-                consumeWhitespace()
-                if ahead(',') then
-                    consume(',')
-                    consumeWhitespace()
-                end
+                next()
             end
-            consume(')')
+            consume('*/')
         end
 
-        consumeWhitespace()
-        consumeAll('=')
-        return result
-    end
 
-    local knot = function()
-        consume("==")
-        consumeAll('=')
-        consumeWhitespace()
-        local id = identifier()
-        if id == 'function' then
-            return fn()
-        end
-
-        consumeWhitespace()
-        consumeAll('=')
-        consumeWhitespaceAndNewlines()
-        return {'knot', id}
-    end
-
-    local stitch = function()
-        consume("=")
-        consumeWhitespace()
-        local id = identifier()
-        consumeWhitespace()
-        consume('\n')
-        consumeWhitespaceAndNewlines()
-        return {'stitch', id}
-    end
-
-    local option = function(bulletSymbol)
-        local nesting = 0
-        local sticky = (bulletSymbol == '+') and "sticky" or "nonstick"
-        local conditions = {}
-
-        while ahead(bulletSymbol) do
-            consume(bulletSymbol)
-            nesting = nesting + 1
-            consumeWhitespace()
-        end
-
-        local name = nil
-        if ahead('(') then
-            consume('(')
-            name = identifier()
-            consume(')')
-            consumeWhitespaceAndNewlines()
-        end
-
-        while ahead('{') do
-            consume('{')
-            consumeWhitespace()
-            table.insert(conditions, expression())
-            consumeWhitespace()
-            consume('}')
-            consumeWhitespaceAndNewlines()
-        end
-
-        local t1 = text()
-
-        local t2 = ""
-        if ahead('[') then
-            consume('[')
-            t2 = text()
-            consume(']')
-        end
-
-        local t3 = text()
-
-        consumeWhitespaceAndNewlines()
-        return {'option', nesting, t1, t2, 'unused', name, sticky, table.unpack(conditions)}, {'str', t1}, {'str', t3}, {'nl'} -- FIXME
-        -- ink parses whole rest of the choice (incl. the "content" until the next choice) as an anonymous function
-    end
-
-    local gather = function()
-        local nesting = 0
-        while ahead("-") do
-            consume("-")
-            nesting = nesting + 1
-            consumeWhitespace()
-        end
-
-        local label = nil
-        if ahead('(') then
-            consume('(')
-            label = identifier()
-            consume(')')
-            consumeWhitespace()
-        end
-        return {'gather', nesting, text(), label}
-    end
-
-
-    local tag = function()
-        consume("#")
-        consumeWhitespace()
-        return {'tag', text()}
-    end
-
-    local constant = function()
-        consume("CONST")
-        consumeWhitespace()
-        local name = identifier()
-        consumeWhitespace()
-        consume("=")
-        consumeWhitespace()
-        local value = expression()
-        consumeWhitespaceAndNewlines()
-        return {'const', name, value}
-    end
-
-    local variable = function()
-        consume("VAR")
-        consumeWhitespace()
-        local name = identifier()
-        consumeWhitespace()
-        consume("=")
-        consumeWhitespace()
-        local value = expression()
-        consumeWhitespaceAndNewlines()
-        return {'var', name, value}
-    end
-
-    local tempVariable = function()
-        consume("temp")
-        consumeWhitespace()
-        local name = identifier()
-        consumeWhitespace()
-        consume("=")
-        consumeWhitespace()
-        local value = expression()
-        consumeWhitespaceAndNewlines()
-        return {'tempvar', name, value} --TODO better name? local var? var?
-    end
-
-    local list = function()
-        consume("LIST")
-        consumeWhitespace()
-        local name = identifier()
-        consumeWhitespace()
-        consume("=")
-        consumeWhitespace()
-
-        local list = {'list', name, expression()}
-        while not eolAhead() do
-            consumeWhitespace()
-            consume(",")
-            consumeWhitespace()
-            table.insert(list, expression())
-        end
-        consumeWhitespaceAndNewlines()
-        return list
-    end
-
-    local para = function(opts)
-        local t = text(opts)
-        if #t > 0 then
-            return {'str', t}
-        end
-    end
-
-    local alternative = function() --TODO name? used for sequences, variable printing, conditional text, cond. option
-        consume("{")
-        consumeWhitespaceAndNewlines()
-
-        local beginning = current
-        local first = expression()
-        consumeWhitespace()
-
-        if ahead('}') then
-            -- variable printing: {expression}
-            consume("}")
-            return first
-
-        elseif ahead(':') then
-            -- Conditional block: {expr:textIfTrue} or {expr:textIfTrue|textIfFalse}
-            consume(':')
-            consumeWhitespaceAndNewlines()
-            local ifTrue = inkText()
-            consumeWhitespaceAndNewlines()
-            local ifFalse = nil
-            if ahead('|') then
-                consume('|')
-                ifFalse = inkText()
-            end
-
-            consumeWhitespace()
-            consume("}")
-            return {'if', first, ifTrue, ifFalse}
-        end
-
-        -- reset parser pointer back after the opening '{'
-        -- and read the first element again, this time as ink text
-        current = beginning
-        first = inkText()
-        consumeWhitespace()
-
-        if ahead('|') then
-            -- sequence: {text|text|...}
-            local result = {'seq', first}
-            while ahead('|') do
-                consume('|')
-                local element = inkText()
-                if element ~= nil then
-                    table.insert(result, element)
-                end
-            end
-            consumeWhitespace()
-            consume("}")
+        local currentText = function(startPos)
+            local result, _ = input:sub(startPos, current-1):gsub("%s+", " ")
             return result
         end
-        -- TODO other types
-        errorAt('invalid alternative')
-    end
 
 
-    local glue = function()
-        consume("<>")
-        if ahead('\n') then
-            newline()
-            next()
+        local text
+        text = function(opts)
+            local s = current
+            local result = ""
+
+            -- TODO different kind of "text' when we are inside an option?
+            -- or treat text differently than other tokens?
+            -- TODO list allowed chars only?
+            -- FIXME this is wierd
+            --
+            --
+            while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
+                and not isAtEnd()
+                and not (opts and opts.stopAtQuote and ahead('"')) do -- FIXME hack or not?
+                if ahead('\\') then
+                    result = result .. currentText(s)
+                    next() -- skip the backslash
+                    result = result .. peek(1)
+                    next()
+                    s = current
+                end
+                next()
+            end
+            return result .. currentText(s)
         end
-        return {'glue'}
-    end
 
-    local returnStatement = function()
-        consume('return')
-        consumeWhitespace()
-        if eolAhead() then
-            return {'return'}
-        else
-            return {'return', expression()}
+        local textLine = function()
+            local s = current
+            while not eolAhead() do
+                next()
+            end
+            return currentText(s)
         end
-    end
 
-    local statement = function()
-        consume("~")
-        consumeWhitespace()
-        if ahead('return') then
-            return returnStatement()
-        elseif ahead('temp') then
-            return tempVariable()
-        else
+        local filename = function()
+            return textLine()
+        end
+
+        local identifier = function()
+            local s = current
+            -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
+            -- /WritingWithInk.md#part-6-international-character-support-in-identifiers
+            local c = peekCode()
+            local first = true
+            while c ~= nil and (
+                -- TODO
+                c==95 -- _
+                or c==46 -- .
+                or (c>=65 and c<=90) -- A-Z
+                or (c>=97 and c<=122) -- a-z
+                or (not first and c>=48 and c<=57)
+                ) do -- TODO!
+
+
+                next()
+                c = peekCode()
+                first = false
+            end
+            if s == current then -- nothing consumed
+                errorAt('identifier expected')
+            end
+            return currentText(s)
+        end
+
+
+        local term, expression, inkText, knotBody, optionBody; -- cross dependency, must be defined earlier
+
+        local stringLiteral = function()
+            consume('"')
+            -- string defined in ink can contain ink - although it will always evaluate to a string.
+            local result = inkText{stopAtQuote=true} -- TODO more tests
+            consume('"')
+            return result
+        end
+
+        local number = function()
+            local s = current
+            if ahead('-') then
+                next()
+            end
+            while aheadAnyOf('0','1', '2','3','4','5','6','7','8','9') do -- TODO
+                next()
+            end
+            return currentText(s)
+        end
+
+        local floatLiteral = function(intPart)
+            consume('.')
+            return token('float', tonumber(intPart..'.'..number()))
+        end
+
+        local intLiteral = function()
+            local val = number()
+            if ahead('.') then
+                return floatLiteral(val)
+            end
+            return token('int', tonumber(val))
+        end
+
+
+        local functionCall = function(functionName)
+            consume('(')
+            local argumentExpressions = {}
+            while not ahead(')') do
+                table.insert(argumentExpressions, expression())
+                consumeWhitespace()
+                if ahead(',') then
+                    consume(",")
+                    consumeWhitespace()
+                end
+            end
+            consume(')')
+            return token('call', functionName, argumentExpressions)
+        end
+
+
+        term = function()
+            if ahead('"') then
+                return stringLiteral()
+            end
+            if aheadAnyOf('-', '0','1', '2','3','4','5','6','7','8','9') then -- TODO
+                return intLiteral()
+            end
+
+            if ahead('(') then -- TODO this is expression and not term?
+                consume('(')
+                consumeWhitespace()
+                local exp = expression()
+                consumeWhitespace()
+                consume(')')
+                return exp
+            end
+
+            if ahead('true') then
+                consume('true')
+                return token('bool', true)
+            end
+            if ahead('false') then
+                consume('false')
+                return token('bool', false)
+            end
+
+
+
             local id = identifier()
             consumeWhitespace()
             if ahead('(') then
                 return functionCall(id)
-            elseif ahead('++') then
-                consume('++')
-                return {'call', '++', id}
-            elseif ahead('--') then
-                consume('--')
-                return {'call', '--', id}
-            elseif ahead('=') then
-                consume('=')
+            end
+            return token('ref', id) -- FIXME same name as function argument passed as a reference
+        end
+
+
+        -- precedence from lowest to highest
+        local operatorList = {
+            {'?'},
+            {'or', '||', 'and', '&&'},
+            {'!=', '=='},
+            {'<=', '>=', '>', '<'},
+            {'-', '+'},
+            {'mod', '%', '/', '*'},
+        }
+        local operators = {}
+        local precedence = {}
+        for operatorPrecedence, operatorGroup in ipairs(operatorList) do
+            for _, operator in ipairs(operatorGroup) do
+                precedence[operator] = operatorPrecedence
+                table.insert(operators, operator)
+            end
+        end
+
+        expression = function()
+            if aheadAnyOf('not', '!') then
+                consumeAnyOf('not', '!')
                 consumeWhitespace()
-                return {'assign', id, expression()}
+                return token('call', 'not', {expression()})
             end
 
-            errorAt('unexpected statement near ' .. id)
+            -- The shunting yard algorithm
+            local operandStack = {}
+            local operatorStack = {}
+
+            table.insert(operandStack, term())
+            consumeWhitespace()
+
+            while aheadAnyOf(table.unpack(operators)) do
+                local operator = consumeAnyOf(table.unpack(operators))
+                consumeWhitespace()
+
+                while operatorStack[#operatorStack] ~= nil
+                    and precedence[operator] <= precedence[operatorStack[#operatorStack]] do
+
+                    local right = table.remove(operandStack)
+                    local left = table.remove(operandStack)
+                    local operatorFromStack = table.remove(operatorStack)
+                    table.insert(operandStack, {'call', operatorFromStack, {left, right}})
+                end
+
+                table.insert(operatorStack, operator)
+
+                table.insert(operandStack, term())
+                consumeWhitespace()
+            end
+
+            -- TODO cleanup
+            while operatorStack[#operatorStack] ~= nil do
+                local right = table.remove(operandStack)
+                local left = table.remove(operandStack)
+                local operatorFromStack = table.remove(operatorStack)
+                table.insert(operandStack, {'call', operatorFromStack, {left, right}})
+            end
+
+            if #operandStack > 1 then
+                errorAt('expression parsing error')
+            end
+
+            return operandStack[1]
         end
-    end
 
-    local inkNode = function(opts)
-        if ahead('\n') then
-            return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
-            return todo()
-        elseif ahead('INCLUDE') then
-            return include()
-        elseif ahead('<>') then
-            return glue()
-        elseif ahead('->') then
-            return divert()
-        elseif ahead('==') then
-            return knot()
-        elseif ahead('=') then
-            return stitch()
-        elseif ahead('*') then
-            local n1, n2, n3, n4 = option('*')
-            return n1, n2, n3, n4
-        elseif ahead('+') then
-            return option('+')
-        elseif ahead('-') then
-            return gather()
-        elseif ahead('#') then
-            return tag()
-        elseif ahead('CONST') then -- TODO must be on new line?
-            return constant()
-        elseif ahead('VAR') then
-            return variable()
-        elseif ahead('LIST') then
-            return list()
-        elseif ahead('{') then
-            return alternative()
-        elseif ahead('~') then
-            return statement()
-        else
-            return para(opts)
+
+        local include = function()
+            if not ahead('INCLUDE') then return end
+            consume("INCLUDE")
+            consumeWhitespace()
+            return token('include', filename())
         end
-    end
 
-    inkText = function(opts)
-        local result = {} -- TODO give it a name, then evaluate the root node with getValue
+        local todo = function()
+            if not ahead('TODO:') then return end
+            consume("TODO:")
+            consumeWhitespace()
+            return token('todo', textLine())
+        end
 
-        local maxIter = 3000 -- just for debugging -- TODO better safety catch
+        local divert = function()
+            if not ahead('->') then return end
+            consume("->")
+            consumeWhitespace()
+            return token('divert', identifier())
+        end
 
-        for i=1, maxIter do
-            if i == maxIter then
-                error('parser error? or input too long') -- FIXME
+        -- == function add(x,y) ==
+        local fnction = function()
+            consumeWhitespace()
+            local name = identifier()
+            local params = {}
+
+            if ahead('(') then
+                consume('(')
+                consumeWhitespace()
+                while not ahead(')') do
+                    local paramName = identifier()
+                    local passedByReference = nil
+                    if paramName == 'ref' then
+                        -- === function alter(ref x, k) ===
+                        consumeWhitespace()
+                        paramName = identifier()
+                        passedByReference = 'ref'
+                    end
+                    table.insert(params, {paramName, passedByReference})
+                    consumeWhitespace()
+                    if ahead(',') then
+                        consume(',')
+                        consumeWhitespace()
+                    end
+                end
+                consume(')')
             end
 
-            if isAtEnd() then
-                --        addStatement('eof', nil, line, column, '')
-                break
+            consumeWhitespace()
+            consumeAll('=')
+            --local body = functionBody();
+            return token('fn', name, params)
+        end
+
+        local knotOrFunction = function()
+            if not ahead('==') then return end
+            consume("==")
+            consumeAll('=')
+            consumeWhitespace()
+            local id = identifier()
+            if id == 'function' then
+                return fnction()
             end
 
-            local startCursor = current
+            consumeWhitespace()
+            consumeAll('=')
+            consumeWhitespaceAndNewlines()
+            local body = knotBody()
+            return token('knot', id, body)-- TODO are they the same? use functions for knots? what about stitches
+        end
 
-            -- FIXME
-            local node, n2, n3, n4 = inkNode(opts)
-            if node ~= nil then
+        local stitch = function()
+            if not ahead('=') then return end
+            consume("=")
+            consumeWhitespace()
+            local id = identifier()
+            consumeWhitespace()
+            consume('\n')
+            consumeWhitespaceAndNewlines()
+            return token('stitch', id)
+        end
+
+        -- minNesting: options with this or higher (deeper) nesting will be included in the body,
+        -- options with lower nesting will not be parsed (to jump up one level)
+        --
+        local option = function(minNesting)
+            if not (ahead('*') or ahead('+')) then return end
+            local bulletSymbol = peek(1)
+            local sticky = (bulletSymbol == '+') and "sticky" or nil
+
+            setMark()
+            local nesting = 0
+            while ahead(bulletSymbol) do
+                consume(bulletSymbol)
+                nesting = nesting + 1
+                consumeWhitespace()
+            end
+            if nesting < minNesting then
+                resetToMark()
+                return
+            end
+            removeMark()
+
+            local name = nil
+            if ahead('(') then
+                consume('(')
+                name = identifier()
+                consume(')')
+                consumeWhitespaceAndNewlines()
+            end
+
+            local conditions = {}
+            while ahead('{') do
+                consume('{')
+                consumeWhitespace()
+                table.insert(conditions, expression())
+                consumeWhitespace()
+                consume('}')
+                consumeWhitespaceAndNewlines()
+            end
+
+            local t1 = text()
+
+            local t2 = ""
+            if ahead('[') then
+                consume('[')
+                t2 = text()
+                consume(']')
+            end
+
+            local t3 = text()
+
+            consumeWhitespaceAndNewlines()
+
+            local body = optionBody(nesting+1) -- the parameter will come back to this function as minNesting
+            if #t1 > 0 or #t3 > 0 then
+                table.insert(body, 1, {'str', t1}) -- FIXME
+                table.insert(body, 2, {'str', t3}) -- FIXME
+                table.insert(body, 3, {'nl'}) -- FIXME
+            end
+            -- TODO use named arguments or some other mechanism
+            return token('option', nesting, t1, t2, t3, name, sticky, conditions, body)
+        end
+
+        local gather = function()
+            if not ahead('-') then return end
+
+            local nesting = 0
+            while ahead("-") do
+                consume("-")
+                nesting = nesting + 1
+                consumeWhitespace()
+            end
+
+            local label = nil
+            if ahead('(') then
+                consume('(')
+                label = identifier()
+                consume(')')
+                consumeWhitespace()
+            end
+            return token('gather', nesting, text(), label)
+        end
+
+
+        local tag = function()
+            if not ahead('#') then return end
+            consume("#")
+            consumeWhitespace()
+            return token('tag', text())
+        end
+
+        local constant = function()
+            if not ahead('CONST') then return end
+            consume("CONST")
+            consumeWhitespace()
+            local name = identifier()
+            consumeWhitespace()
+            consume("=")
+            consumeWhitespace()
+            local value = expression()
+            consumeWhitespaceAndNewlines()
+            return token('const', name, value)
+        end
+
+        local variable = function()
+            if not ahead('VAR') then return end
+            consume("VAR")
+            consumeWhitespace()
+            local name = identifier()
+            consumeWhitespace()
+            consume("=")
+            consumeWhitespace()
+            local value = expression()
+            consumeWhitespaceAndNewlines()
+            return token('var', name, value)
+        end
+
+        local tempVariable = function()
+            if not ahead('temp') then return end
+
+            consume("temp")
+            consumeWhitespace()
+            local name = identifier()
+            consumeWhitespace()
+            consume("=")
+            consumeWhitespace()
+            local value = expression()
+            consumeWhitespaceAndNewlines()
+            return token('tempvar', name, value) --TODO better name? local var? var?
+        end
+
+        local list = function()
+            if not ahead('LIST') then return end
+            consume("LIST")
+            consumeWhitespace()
+            local name = identifier()
+            consumeWhitespace()
+            consume("=")
+            consumeWhitespace()
+
+            local list = {'list', name, expression()}
+            while not eolAhead() do
+                consumeWhitespace()
+                consume(",")
+                consumeWhitespace()
+                table.insert(list, expression())
+            end
+            consumeWhitespaceAndNewlines()
+            return list
+        end
+
+        local para = function(opts)
+            local t = text(opts)
+            if #t > 0 then
+                return token('str', t)
+            end
+        end
+
+        --TODO name? used for sequences, variable printing, conditional text, cond. option
+        local alternative = function()
+            if not ahead('{') then return end
+
+            consume("{")
+            consumeWhitespaceAndNewlines()
+
+            local beginning = current
+            local first = expression()
+            consumeWhitespace()
+
+            if ahead('}') then
+                -- variable printing: {expression}
+                consume("}")
+                return first
+
+            elseif ahead(':') then
+                -- Conditional block: {expr:textIfTrue} or {expr:textIfTrue|textIfFalse}
+                consume(':')
+                consumeWhitespaceAndNewlines()
+                local ifTrue = inkText()
+                consumeWhitespaceAndNewlines()
+                local ifFalse = nil
+                if ahead('|') then
+                    consume('|')
+                    ifFalse = inkText()
+                end
+
+                consumeWhitespace()
+                consume("}")
+                return token('if', first, ifTrue, ifFalse)
+            end
+
+            -- reset parser pointer back after the opening '{'
+            -- and read the first element again, this time as ink text
+            current = beginning
+            first = inkText()
+            consumeWhitespace()
+
+            if ahead('|') then
+                -- sequence: {text|text|...}
+                local result = {'seq', first}
+                while ahead('|') do
+                    consume('|')
+                    local element = inkText()
+                    if element ~= nil then
+                        table.insert(result, element)
+                    end
+                end
+                consumeWhitespace()
+                consume("}")
+                return result
+            end
+            -- TODO other types
+            errorAt('invalid alternative')
+        end
+
+
+        local glue = function()
+            if not ahead('<>') then return end
+
+            consume("<>")
+            if ahead('\n') then
+                newline()
+                next()
+            end
+            return token('glue')
+        end
+
+        local returnStatement = function()
+            consume('return')
+            consumeWhitespace()
+            if eolAhead() then
+                return token('return')
+            else
+                return token('return', expression())
+            end
+        end
+
+        local statement = function()
+            if not ahead('~') then return end
+
+            consume("~")
+            consumeWhitespace()
+            if ahead('return') then
+                return returnStatement()
+            elseif ahead('temp') then
+                return tempVariable()
+            else
+                local id = identifier()
+                consumeWhitespace()
+                if ahead('(') then
+                    return functionCall(id)
+                elseif ahead('++') then
+                    consume('++')
+                    return token('call', '++', {{'ref', id}})
+                elseif ahead('--') then
+                    consume('--')
+                    return token('call', '--', {{'ref', id}})
+                elseif ahead('=') then
+                    consume('=')
+                    consumeWhitespace()
+                    return token('assign', id, expression())
+                end
+
+                errorAt('unexpected statement near ' .. id)
+            end
+        end
+
+        local inkNode = function(opts)
+            if ahead('\n') then
+                return nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return divert()
+            elseif ahead('==') then
+                return knotOrFunction()
+            elseif ahead('=') then
+                return stitch()
+            elseif ahead('*') or ahead('+') then
+                return option(1)
+            elseif ahead('-') then
+                return gather()
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
+
+        local knotBodyNode = function(opts)
+            if ahead('\n') then
+                return nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return divert()
+            elseif ahead('==') then
+                return nil------------------------
+            elseif ahead('=') then
+                return stitch()
+            elseif ahead('*') or ahead('+') then
+                return option(1)
+            elseif ahead('-') then
+                return gather()
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
+
+        local optionBodyNode = function(minNesting, opts)
+            _debug('optbodynode')
+            _debug(peek(5))
+            if ahead('\n') then
+                return nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return divert()
+            elseif ahead('==') then
+                return nil------------------------
+            elseif ahead('=') then
+                return nil------------------------
+            elseif ahead('*') or ahead('+') then
+                return option(minNesting)
+            elseif ahead('-') then
+                return gather()
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
+
+
+        knotBody = function(opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+                local node = knotBodyNode(opts)
+                if node == nil then
+                    break
+                end
                 table.insert(result, node)
             end
-            if n2 ~= nil then table.insert(result, n2) end
-            if n3 ~= nil then table.insert(result, n3) end
-            if n4 ~= nil then table.insert(result, n4) end
-
-
-            if current == startCursor then
-                break
-                --errorAt("nothing consumed")
-            end
-
+            return result
         end
-        return result
-    end
 
-    local statements = inkText()
-    --_debug(statements)
-    return statements
+        optionBody = function(minNesting, opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+                local node = optionBodyNode(minNesting, opts)
+                if node == nil then
+                    break
+                end
+                table.insert(result, node)
+            end
+            return result
+        end
+
+
+        inkText = function(opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+
+                local startCursor = current
+
+                local node = inkNode(opts)
+                if node ~= nil then
+                    table.insert(result, node)
+                end
+
+                if current == startCursor then
+                    break
+                    --errorAt("nothing consumed") --FIXME
+                end
+
+            end
+            return {'ink', result}
+        end
+
+
+
+
+        local statements = {inkText()}
+        --_debug(statements)
+        return statements
 end
 

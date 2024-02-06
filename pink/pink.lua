@@ -1,5 +1,5 @@
 #!/bin/env lua
-
+local included = debug.getinfo(3) ~= nil
 if not arg[1] and not (...) then
     error("Usage: `require` this file from a script or execute `lua pink/pink.lua game.ink`")
 end
@@ -44,13 +44,13 @@ local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
 
 
 local parse;
-parse = function(file)
+parse = function(file, debug)
     local parsed = {}
     local reader = getFileReader()
-    for _,t in ipairs(parser(reader(file), file)) do
+    for _,t in ipairs(parser(reader(file), file, debug)) do
         if t[2] and t[1]=='include' then
-            for _,included in ipairs(parse(basedir(file)..'/'..t[2])) do
-                table.insert(parsed, included)
+            for _, includedNode in ipairs(parse(basedir(file)..'/'..t[2])) do
+                table.insert(parsed, includedNode)
             end
         else
             table.insert(parsed, t)
@@ -59,15 +59,21 @@ parse = function(file)
     return parsed
 end
 
-local function getStory(filename)
-    return runtime(parse(filename))
+local function getStory(filename, debug)
+    return runtime(parse(filename, debug), debug)
 end
 
-if not arg[1] then
+if included then
     return getStory
 end
 
-local story = getStory(arg[1])
+local debug = false
+if arg[1] == '-v' then
+    debug = true
+    table.remove(arg, 1)
+end
+local filename = arg[1]
+local story = getStory(filename, debug)
 
 while true do
     while story.canContinue do

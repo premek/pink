@@ -9,8 +9,6 @@ We arrived into London at 9.45pm exactly.
 
 *   "Monsieur, let us savour this moment!"[] I declared.
     My master clouted me firmly around the head
-** A
-**B
     and dragged me out of the door. <>
     -> dragged_outside
 
