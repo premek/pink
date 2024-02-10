@@ -537,9 +537,14 @@ return function(input, source, debug)
 
             local body = optionBody(nesting+1) -- the parameter will come back to this function as minNesting
             if #t1 > 0 or #t3 > 0 then
-                table.insert(body, 1, {'str', t1}) -- FIXME
-                table.insert(body, 2, {'str', t3}) -- FIXME
-                table.insert(body, 3, {'nl'}) -- FIXME
+                -- FIXME
+                local str = t1
+                if t3:sub(1,1) == ' ' and t1:sub(-1) == ' ' then
+                    str = str:sub(1, -2)
+                end
+                str = str .. t3
+                table.insert(body, 1, {'str', str}) -- FIXME
+                table.insert(body, 2, {'nl'}) -- FIXME
             end
             -- TODO use named arguments or some other mechanism
             return token('option', nesting, t1, t2, t3, name, sticky, conditions, body)

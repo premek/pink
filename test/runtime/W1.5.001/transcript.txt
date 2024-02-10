@@ -3,5 +3,5 @@ You stand by the wall of Analand, sword in hand.
 1: Open the gate
 2: Smash down the gate
 3: Turn back and go home
-?>  
+?> 
 You open the gate, and step out onto the path.
