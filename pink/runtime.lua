@@ -388,6 +388,25 @@ return function (globalTree, debuggg)
         return val
     end
 
+    local stepInto = function(block)
+        table.insert(callstack, {tree=tree, pointer=pointer})
+        local newEnv = {_parent=env} -- TODO make parent unaccessible from the script
+        env = newEnv
+        tree = block
+        pointer = 1
+    end
+
+    local stepOut = function()
+        local returnTo = table.remove(callstack)
+        if not returnTo then
+            return false
+        end
+        pointer = returnTo.pointer
+        tree = returnTo.tree
+        env = env._parent -- TODO encapsulate somehow
+        pointer = pointer + 1 -- step after the function call where we stepped inside the function
+        return true
+    end
 
     -- var = var + a
     local addVariable = function(ref, a)
@@ -660,11 +679,7 @@ return function (globalTree, debuggg)
             end
 
             local target = getEnv(name, val)
-            if target == nil then
-                -- TODO log code location, need info from parser
-                -- FIXME detect on compile time
-                error('unresolved function: ' .. name)
-            end
+            -- FIXME detect unresolved function on compile time
 
             if target[1] == 'native' then
                 local argumentValues = {}
@@ -679,13 +694,7 @@ return function (globalTree, debuggg)
                 local argumentDefinitions = target[2]
                 local body = target[3]
 
-
-
-                -- TODO put in a function?
-                -- stepInto(body)
-                table.insert(callstack, {tree=tree, pointer=pointer})
-                local newEnv = {_parent=env} -- TODO make parent unaccessible from the script
-                env = newEnv
+                stepInto(body)
                 for i = 1, #argumentDefinitions do
                     local argumentName = argumentDefinitions[i][1]
                     local argumentExpression = argumentExpressions[i]
@@ -698,9 +707,6 @@ return function (globalTree, debuggg)
                         env[argumentName] = getValue(argumentExpression)
                     end
                 end
-
-                tree = body
-                pointer = 1
 
                 -----goTo(target[2]+1) -- jump after fn declaration
                 -- TODO trim fn output?
@@ -799,16 +805,10 @@ return function (globalTree, debuggg)
 
         if isNext('return') then
             _debug(getValue(tree[pointer][2]))
-
-            -- TODO put in a separate callstack function
-            local returnTo = table.remove(callstack)
-            pointer = returnTo.pointer
-            tree = returnTo.tree
-            env = env._parent -- TODO encapsulate somehow
-            -- goTo(returnTo)
-
-            --goTo(table.remove(callstack))
-            pointer = pointer + 1
+            local steppedOut = stepOut()
+            if not steppedOut then
+                err('failed to return')
+            end
             update()
             -- no return
         end
@@ -946,31 +946,18 @@ return function (globalTree, debuggg)
         end
 
         if isNext('ink') then
-            -- TODO move to a function
-            table.insert(callstack, {tree=tree, pointer=pointer})
-            tree = tree[pointer][2]
-            pointer = 1
-            local newEnv = {_parent=env} -- TODO make parent unaccessible from the script
-            env = newEnv
+            stepInto(tree[pointer][2])
             update()
         end
 
 
         if isEnd() or isNext('knot') or isNext('fn') then
-
-            -- TODO put in a separate callstack function (step out)
-            local returnTo = table.remove(callstack)
-            if returnTo ~= nil then
-                pointer = returnTo.pointer
-                tree = returnTo.tree
-                env = env._parent -- TODO encapsulate somehow
-                -- goTo(returnTo)
-                pointer = pointer + 1
+            -- TODO change the parser so knots, fns etc are in separate table?
+            local steppedOut = stepOut()
+            if steppedOut then
                 update()
-
             end
             pointer = pointer + 1
-            --update()
         end
 
 
