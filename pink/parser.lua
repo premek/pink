@@ -481,6 +481,35 @@ return function(input, source, debug)
             return token('stitch', id)
         end
 
+        local gather = function(_minNesting)
+            if not ahead('-') then return end
+
+            --setMark()
+            local nesting = 0
+            while ahead("-") do
+                consume("-")
+                nesting = nesting + 1
+                consumeWhitespace()
+            end
+            -- TODO test unbalanced option/gather nesting
+            --if nesting < minNesting then
+            --resetToMark()
+            --return
+            --end
+            --removeMark()
+
+            local label = nil
+            if ahead('(') then
+                consume('(')
+                label = identifier()
+                consume(')')
+                consumeWhitespace()
+            end
+            return token('gather', nesting, {inkText()}, label) -- TODO inkText in a table??
+        end
+
+
+
         -- minNesting: options with this or higher (deeper) nesting will be included in the body,
         -- options with lower nesting will not be parsed (to jump up one level)
         --
@@ -548,26 +577,27 @@ return function(input, source, debug)
             return token('option', nesting, t1, t2, t3, name, sticky, conditions, body)
         end
 
-        local gather = function()
-            if not ahead('-') then return end
-
-            local nesting = 0
-            while ahead("-") do
-                consume("-")
-                nesting = nesting + 1
-                consumeWhitespace()
+        -- choice wraps multiple options + an optional gather
+        -- All those are at the same nesting level, options could have sub-choices (nested options)
+        local choice = function(minNesting)
+            if not (ahead('*') or ahead('+')) then return end
+            local options = {}
+            while not isAtEnd() do
+                local node = option(minNesting)
+                if node == nil then
+                    break
+                end
+                table.insert(options, node)
             end
+            -- TODO this might be simpler if we were parsing "tokens"
+            -- where we would see the 'depth' already
+            if #options == 0 then return end
 
-            local label = nil
-            if ahead('(') then
-                consume('(')
-                label = identifier()
-                consume(')')
-                consumeWhitespace()
-            end
-            return token('gather', nesting, text(), label)
+            local gatherNode = gather(minNesting)
+
+            return token('choice', options, gatherNode)
+
         end
-
 
         local tag = function()
             if not ahead('#') then return end
@@ -649,7 +679,7 @@ return function(input, source, debug)
 
             consume("{")
             consumeWhitespaceAndNewlines()
-            
+
             if ahead('~') then
                 -- shuffle (randomised output)
                 consume('~')
@@ -791,9 +821,9 @@ return function(input, source, debug)
             elseif ahead('=') then
                 return stitch()
             elseif ahead('*') or ahead('+') then
-                return option(1)
+                return choice(1)
             elseif ahead('-') then
-                return gather()
+                return gather(1) -- labelled gathers could exist without choices
             elseif ahead('#') then
                 return tag()
             elseif ahead('CONST') then -- TODO must be on new line?
@@ -831,9 +861,9 @@ return function(input, source, debug)
             elseif ahead('=') then
                 return stitch()
             elseif ahead('*') or ahead('+') then
-                return option(1)
+                return choice(1)
             elseif ahead('-') then
-                return gather()
+                return gather(1) -- labelled gathers could exist without choices
             elseif ahead('#') then
                 return tag()
             elseif ahead('CONST') then -- TODO must be on new line?
@@ -871,9 +901,9 @@ return function(input, source, debug)
             elseif ahead('=') then
                 return nil------------------------
             elseif ahead('*') or ahead('+') then
-                return option(minNesting)
+                return choice(minNesting)
             elseif ahead('-') then
-                return gather()
+                return nil ----------------gather()
             elseif ahead('#') then
                 return tag()
             elseif ahead('CONST') then -- TODO must be on new line?

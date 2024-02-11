@@ -369,6 +369,7 @@ return function (globalTree, debuggg)
     local tagsForContentAtPath = {}
     local currentDepth = 0 -- root level is 0, first option will nest to level 1 etc
     -- TODO reset currentDepth on gathers, when jumping to knots
+    -- TODO what is it used for?
 
     -- TODO state should contain tree/pointer to be able to save / load
 
@@ -404,14 +405,21 @@ return function (globalTree, debuggg)
         pointer = 1
     end
 
+    -- like stepInto but one step before, so when we step out, we do not skip the first instruction
+    -- FIXME stepInto must be called after calling this
+    local returnTo = function(block)
+        stepInto(block)
+        pointer = 0
+    end
+
     local stepOut = function()
-        local returnTo = table.remove(callstack)
-        if not returnTo then
+        local frame = table.remove(callstack)
+        if not frame then
             return false
         end
-        pointer = returnTo.pointer
-        tree = returnTo.tree
-        env = env._parent -- TODO encapsulate somehow
+        pointer = frame.pointer
+        tree = frame.tree
+        env = env._parent -- TODO encapsulate somehow / add to the frame?
         pointer = pointer + 1 -- step after the function call where we stepped inside the function
         return true
     end
@@ -444,8 +452,6 @@ return function (globalTree, debuggg)
 
             pointer = knots[p1][p2].pointer
             tree = knots[p1][p2].tree
-
-            _debug('after', tree, pointer)
 
             -- enter inside the knot
             if isNext('knot') then
@@ -824,43 +830,28 @@ return function (globalTree, debuggg)
             -- no return
         end
 
-        if isNext('option') then
+        if isNext('choice') then
+            local options = tree[pointer][2]
+            local gather = tree[pointer][3]
+
             s.currentChoices = {}
 
-            local choiceDepth = tree[pointer][2]
-            local foundGather = nil
+            for _, option in ipairs(options) do
+                local _ = option[7] == "sticky" -- TODO
+                local displayOption = true
 
-            -- find all choices on the same level in the same knot and in the same super-choice
-            while pointer <= #tree do
-                local n = tree[pointer]
-                if is('knot', n) or is('stitch', n) or (is('option', n) and n[2] < choiceDepth) then
-                    break
-                end
-
-                if not foundGather and is('gather', n) and n[2] == currentDepth then
-                    foundGather = pointer
-                end
-
-                if is('option', n) and n[2] == choiceDepth and choiceDepth > currentDepth then
-                    local _ = n[7] == "sticky" -- TODO
-                    local displayOption = true
-
-                    for _, condition in ipairs(n[8]) do
-                        if not isTruthy(getValue(condition)) then
-                            displayOption = false
-                            break
-                        end
-                    end
-
-
-                    if displayOption then
-                        -- all possible choices printed like this before selecting
-                        local text = trim((n[3] or '') .. (n[4] or '')) -- TODO trim
-
-                        table.insert(s.currentChoices, {text = text, option=n})
+                for _, condition in ipairs(option[8]) do
+                    if not isTruthy(getValue(condition)) then
+                        displayOption = false
+                        break
                     end
                 end
-                pointer = pointer + 1
+
+                if displayOption then
+                    -- all possible choices printed like this before selecting
+                    local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
+                    table.insert(s.currentChoices, {text = text, option=option, gather=gather})
+                end
             end
 
             if #s.currentChoices > 0 then
@@ -868,12 +859,13 @@ return function (globalTree, debuggg)
                 currentDepth = currentDepth + 1
             end
 
-            if #s.currentChoices == 0 and foundGather then
-                pointer = foundGather
+            if #s.currentChoices == 0 and gather then
+                stepInto(gather[2])
                 update()
                 return
             end
 
+            pointer = pointer + 1
         end
 
 
@@ -896,7 +888,6 @@ return function (globalTree, debuggg)
             local val = getValue(tree[pointer])
             if val ~= nil then
                 table.insert(out, output(val))
-                _debug(out)
             end
             pointer = pointer + 1
             update()
@@ -935,12 +926,9 @@ return function (globalTree, debuggg)
             --table.insert(out, rest)
 
         elseif isNext('gather') then
-            table.insert(out, tree[pointer][3])
-            pointer = pointer + 1
+            stepInto(tree[pointer][3])
             update()
-            --table.insert(out, s.continue())
         end
-
 
         -- separates "a -> b" from "a\n -> b"
         if isNext('nl') then
@@ -989,6 +977,7 @@ return function (globalTree, debuggg)
 
 
     s.continue = function()
+        _debug(out)
         local res = rtrim(table.concat(out))
         -- if last output ended with a space and this one starts with one, we want just one space
         if res:sub(1,1) == ' ' and lastOut:sub(-1) == ' ' then
@@ -1009,6 +998,7 @@ return function (globalTree, debuggg)
             return s.continue()
         end
 
+        _debug("OUT:"..res)
         return res;
     end
 
@@ -1018,11 +1008,12 @@ return function (globalTree, debuggg)
         if type(index) ~= 'number' then
             error('number expected')
         end
-        -- TODO encapsulate jumping
-        tree = s.currentChoices[index].option[9]
-        pointer = 1
-        s.currentChoices = {}
+        if s.currentChoices[index].gather then
+            returnTo(s.currentChoices[index].gather[3])
+        end
+        stepInto(s.currentChoices[index].option[9])
 
+        s.currentChoices = {}
         update()
     end
 
