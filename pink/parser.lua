@@ -322,8 +322,6 @@ return function(input, source, debug)
                 return token('bool', false)
             end
 
-
-
             local id = identifier()
             consumeWhitespace()
             if ahead('(') then
@@ -544,7 +542,7 @@ return function(input, source, debug)
                 end
                 str = str .. t3
                 table.insert(body, 1, {'str', str}) -- FIXME
-                table.insert(body, 2, {'nl'}) -- FIXME
+                table.insert(body, 2, {'nl'}) -- FIXME I034
             end
             -- TODO use named arguments or some other mechanism
             return token('option', nesting, t1, t2, t3, name, sticky, conditions, body)
@@ -651,6 +649,25 @@ return function(input, source, debug)
 
             consume("{")
             consumeWhitespaceAndNewlines()
+            
+            if ahead('~') then
+                -- shuffle (randomised output)
+                consume('~')
+                -- TODO same as seq below, extract to a function
+                consumeWhitespaceAndNewlines()
+                local first = inkText()
+                local result = {first}
+                while ahead('|') do
+                    consume('|')
+                    local element = inkText()
+                    if element ~= nil then
+                        table.insert(result, element)
+                    end
+                end
+                consumeWhitespace()
+                consume("}")
+                return {'shuf', result}
+            end
 
             local beginning = current
             local first = expression()
@@ -835,8 +852,6 @@ return function(input, source, debug)
         end
 
         local optionBodyNode = function(minNesting, opts)
-            _debug('optbodynode')
-            _debug(peek(5))
             if ahead('\n') then
                 return nl()
             elseif ahead('//') then

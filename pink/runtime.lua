@@ -1,3 +1,5 @@
+math.randomseed(os.time())
+
 local debugOn = false
 local _debug = function(...)
     if not debugOn then return end
@@ -168,6 +170,11 @@ local int = function(a)
     end
 end
 
+local seedRandom = function(a)
+    requireType(a, 'float', 'int')
+    math.randomseed(a[2])
+end
+
 local add = function(a,b)
     requireType(a, 'bool', 'str', 'float', 'int')
     requireType(b, 'bool', 'str', 'float', 'int')
@@ -324,6 +331,7 @@ return function (globalTree, debuggg)
         FLOOR={'native', floor},
         CEILING={'native', ceil},
         INT={'native', int},
+        SEED_RANDOM={'native', seedRandom},
         ['+']={'native', add},
         ['-']={'native', sub},
         ['*']={'native', mul},
@@ -663,6 +671,9 @@ return function (globalTree, debuggg)
         elseif is('seq', val) then
             return getValue(val[2]) -- TODO track visits, return next value each time
 
+        elseif is('shuf', val) then
+            return getValue(val[2][math.random(#val[2])])
+
         elseif is('call', val) then
             local name = val[2]
             local argumentExpressions = val[3]
@@ -876,6 +887,7 @@ return function (globalTree, debuggg)
             or isNext('float')
             or isNext('ref')
             or isNext('seq')
+            or isNext('shuf')
             or isNext('call')
             or isNext('if')
         --or tree[pointer] and type(tree[pointer][1]) == 'table' -- FIXME what for?
