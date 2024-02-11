@@ -1,0 +1,25 @@
+I heft the hammer.
+The mole is in here somewhere. I'll show him!
+
+1: Hit top-left
+2: Whallop top-right
+3: Blast middle
+4: Clobber bottom-left
+5: Nail bottom-right
+?> Missed!
+The nasty creature is hiding somewhere. But this time he won't escape!
+
+1: Splat top-right
+2: Hammer middle
+3: Bosh bottom-left
+4: Thump bottom-right
+?> Nothing!
+The mole is still at large.
+1: Whack top-right
+2: Blast middle
+3: Clobber bottom-left
+?> Where is he?
+The blasted rodent is laughing at me.
+1: Whallop top-right
+2: Bosh bottom-left
+?> Ah-ha! Got him!

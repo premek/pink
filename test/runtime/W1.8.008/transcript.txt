@@ -1,0 +1,8 @@
+1: "Hello, Master!"
+?> "Hello, Monsieur Fogg!" I declared.
+1: "Hello, you!"
+?> "Hello, brown-eyes!" I declared.
+1: "Hello, Master!"
+?> "Hello, Monsieur Fogg!" I declared.
+1: "Hello, you!"
+?> "Hello, brown-eyes!" I declared.
