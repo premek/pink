@@ -1,0 +1,11 @@
+I ran through the forest, the dogs snapping at my heels.
+
+1: I checked the jewels
+2: I did not pause for breath
+3: I cheered with joy.
+?> I checked the jewels were still in my pocket, and the feel of them brought a spring to my step. The road could not be much further! Mackie would have the engine running, and then I'd be safe.
+
+1: I reached the road and looked about
+2: I should interrupt to say Mackie is normally very reliable
+?> I reached the road and looked about. And would you believe it?
+The road was empty. Mackie was nowhere to be seen.

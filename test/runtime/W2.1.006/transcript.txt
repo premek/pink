@@ -1,0 +1,17 @@
+"Well, Poirot? Murder or suicide?"
+
+1: "Murder!"
+2: "Suicide!"
+?> "Murder!"
+"And who did it?"
+
+1: "Detective-Inspector Japp!"
+2: "Captain Hastings!"
+3: "Myself!"
+?> "Detective-Inspector Japp!"
+"You must be joking!"
+
+1: "Mon ami, I am deadly serious."
+2: "If only..."
+?> "Mon ami, I am deadly serious."
+Mrs. Christie lowered her manuscript a moment. The rest of the writing group sat, open-mouthed.

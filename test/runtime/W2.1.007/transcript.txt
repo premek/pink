@@ -1,0 +1,18 @@
+"Tell us a tale, Captain!"
+
+1: "Very well, you sea-dogs. Here's a tale..."
+2: "No, it's past your bed-time."
+?> "Very well, you sea-dogs. Here's a tale..."
+
+1: "It was a dark and stormy night..."
+?> "It was a dark and stormy night..."
+
+1: "...and the crew were restless..."
+?> "...and the crew were restless..."
+
+1: "... and they said to their Captain..."
+?> "... and they said to their Captain..."
+
+1: "...Tell us a tale Captain!"
+?> "...Tell us a tale Captain!"
+To a man, the crew began to yawn.

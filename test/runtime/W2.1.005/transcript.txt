@@ -1,0 +1,12 @@
+"Well, Poirot? Murder or suicide?"
+
+1: "Murder!"
+2: "Suicide!"
+?> "Murder!"
+"And who did it?"
+
+1: "Detective-Inspector Japp!"
+2: "Captain Hastings!"
+3: "Myself!"
+?> "Detective-Inspector Japp!"
+Mrs. Christie lowered her manuscript a moment. The rest of the writing group sat, open-mouthed.

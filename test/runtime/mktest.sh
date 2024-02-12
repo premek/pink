@@ -1,4 +1,5 @@
 #!/bin/env sh
+INKLECATE="$HOME/app/inklecate/inklecate"
 
 [ -z "$1" ] && echo "missing argument" && exit 1
 
@@ -16,6 +17,6 @@ cat > "$D/story.ink"
 echo Input:
 cat > "$D/input.txt"
 echo Output:
-cat > "$D/transcript.txt"
+$INKLECATE -p "$D/story.ink" < "$D/input.txt" | tee "$D/transcript.txt"
 
 echo "$D created"
