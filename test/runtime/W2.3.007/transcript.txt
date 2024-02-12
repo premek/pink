@@ -1,0 +1,7 @@
+
+1: "Are you quite well, Monsieur?"
+2: "How did you do at the crossword, Monsieur?"
+3: I said nothing
+?> "How did you do at the crossword, Monsieur?" I asked.
+"Quite well," he replied.
+We feel into companionable silence once more.

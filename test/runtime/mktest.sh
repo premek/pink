@@ -19,4 +19,5 @@ cat > "$D/input.txt"
 echo Output:
 $INKLECATE -p "$D/story.ink" < "$D/input.txt" | tee "$D/transcript.txt"
 
+echo
 echo "$D created"

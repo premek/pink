@@ -1,0 +1,4 @@
+
+1: Throw rock at guard
+2: Throw sand at guard
+?> You hurl a rock at the guard.

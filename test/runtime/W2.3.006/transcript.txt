@@ -1,0 +1,7 @@
+
+1: Pull a face
+2: Shove the guard aside
+?> You pull a face, and the soldier comes at you! You shove the guard to one side, but he comes back swinging.
+
+1: Grapple and fight
+?> 
