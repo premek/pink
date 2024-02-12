@@ -245,7 +245,7 @@ return function(input, source, debug)
         end
 
 
-        local term, expression, inkText, knotBody, optionBody; -- cross dependency, must be defined earlier
+        local term, expression, inkText, knotBody, optionBody, gatherBody; -- cross dependency, must be defined earlier
 
         local stringLiteral = function()
             consume('"')
@@ -486,7 +486,7 @@ return function(input, source, debug)
 
             setMark()
             local nesting = 0
-            while ahead("-") do
+            while ahead("-") and not ahead("->") do
                 consume("-")
                 nesting = nesting + 1
                 consumeWhitespace()
@@ -505,7 +505,7 @@ return function(input, source, debug)
                 consume(')')
                 consumeWhitespace()
             end
-            return token('gather', nesting, {inkText()}, label) -- TODO inkText in a table??
+            return token('gather', nesting, {gatherBody(minNesting)}, label) -- TODO inkText in a table??
         end
 
 
@@ -754,10 +754,6 @@ return function(input, source, debug)
             if not ahead('<>') then return end
 
             consume("<>")
-            if ahead('\n') then
-                newline()
-                next()
-            end
             return token('glue')
         end
 
@@ -921,6 +917,46 @@ return function(input, source, debug)
             end
         end
 
+        local gatherBodyNode = function(minNesting, opts)
+            if ahead('\n') then
+                return nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return divert()
+            elseif ahead('==') then
+                return nil------------------------
+            elseif ahead('=') then
+                return nil------------------------
+            elseif ahead('*') or ahead('+') then
+                return choice(minNesting)
+            elseif ahead('-') then
+                return nil ----------------gather()
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
+
 
         knotBody = function(opts)
             local result = {} -- TODO just table or 'block'?
@@ -948,6 +984,19 @@ return function(input, source, debug)
             return result
         end
 
+
+        gatherBody = function(minNesting, opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+                local node = gatherBodyNode(minNesting, opts)
+                if node == nil then
+                    break
+                end
+                table.insert(result, node)
+            end
+            return {'ink', result}
+        end
 
         inkText = function(opts)
             local result = {} -- TODO just table or 'block'?

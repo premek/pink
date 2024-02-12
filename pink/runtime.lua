@@ -934,16 +934,12 @@ return function (globalTree, debuggg)
 
         -- separates "a -> b" from "a\n -> b"
         if isNext('nl') then
-            while isNext('nl') do
-                pointer = pointer + 1
-            end
+            pointer = pointer + 1
 
-            if out.sticky or isNext('glue') then
-                update()
-            else
+            if not out.sticky and not isNext('glue') then
                 table.insert(out, '\n')
             end
-            --update()
+            update()
             --return
         end
 
@@ -955,9 +951,13 @@ return function (globalTree, debuggg)
 
         if isEnd() or isNext('knot') or isNext('fn') then
             -- TODO change the parser so knots, fns etc are in separate table?
-            local steppedOut = stepOut()
-            if steppedOut then
-                update()
+
+            --FIXME refactor so we don't need this if
+            if #s.currentChoices == 0 then
+                local steppedOut = stepOut()
+                if steppedOut then
+                    update()
+                end
             end
             pointer = pointer + 1
         end
