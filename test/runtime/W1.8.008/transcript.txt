@@ -1,3 +1,4 @@
+
 1: "Hello, Master!"
 ?> "Hello, Monsieur Fogg!" I declared.
 1: "Hello, you!"

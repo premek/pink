@@ -1,5 +1,2 @@
-TODO: whitespace
-
 Tails
-
 Heads

@@ -18,8 +18,4 @@ The mole is still at large.
 1: Whack top-right
 2: Blast middle
 3: Clobber bottom-left
-?> Where is he?
-The blasted rodent is laughing at me.
-1: Whallop top-right
-2: Bosh bottom-left
 ?> Ah-ha! Got him!

@@ -1,2 +1,1 @@
-TODO:whitespace
-I tossed the coin. Heads.
+I tossed the coin. Tails.

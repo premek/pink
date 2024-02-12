@@ -1,1 +1,3 @@
-TODO WARNING: Apparent loose end exists where the flow runs out. Do you need a '-> END' statement, choice or divert? on line 3 of tests/test.ink
+WARNING: 'story.ink' line 4: Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?
+Hello world!
+RUNTIME ERROR: 'story.ink' line 4: ran out of content. Do you need a '-> DONE' or '-> END'?

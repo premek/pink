@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 2: Expected at least one line within the knot but saw end of line

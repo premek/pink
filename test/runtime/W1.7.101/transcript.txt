@@ -1,10 +1,6 @@
 
 1: Talk about the weather
 2: Talk about the children
-?> 
-weather
-
-1: Talk about the weather
-2: Talk about the children
-?> 
-children (silence)
+?> weather
+1: Talk about the children
+?> children (silence)

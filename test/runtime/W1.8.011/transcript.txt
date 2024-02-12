@@ -1,32 +1,29 @@
 I turned on the television for the first time, but there was nothing good on, so I turned it off again.
+
 1: Try it again
 2: Go outside instead
-?> 
-I turned on the television for the second time, but there was still nothing worth watching.
+?> I turned on the television for the second time, but there was still nothing worth watching.
+
 1: Try it again
 2: Go outside instead
-?> 
-I turned on the television again, but there was even less to hold my interest than before.
+?> I turned on the television again, but there was even less to hold my interest than before.
+
 1: Try it again
 2: Go outside instead
-?> 
-I turned on the television once more, but there was nothing but rubbish.
+?> I turned on the television once more, but there was nothing but rubbish.
+
+1: Try it again
+2: Go outside instead
+?> I turned on the television once more, but there was a program about sharks and I don't like sharks.
+
+1: Try it again
+2: Go outside instead
+?> I turned on the television once more, but there was nothing on.
+
+1: Try it again
+2: Go outside instead
+?> I turned on the television once more, but there was nothing on.
 
 1: Try it again
 2: Go outside instead
 ?> 
-I turned on the television once more, but there was a program about sharks and I don't like sharks.
-
-1: Try it again
-2: Go outside instead
-?>
-I turned on the television once more, but there was nothing on.
-
-1: Try it again
-2: Go outside instead
-?>
-I turned on the television once more, but there was nothing on.
-
-1: Try it again
-2: Go outside instead
-?>
