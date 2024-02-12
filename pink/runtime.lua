@@ -857,6 +857,7 @@ return function (globalTree, debuggg)
             if #s.currentChoices > 0 then
                 -- player will need to nest one level deeper
                 currentDepth = currentDepth + 1
+                s.canContinue = false
             end
 
             if #s.currentChoices == 0 and gather then
@@ -866,6 +867,7 @@ return function (globalTree, debuggg)
             end
 
             pointer = pointer + 1
+            return
         end
 
 

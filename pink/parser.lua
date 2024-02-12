@@ -481,10 +481,10 @@ return function(input, source, debug)
             return token('stitch', id)
         end
 
-        local gather = function(_minNesting)
+        local gather = function(minNesting)
             if not ahead('-') then return end
 
-            --setMark()
+            setMark()
             local nesting = 0
             while ahead("-") do
                 consume("-")
@@ -492,11 +492,11 @@ return function(input, source, debug)
                 consumeWhitespace()
             end
             -- TODO test unbalanced option/gather nesting
-            --if nesting < minNesting then
-            --resetToMark()
-            --return
-            --end
-            --removeMark()
+            if nesting < minNesting then
+                resetToMark()
+                return
+            end
+            removeMark()
 
             local label = nil
             if ahead('(') then
