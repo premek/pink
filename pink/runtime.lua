@@ -41,6 +41,9 @@ end
 
 -- requires a table where the first element is a string name of the type, e.g. {'int', 9}
 local requirePinkType = function(a)
+    if a == nil then
+        err('null not allowed')
+    end
     if type(a) ~= 'table' then
         err('table expected')
     end
@@ -170,9 +173,19 @@ local int = function(a)
     end
 end
 
+local float = function(a)
+    requireType(a, 'float', 'int')
+    return {'float', a[2]}
+end
+
 local seedRandom = function(a)
     requireType(a, 'float', 'int')
     math.randomseed(a[2])
+end
+local random = function(minInclusive, maxInclusive)
+    requireType(minInclusive, 'int')
+    requireType(maxInclusive, 'int')
+    return {'int', math.random(minInclusive[2], maxInclusive[2])}
 end
 
 local add = function(a,b)
@@ -232,6 +245,18 @@ local div = function(a,b)
         return {"int", math.floor(a[2]/b[2])}
     end
 end
+
+local pow = function(a, b)
+    requireType(a, 'float', 'int')
+    requireType(b, 'float', 'int')
+
+    if a[1] == 'float' or b[1] == 'float' then
+        return {'float', a[2] ^ b[2]}
+    else
+        return {"int", math.floor(a[2] ^ b[2])}
+    end
+end
+
 
 local mod = function(a,b)
     requireType(a, 'float', 'int')
@@ -331,11 +356,14 @@ return function (globalTree, debuggg)
         FLOOR={'native', floor},
         CEILING={'native', ceil},
         INT={'native', int},
+        FLOAT={'native', float},
         SEED_RANDOM={'native', seedRandom},
+        RANDOM={'native', random},
         ['+']={'native', add},
         ['-']={'native', sub},
         ['*']={'native', mul},
         ['/']={'native', div},
+        POW={'native', pow},
         ['%']={'native', mod},
         ['mod']={'native', mod},
         ['==']={'native', eq},
@@ -728,7 +756,6 @@ return function (globalTree, debuggg)
             if target[1] == 'native' then
                 local argumentValues = {}
                 for _, argumentExpression in ipairs(argumentExpressions) do
-                    _debug('AA', argumentExpression)
                     table.insert(argumentValues, getValue(argumentExpression))
                 end
 
