@@ -327,7 +327,7 @@ end
 return function (globalTree, debuggg)
     debugOn = debuggg
 
-    local env = {
+    local rootEnv = {
         FLOOR={'native', floor},
         CEILING={'native', ceil},
         INT={'native', int},
@@ -351,6 +351,7 @@ return function (globalTree, debuggg)
         ['>']={'native', gt},
         ['>=']={'native', gte},
     }
+    local env = rootEnv
 
     -- story - this table will be passed to client code
     local s = {
@@ -433,18 +434,20 @@ return function (globalTree, debuggg)
     end
 
     local incrementSeenCounter = function(path)
-        addVariable({'ref', path}, 1) --FIXME
+        _debug('increment seen counter: '..path)
+        rootEnv[path][2] = rootEnv[path][2] + 1 --FIXME??
     end
 
     local currentKnot = nil
     local goTo = function(path)
-        _debug('go to', path, knots)
+        _debug('go to', path)
         if type(path) == 'number' then
             error('unused?')
             pointer = path -- TODO function call, add parameters
 
         elseif path == 'END' or path == 'DONE' then
             pointer = #tree+1
+            callstack={} -- ?
 
         elseif path:find('%.') ~= nil then
             -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
@@ -473,8 +476,20 @@ return function (globalTree, debuggg)
 
             -- FIXME hack
         elseif knots["//no-knot"] and knots["//no-knot"][path] then
-            tree=globalTree --TODO store with knots?
-            pointer = knots["//no-knot"][path].pointer + 1
+            tree=knots["//no-knot"][path].tree -- TODO this is not stepInto, we dont want to step back, right?
+            pointer = knots["//no-knot"][path].pointer
+            -- TODO messy
+            if isNext('option') then
+                tree[pointer].used = true --FIXME different mechanism used for labelled and anon options
+                tree=tree[pointer][9]
+                pointer = 1
+                _debug(tree)
+            end
+            if isNext('gather') then
+                tree=tree[pointer][3]
+                pointer = 1
+            end
+            incrementSeenCounter(path) -- TODO full paths
 
         elseif knots[path] then
             tree = knots[path]
@@ -524,6 +539,16 @@ return function (globalTree, debuggg)
             if is('ink', n) then
                 n[2] = preProcess(n[2])
             end
+            if is('gather', n) then
+                n[3] = preProcess(n[3])
+            end
+            if is('choice', n) then
+                n[2] = preProcess(n[2]) --options
+                if n[3] then
+                    n[3] = preProcess({n[3]})[1] --gather -- FIXME hack
+                end
+            end
+
 
 
             addThisTo = addTo[#addTo]
@@ -576,24 +601,26 @@ return function (globalTree, debuggg)
             if is('stitch', n) then
                 -- TODO make stitches nested same as knots
                 knots[lastKnot][n[2]] = {pointer=p, tree=t}
-                -- TODO env[n[2]] = {'int', 0} -- seen counter
+                env[n[2]] = {'int', 0} -- seen counter TODO full paths
                 lastStitch = n[2]
             end
-            if is('gather', n) and n[4] then -- gather with a label
+            if is('gather', n) and n[4] then
+                -- gather with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[4]] = {pointer=p, tree=t}
-            else
-                knots[lastKnot][n[4]] = {pointer=p, tree=t}
-            end
-            env[n[4]] = {'int', 0} -- seen counter / FIXME
+                else
+                    knots[lastKnot][n[4]] = {pointer=p, tree=t}
+                end
+                env[n[4]] = {'int', 0} -- seen counter / FIXME
             end
             if is('option', n) and n[6] then -- option with a label
+                env[n[6]] = {'int', 0} -- seen counter
+
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[6]] = {pointer=p, tree=t}
-            else
-                knots[lastKnot][n[6]] = {pointer=p, tree=t}
-            end
-            env[n[6]] = {'int', 0} -- seen counter / FIXME
+                else
+                    knots[lastKnot][n[6]] = {pointer=p, tree=t}
+                end
             end
 
 
@@ -790,7 +817,7 @@ return function (globalTree, debuggg)
             return
         end
 
-        if isNext('tag') or isNext('var') or isNext('const') then
+        if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') then
             pointer = pointer + 1
             update()
             return
@@ -837,13 +864,15 @@ return function (globalTree, debuggg)
             s.currentChoices = {}
 
             for _, option in ipairs(options) do
-                local _ = option[7] == "sticky" -- TODO
-                local displayOption = true
+                local sticky = option[7] == "sticky" -- TODO
+                local displayOption = sticky or not option.used
 
-                for _, condition in ipairs(option[8]) do
-                    if not isTruthy(getValue(condition)) then
-                        displayOption = false
-                        break
+                if displayOption then
+                    for _, condition in ipairs(option[8]) do
+                        if not isTruthy(getValue(condition)) then
+                            displayOption = false
+                            break
+                        end
                     end
                 end
 
@@ -861,7 +890,7 @@ return function (globalTree, debuggg)
             end
 
             if #s.currentChoices == 0 and gather then
-                stepInto(gather[2])
+                stepInto(gather[3])
                 update()
                 return
             end
@@ -926,6 +955,10 @@ return function (globalTree, debuggg)
             -- 6a512190365002f54bd501b0863ded40123cb8e5/ink-engine-runtime/StoryState.cs#L894
 
             --table.insert(out, rest)
+        elseif isNext('stitch') then
+            incrementSeenCounter(tree[pointer][2])
+            pointer = pointer + 1
+            update()
 
         elseif isNext('gather') then
             stepInto(tree[pointer][3])
@@ -979,8 +1012,19 @@ return function (globalTree, debuggg)
 
 
     s.continue = function()
-        _debug(out)
-        local res = rtrim(table.concat(out))
+        _debug("out", out)
+        if #out == 0 then
+            err('no output available')
+        end
+
+        local res = out[1]
+        for i = 2, #out do
+            if not (out[i] == '\n' and out[i-1] == '\n') then
+                res = res .. out[i]
+            end
+        end
+        res = rtrim(res)
+
         -- if last output ended with a space and this one starts with one, we want just one space
         if res:sub(1,1) == ' ' and lastOut:sub(-1) == ' ' then
             res = res:sub(1)
@@ -1010,10 +1054,19 @@ return function (globalTree, debuggg)
         if type(index) ~= 'number' then
             error('number expected')
         end
-        if s.currentChoices[index].gather then
-            returnTo(s.currentChoices[index].gather[3])
+
+        local choice = s.currentChoices[index]
+
+        if choice.option[6] then -- the option has a label
+            incrementSeenCounter(choice.option[6]) -- TODO full path??
         end
-        stepInto(s.currentChoices[index].option[9])
+        choice.option.used = true -- FIXME where to store this
+
+
+        if choice.gather then
+            returnTo(choice.gather[3])
+        end
+        stepInto(choice.option[9])
 
         s.currentChoices = {}
         update()
@@ -1038,7 +1091,7 @@ return function (globalTree, debuggg)
 
     tree = preProcess(tree)
     _debug(tree)
-    --_debug(s.variablesState)
+    _debug(s.variablesState)
     --_debug(tags)
     --_debug(knots)
 
