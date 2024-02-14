@@ -1,0 +1,9 @@
+Give up now, or keep trying to save your Kingdom?
+
+1: Keep trying!
+2: Give up
+?> more hopeless introspection
+Give up now, or keep trying to save your Kingdom?
+
+1: Give up
+?> everyboy dies

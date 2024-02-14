@@ -1,0 +1,4 @@
+The train jolted and rattled. I was feeling positive enough, however, and did not mind the odd bump.
+
+1: 'But, Monsieur, why are we travelling?'
+?> 'But, Monsieur, why are we travelling?' I asked.

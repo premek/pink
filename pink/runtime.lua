@@ -729,12 +729,6 @@ return function (globalTree, debuggg)
                 return
             end
 
-        elseif is('seq', val) then
-            return getValue(val[2]) -- TODO track visits, return next value each time
-
-        elseif is('shuf', val) then
-            return getValue(val[2][math.random(#val[2])])
-
         elseif is('call', val) then
             local name = val[2]
             local argumentExpressions = val[3]
@@ -936,8 +930,6 @@ return function (globalTree, debuggg)
             or isNext('int')
             or isNext('float')
             or isNext('ref')
-            or isNext('seq')
-            or isNext('shuf')
             or isNext('call')
             or isNext('if')
         --or tree[pointer] and type(tree[pointer][1]) == 'table' -- FIXME what for?
@@ -990,10 +982,49 @@ return function (globalTree, debuggg)
         elseif isNext('gather') then
             stepInto(tree[pointer][3])
             update()
-        end
 
-        -- separates "a -> b" from "a\n -> b"
-        if isNext('nl') then
+        elseif isNext('seq') then
+            local seq = tree[pointer]
+            local current = seq.current or 1 -- FIXME store somewhere else, support save/load
+            stepInto(seq[2][current])
+            seq.current = math.min(#seq[2], current + 1)
+            update()
+
+        elseif isNext('shuf') then
+            local shuf = tree[pointer]
+            local shuffleType = shuf[2]
+            if not shuf.shuffled then
+                local unshuffled = {}
+                for i = 1, #shuf[3] do
+                    table.insert(unshuffled, shuf[3][i])
+                end
+
+                shuf.shuffled = {}
+                local shuffleUpTo = #unshuffled
+                if shuffleType == 'stopping' then
+                    -- shuffle all except the last one
+                    shuffleUpTo = #unshuffled-1
+                    shuf.shuffled[#unshuffled] = unshuffled[#unshuffled]
+                end
+                for i = shuffleUpTo, 1, -1 do
+                    table.insert(shuf.shuffled, table.remove(unshuffled, math.random(i)))
+                end
+            end
+
+            shuf.current = (shuf.current or 0) + 1 -- FIXME store somewhere else, support save/load
+
+            if shuffleType ~= 'once' then
+                shuf.current = math.min(#shuf.shuffled, shuf.current)
+            end
+            if shuf.shuffled[shuf.current] then
+                stepInto(shuf.shuffled[shuf.current])
+            else
+                pointer = pointer + 1
+            end
+            update()
+
+            -- separates "a -> b" from "a\n -> b"
+        elseif isNext('nl') then
             pointer = pointer + 1
 
             if not out.sticky and not isNext('glue') then
@@ -1001,9 +1032,8 @@ return function (globalTree, debuggg)
             end
             update()
             --return
-        end
 
-        if isNext('ink') then
+        elseif isNext('ink') then
             stepInto(tree[pointer][2])
             update()
         end
@@ -1087,7 +1117,7 @@ return function (globalTree, debuggg)
         if choice.option[6] then -- the option has a label
             incrementSeenCounter(choice.option[6]) -- TODO full path??
         end
-        choice.option.used = true -- FIXME where to store this
+        choice.option.used = true -- FIXME store somewhere else, support save/load
 
 
         if choice.gather then

@@ -1,0 +1,7 @@
+
+1: I asked permission to leave
+2: I stood and went to open the door
+?> I asked permission to leave and Monsieur Fogg looked surprised.
+
+1: I strode out of the compartment
+?> I strode out of the compartment and I fancied I heard my master quietly tutting to himself.

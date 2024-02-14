@@ -255,7 +255,8 @@ return function(input, source, debug)
         end
 
 
-        local term, expression, inkText, knotBody, optionBody, gatherBody; -- cross dependency, must be defined earlier
+        -- cross dependency, must be defined earlier
+        local term, expression, inkText, knotBody, optionBody, gatherBody, branchInkText;
 
         local stringLiteral = function()
             consume('"')
@@ -695,8 +696,7 @@ return function(input, source, debug)
                 consume('~')
                 -- TODO same as seq below, extract to a function
                 consumeWhitespaceAndNewlines()
-                local first = inkText()
-                local result = {first}
+                local result = {inkText()}
                 while ahead('|') do
                     consume('|')
                     local element = inkText()
@@ -704,9 +704,38 @@ return function(input, source, debug)
                         table.insert(result, element)
                     end
                 end
-                consumeWhitespace()
                 consume("}")
-                return {'shuf', result}
+                return {'shuf', 'cycle', result}
+            end
+
+            if ahead('shuffle') then
+                consume('shuffle')
+                -- TODO extract to a function
+                consumeWhitespaceAndNewlines()
+                local shuffleType = 'cycle'
+                if ahead('once') then
+                    shuffleType = 'once'
+                    consume('once')
+                    consumeWhitespaceAndNewlines()
+                end
+                if ahead('stopping') then
+                    shuffleType = 'stopping'
+                    consume('stopping')
+                    consumeWhitespaceAndNewlines()
+                end
+                consume(':')
+                consumeWhitespaceAndNewlines()
+                local result = {}
+                while ahead('-') do
+                    consume('-')
+                    consumeWhitespaceAndNewlines() -- ?
+                    local element = branchInkText()
+                    if element ~= nil then
+                        table.insert(result, {element}) -- TODO inkText in a table?
+                    end
+                end
+                consume("}")
+                return {'shuf', shuffleType, result}
             end
 
             local beginning = current
@@ -730,7 +759,6 @@ return function(input, source, debug)
                     ifFalse = inkText()
                 end
 
-                consumeWhitespace()
                 consume("}")
                 return token('if', first, ifTrue, ifFalse)
             end
@@ -743,17 +771,16 @@ return function(input, source, debug)
 
             if ahead('|') then
                 -- sequence: {text|text|...}
-                local result = {'seq', first}
+                local result = {{first}} -- TODO too much wrapping?
                 while ahead('|') do
                     consume('|')
-                    local element = inkText()
+                    local element = {inkText()} -- TODO too much wrapping?
                     if element ~= nil then
                         table.insert(result, element)
                     end
                 end
-                consumeWhitespace()
                 consume("}")
-                return result
+                return {'seq', result}
             end
             -- TODO other types
             errorAt('invalid alternative')
@@ -966,6 +993,45 @@ return function(input, source, debug)
                 return para(opts)
             end
         end
+        local branchInkNode = function(opts)
+            if ahead('\n') then
+                return nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return divert()
+            elseif ahead('==') then
+                return nil------------------------
+            elseif ahead('=') then
+                return nil------------------------
+            elseif ahead('*') or ahead('+') then
+                return choice(1)
+            elseif ahead('-') then -- new branch start
+                return nil ----------------gather()
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
 
 
         knotBody = function(opts)
@@ -1000,6 +1066,21 @@ return function(input, source, debug)
 
             while not isAtEnd() do
                 local node = gatherBodyNode(minNesting, opts)
+                if node == nil then
+                    break
+                end
+                table.insert(result, node)
+            end
+            return {'ink', result}
+        end
+
+        -- used in sequences / conditionals ("multiline blocks"?)
+        -- where a dash means a branch start, not a gather
+        branchInkText = function(opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+                local node = branchInkNode(opts)
                 if node == nil then
                     break
                 end
