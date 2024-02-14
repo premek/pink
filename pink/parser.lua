@@ -14,7 +14,13 @@ return function(input, source, debug)
 
         local errorAt = function(msg, ...)
             local formattedMsg = string.format(msg, ...)
-            error(string.format(formattedMsg .. " at '%s', line %s, column %s", source, line, column))
+            error(
+                string.format(formattedMsg .. "\n\tat '%s', line %s, column %s", source, line, column)
+                .. '\n\t...\n\t' .. input:sub(math.max(0, current - 100), current)
+                .. '\n\t' .. '<<somewhere around here>>'
+                .. '\n\t' .. input:sub(current+1, current + 100)
+                .. '...\n\t'
+            )
         end
 
 
