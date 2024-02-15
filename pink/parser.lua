@@ -484,6 +484,7 @@ return function(input, source, debug)
         local fnction = function()
             consumeWhitespace()
             local name = identifier()
+            consumeWhitespace()
             local params = parameters()
 
             consumeWhitespace()

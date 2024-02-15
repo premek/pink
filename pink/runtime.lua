@@ -850,7 +850,7 @@ return function (globalTree, debuggg)
 
         if isNext('tempvar') then
             -- TODO scope
-            env[tree[pointer][2]] = tree[pointer][3]
+            env[tree[pointer][2]] = getValue(tree[pointer][3])
             pointer = pointer + 1
             update()
             return
