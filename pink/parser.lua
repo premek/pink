@@ -691,8 +691,44 @@ return function(input, source, debug)
             consume("{")
             consumeWhitespaceAndNewlines()
 
+            -- Cycles are like sequences, but they loop their content.
+            if ahead('&') then
+                consume('~')
+                -- TODO same as seq below, extract to a function
+                consumeWhitespaceAndNewlines()
+                local result = {inkText()}
+                while ahead('|') do
+                    consume('|')
+                    local element = inkText()
+                    if element ~= nil then
+                        table.insert(result, element)
+                    end
+                end
+                consume("}")
+                return {'cycle', result}
+            end
+
+            -- Once-only alternatives are like sequences, but when they
+            -- run out of new content to display, they display nothing. 
+            -- (as a sequence with a blank last entry.)
+            if ahead('!') then
+                consume('!')
+                -- TODO same as seq below, extract to a function
+                consumeWhitespaceAndNewlines()
+                local result = {inkText()}
+                while ahead('|') do
+                    consume('|')
+                    local element = inkText()
+                    if element ~= nil then
+                        table.insert(result, element)
+                    end
+                end
+                consume("}")
+                return {'once', result}
+            end
+
+            -- shuffle (randomised output)
             if ahead('~') then
-                -- shuffle (randomised output)
                 consume('~')
                 -- TODO same as seq below, extract to a function
                 consumeWhitespaceAndNewlines()
@@ -708,6 +744,28 @@ return function(input, source, debug)
                 return {'shuf', 'cycle', result}
             end
 
+
+            -- Sequence: go through the alternatives, and stick on last
+            if ahead('stopping') then
+                consume('stopping')
+                -- TODO extract to a function
+                consumeWhitespaceAndNewlines()
+                consume(':')
+                consumeWhitespaceAndNewlines()
+                local result = {}
+                while ahead('-') do
+                    consume('-')
+                    consumeWhitespaceAndNewlines()
+                    local element = branchInkText()
+                    if element ~= nil then
+                        table.insert(result, {element}) -- TODO inkText in a table?
+                    end
+                end
+                consume("}")
+                return {'seq', result}
+            end
+
+            -- Shuffle: show one at random
             if ahead('shuffle') then
                 consume('shuffle')
                 -- TODO extract to a function
@@ -737,6 +795,50 @@ return function(input, source, debug)
                 consume("}")
                 return {'shuf', shuffleType, result}
             end
+            
+            -- Cycle: show each in turn, and then cycle
+            if ahead('cycle') then
+                consume('cycle')
+                -- TODO extract to a function
+                consumeWhitespaceAndNewlines()
+                consume(':')
+                consumeWhitespaceAndNewlines()
+                local result = {}
+                while ahead('-') do
+                    consume('-')
+                    consumeWhitespaceAndNewlines()
+                    local element = branchInkText()
+                    if element ~= nil then
+                        table.insert(result, {element}) -- TODO inkText in a table?
+                    end
+                end
+                consume("}")
+                return {'cycle', result}
+            end
+
+            -- Once-only alternatives are like sequences, but when they
+            -- run out of new content to display, they display nothing.
+            -- (as a sequence with a blank last entry.)
+            if ahead('once') then
+                consume('once')
+                -- TODO extract to a function
+                consumeWhitespaceAndNewlines()
+                consume(':')
+                consumeWhitespaceAndNewlines()
+                local result = {}
+                while ahead('-') do
+                    consume('-')
+                    consumeWhitespaceAndNewlines()
+                    local element = branchInkText()
+                    if element ~= nil then
+                        table.insert(result, {element}) -- TODO inkText in a table?
+                    end
+                end
+                consume("}")
+                return {'once', result}
+            end
+
+
 
             local beginning = current
             local first = expression()
@@ -770,7 +872,10 @@ return function(input, source, debug)
             consumeWhitespace()
 
             if ahead('|') then
-                -- sequence: {text|text|...}
+                -- A sequence (or a "stopping block") is a set of alternatives that tracks 
+                -- how many times its been seen, and each time, shows the next element along. 
+                -- When it runs out of new content it continues the show the final element.
+                -- {text|text|...}
                 local result = {{first}} -- TODO too much wrapping?
                 while ahead('|') do
                     consume('|')

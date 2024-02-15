@@ -427,6 +427,7 @@ return function (globalTree, debuggg)
     end
 
     local stepInto = function(block)
+        --_debug("step into", block)
         table.insert(callstack, {tree=tree, pointer=pointer})
         local newEnv = {_parent=env} -- TODO make parent unaccessible from the script
         env = newEnv
@@ -985,7 +986,8 @@ return function (globalTree, debuggg)
 
         elseif isNext('seq') then
             local seq = tree[pointer]
-            local current = seq.current or 1 -- FIXME store somewhere else, support save/load
+            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+            local current = seq.current or 1
             stepInto(seq[2][current])
             seq.current = math.min(#seq[2], current + 1)
             update()
@@ -1014,7 +1016,7 @@ return function (globalTree, debuggg)
             shuf.current = (shuf.current or 0) + 1 -- FIXME store somewhere else, support save/load
 
             if shuffleType ~= 'once' then
-                shuf.current = math.min(#shuf.shuffled, shuf.current)
+                shuf.current = math.min(#shuf.shuffled, shuf.current) -- TODO store for save/load
             end
             if shuf.shuffled[shuf.current] then
                 stepInto(shuf.shuffled[shuf.current])
@@ -1022,6 +1024,30 @@ return function (globalTree, debuggg)
                 pointer = pointer + 1
             end
             update()
+
+        elseif isNext('cycle') then
+            local cycle = tree[pointer]
+            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+            cycle.current = cycle.current or 1
+            stepInto(cycle[2][cycle.current])
+            cycle.current = cycle.current + 1
+            if cycle.current > #cycle[2] then
+                cycle.current = 1
+            end
+            update()
+
+        elseif isNext('once') then
+            local once = tree[pointer]
+            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+            once.current = once.current or 1
+            if once.current > #once[2] then
+                pointer = pointer + 1
+            else
+                stepInto(once[2][once.current])
+                once.current = once.current + 1
+            end
+            update()
+
 
             -- separates "a -> b" from "a\n -> b"
         elseif isNext('nl') then
