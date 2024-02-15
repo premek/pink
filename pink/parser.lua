@@ -291,11 +291,15 @@ return function(input, source, debug)
         end
 
 
-        local functionCall = function(functionName)
+        -- Arguments are the actual values or expressions passed to the function when calling it
+        local arguments = function()
+            if not ahead('(') then
+                return {}
+            end
+            local args = {}
             consume('(')
-            local argumentExpressions = {}
             while not ahead(')') do
-                table.insert(argumentExpressions, expression())
+                table.insert(args, expression())
                 consumeWhitespace()
                 if ahead(',') then
                     consume(",")
@@ -303,6 +307,44 @@ return function(input, source, debug)
                 end
             end
             consume(')')
+
+            return args
+        end
+
+        -- Parameters are the placeholders defined in the function or knot definition
+        local parameters = function()
+            if not ahead('(') then
+                return {}
+            end
+            local params = {}
+            consume('(')
+            consumeWhitespace()
+            while not ahead(')') do
+                local paramName = identifier()
+                local passedByReference = nil
+                if paramName == 'ref' then
+                    -- === function alter(ref x, k) ===
+                    consumeWhitespace()
+                    paramName = identifier()
+                    passedByReference = 'ref'
+                end
+                table.insert(params, {paramName, passedByReference})
+                consumeWhitespace()
+                if ahead(',') then
+                    consume(',')
+                    consumeWhitespace()
+                end
+            end
+            consume(')')
+            consumeWhitespace()
+            return params
+
+        end
+
+
+
+        local functionCall = function(functionName)
+            local argumentExpressions = arguments()
             return token('call', functionName, argumentExpressions)
         end
 
@@ -426,36 +468,16 @@ return function(input, source, debug)
             if not ahead('->') then return end
             consume("->")
             consumeWhitespace()
-            return token('divert', identifier())
+            local targetName = identifier()
+            local args = arguments()
+            return token('divert', targetName, args)
         end
 
         -- == function add(x,y) ==
         local fnction = function()
             consumeWhitespace()
             local name = identifier()
-            local params = {}
-
-            if ahead('(') then
-                consume('(')
-                consumeWhitespace()
-                while not ahead(')') do
-                    local paramName = identifier()
-                    local passedByReference = nil
-                    if paramName == 'ref' then
-                        -- === function alter(ref x, k) ===
-                        consumeWhitespace()
-                        paramName = identifier()
-                        passedByReference = 'ref'
-                    end
-                    table.insert(params, {paramName, passedByReference})
-                    consumeWhitespace()
-                    if ahead(',') then
-                        consume(',')
-                        consumeWhitespace()
-                    end
-                end
-                consume(')')
-            end
+            local params = parameters()
 
             consumeWhitespace()
             consumeAll('=')
@@ -474,10 +496,12 @@ return function(input, source, debug)
             end
 
             consumeWhitespace()
+            local params = parameters()
             consumeAll('=')
             consumeWhitespaceAndNewlines()
             local body = knotBody()
-            return token('knot', id, body)-- TODO are they the same? use functions for knots? what about stitches
+            -- TODO are they the same? use functions for knots? what about stitches
+            return token('knot', id, params, body)
         end
 
         local stitch = function()

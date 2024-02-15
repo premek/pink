@@ -421,10 +421,11 @@ return function (globalTree, debuggg)
         err('unresolved variable: ' .. name, token)
     end
 
-    local stepInto = function(block)
+    local stepInto = function(block, newEnv)
         _debug("step into", block)
         table.insert(callstack, {tree=tree, pointer=pointer})
-        local newEnv = {_parent=env} -- TODO make parent unaccessible from the script
+        newEnv = newEnv or {}
+        newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
         tree = block
         pointer = 1
@@ -462,16 +463,38 @@ return function (globalTree, debuggg)
         rootEnv[path][2] = rootEnv[path][2] + 1 --FIXME??
     end
 
-    local currentKnot = nil
-    local goTo = function(path)
-        _debug('go to', path)
-        if type(path) == 'number' then
-            error('unused?')
-            pointer = path -- TODO function call, add parameters
+    local update, getValue
 
-        elseif path == 'END' or path == 'DONE' then
+
+    -- params: placeholders defined in the function/knot definition.
+    -- args: the actual values or expressions passed to the function/knot when calling it
+    -- returns a new env with names of params set to argument values
+    local getArgumentsEnv = function(params, args)
+        args=args or {}
+        local newEnv = {}
+        for i = 1, #params do
+            local paramName = params[i][1]
+            local ref = params[i][2] == 'ref' -- TODO supported for knots?
+            local arg = args[i]
+            if ref then
+                requireType(arg, 'ref')
+                -- do not create a local variable that would reference to itself and create an inf. loop
+            else
+                -- get values from old env, set new env only after all vars are resolved from the old one
+                newEnv[paramName] = getValue(arg)
+            end
+        end
+        return newEnv
+
+    end
+
+    local currentKnot = nil
+    local goTo = function(path, args)
+        _debug('go to', path, args)
+
+        if path == 'END' or path == 'DONE' then
             pointer = #tree+1
-            callstack={} -- ?
+            callstack={} -- ? do not step out anywhere
 
         elseif path:find('%.') ~= nil then
             -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
@@ -516,8 +539,10 @@ return function (globalTree, debuggg)
             incrementSeenCounter(path) -- TODO full paths
 
         elseif knots[path] then
-            tree = knots[path]
-            pointer = 1
+            local params = knots[path].params
+            local body = knots[path].tree
+            local newEnv = getArgumentsEnv(params, args)
+            stepInto(body, newEnv)
 
             incrementSeenCounter(path) -- TODO not just knots
 
@@ -613,11 +638,12 @@ return function (globalTree, debuggg)
 
 
             if is('knot', n) then
-                knots[n[2]] = n[3]
+                knots[n[2]] = {tree=n[4], params=n[3]}
+
                 env[n[2]] = {'int', 0} -- seen counter
                 lastKnot = n[2]
                 lastStitch = nil
-                n[3] = preProcess(n[3]) --FIXME - mess in knots[]
+                n[4] = preProcess(n[4]) --FIXME - mess in knots[]
 
 
                 tagsForContentAtPath[lastKnot] = {}
@@ -691,11 +717,9 @@ return function (globalTree, debuggg)
         return result
     end
 
-    local update
 
     -- "run" the node and return the return value
     -- may return "nothing" (nil)
-    local getValue
     getValue=function(val)
 
         if val == nil then
@@ -719,16 +743,16 @@ return function (globalTree, debuggg)
 
         elseif is('call', val) then
             local name = val[2]
-            local argumentExpressions = val[3]
+            local args = val[3]
 
             -- TODO use 'ref' attributes to call this the same as other functions
             -- TODO check var type
             if name == '++' then
-                addVariable(argumentExpressions[1], 1)
+                addVariable(args[1], 1)
                 return
             end
             if name == '--' then
-                addVariable(argumentExpressions[1], -1)
+                addVariable(args[1], -1)
                 return
             end
 
@@ -737,39 +761,19 @@ return function (globalTree, debuggg)
 
             if target[1] == 'native' then
                 local argumentValues = {}
-                for _, argumentExpression in ipairs(argumentExpressions) do
-                    table.insert(argumentValues, getValue(argumentExpression))
+                for _, arg in ipairs(args) do
+                    table.insert(argumentValues, getValue(arg))
                 end
 
                 return target[2](table.unpack(argumentValues))
 
             elseif target[1] == 'fn' then
-                local argumentDefinitions = target[2]
+                local params = target[2]
                 local body = target[3]
+                local newEnv = getArgumentsEnv(params, args)
+                stepInto(body, newEnv)
 
-                local newEnv = {}
-                for i = 1, #argumentDefinitions do
-                    local argumentName = argumentDefinitions[i][1]
-                    local argumentExpression = argumentExpressions[i]
-
-                    local ref = argumentDefinitions[i][2] == 'ref' -- TODO
-                    if ref then
-                        requireType(argumentExpression, 'ref')
-                        -- do not create a local variable that would reference to itself and create an inf. loop
-                    else
-                        -- get values from old env, set new env only after all vars are resolved from the old one
-                        newEnv[argumentName] = getValue(argumentExpression)
-                    end
-                end
-                stepInto(body)
-                -- TODO tidy up?
-                for varName, varValue in pairs(newEnv) do
-                    env[varName] = varValue
-                end
-
-                -----goTo(target[2]+1) -- jump after fn declaration
                 -- TODO trim fn output?
-                -- TODO arguments
                 -- TODO return value - print after what the function prints
                 return {"str", ''}
             else
@@ -830,7 +834,7 @@ return function (globalTree, debuggg)
         local lasttree=tree -- TODO is this needed?
 
         if isNext('divert') then
-            goTo(tree[pointer][2])
+            goTo(tree[pointer][2], tree[pointer][3])
             update()
             return
         end
