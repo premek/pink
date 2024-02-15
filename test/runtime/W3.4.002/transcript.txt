@@ -1,0 +1,7 @@
+
+1: Accuse Hasting
+2: Accuse Mrs Black
+3: Accuse myself
+?> "I accuse myself!" Poirot declared.
+"Really?" Japp replied. "You did it?"
+"And why not?" Poirot shot back.

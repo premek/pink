@@ -474,11 +474,14 @@ return function (globalTree, debuggg)
         local newEnv = {}
         for i = 1, #params do
             local paramName = params[i][1]
-            local ref = params[i][2] == 'ref' -- TODO supported for knots?
+            local paramType = params[i][2]
             local arg = args[i]
-            if ref then
+            if paramType == 'ref' then -- TODO supported for knots?
                 requireType(arg, 'ref')
                 -- do not create a local variable that would reference to itself and create an inf. loop
+            elseif paramType == '->' then
+                requireType(arg, 'divert')
+                -- TODO
             else
                 -- get values from old env, set new env only after all vars are resolved from the old one
                 newEnv[paramName] = getValue(arg)

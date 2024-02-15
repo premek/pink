@@ -256,7 +256,7 @@ return function(input, source, debug)
 
 
         -- cross dependency, must be defined earlier
-        local term, expression, inkText, knotBody, optionBody, gatherBody, branchInkText;
+        local term, expression, divert, inkText, knotBody, optionBody, gatherBody, branchInkText;
 
         local stringLiteral = function()
             consume('"')
@@ -290,6 +290,12 @@ return function(input, source, debug)
             return token('int', tonumber(val))
         end
 
+        local argument = function()
+            if ahead('->') then
+                return divert()
+            end
+            return expression()
+        end
 
         -- Arguments are the actual values or expressions passed to the function when calling it
         local arguments = function()
@@ -298,8 +304,9 @@ return function(input, source, debug)
             end
             local args = {}
             consume('(')
+            consumeWhitespace()
             while not ahead(')') do
-                table.insert(args, expression())
+                table.insert(args, argument())
                 consumeWhitespace()
                 if ahead(',') then
                     consume(",")
@@ -320,15 +327,14 @@ return function(input, source, debug)
             consume('(')
             consumeWhitespace()
             while not ahead(')') do
-                local paramName = identifier()
-                local passedByReference = nil
-                if paramName == 'ref' then
-                    -- === function alter(ref x, k) ===
+                local paramType = nil
+                if aheadAnyOf('ref', '->') then
+                    paramType = consumeAnyOf('ref', '->')
                     consumeWhitespace()
-                    paramName = identifier()
-                    passedByReference = 'ref'
                 end
-                table.insert(params, {paramName, passedByReference})
+                local paramName = identifier()
+
+                table.insert(params, {paramName, paramType})
                 consumeWhitespace()
                 if ahead(',') then
                     consume(',')
@@ -464,11 +470,12 @@ return function(input, source, debug)
             return token('todo', textLine())
         end
 
-        local divert = function()
+        divert = function()
             if not ahead('->') then return end
             consume("->")
             consumeWhitespace()
             local targetName = identifier()
+            consumeWhitespace()
             local args = arguments()
             return token('divert', targetName, args)
         end

@@ -1,0 +1,2 @@
+"The result is 5050!" you announce.
+Gauss stares at you in horror.
