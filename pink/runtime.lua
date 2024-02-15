@@ -396,9 +396,6 @@ return function (globalTree, debuggg)
     local knots = {}
     local tags = {} -- maps (pointer to para) -> (list of tags)
     local tagsForContentAtPath = {}
-    local currentDepth = 0 -- root level is 0, first option will nest to level 1 etc
-    -- TODO reset currentDepth on gathers, when jumping to knots
-    -- TODO what is it used for?
 
     -- TODO state should contain tree/pointer to be able to save / load
 
@@ -425,7 +422,7 @@ return function (globalTree, debuggg)
     end
 
     local stepInto = function(block)
-        --_debug("step into", block)
+        _debug("step into", block)
         table.insert(callstack, {tree=tree, pointer=pointer})
         local newEnv = {_parent=env} -- TODO make parent unaccessible from the script
         env = newEnv
@@ -829,6 +826,9 @@ return function (globalTree, debuggg)
             lastLocation = tree[pointer].location
         end
 
+        local lastpointer=pointer
+        local lasttree=tree -- TODO is this needed?
+
         if isNext('divert') then
             goTo(tree[pointer][2])
             update()
@@ -884,7 +884,7 @@ return function (globalTree, debuggg)
 
             for _, option in ipairs(options) do
                 local sticky = option[7] == "sticky" -- TODO
-                local displayOption = sticky or not option.used
+                local displayOption = sticky or not option.used -- TODO seen counter
 
                 if displayOption then
                     for _, condition in ipairs(option[8]) do
@@ -903,8 +903,6 @@ return function (globalTree, debuggg)
             end
 
             if #s.currentChoices > 0 then
-                -- player will need to nest one level deeper
-                currentDepth = currentDepth + 1
                 s.canContinue = false
             end
 
@@ -920,8 +918,6 @@ return function (globalTree, debuggg)
 
 
 
-        local lastpointer=pointer
-        local lasttree=tree -- TODO is this needed?
 
         if isNext('str')
             or isNext('bool')
@@ -1056,14 +1052,17 @@ return function (globalTree, debuggg)
             --return
 
         elseif isNext('if') then
-            if isTruthy(getValue(tree[pointer][2])) then
-                stepInto(tree[pointer][3])
-            elseif tree[pointer][4] ~= nil then
-                stepInto(tree[pointer][4])
-            else
-                pointer = pointer + 1
+            for _, branch in ipairs(tree[pointer][2]) do
+                if isTruthy(getValue(branch[1])) then
+                    stepInto(branch[2])
+                    update()
+                    return
+                end
             end
+            -- no condition evaluated to true (and the else branch not present): do nothing
+            pointer = pointer + 1
             update()
+            return
 
         elseif isNext('ink') then
             stepInto(tree[pointer][2])
@@ -1088,6 +1087,7 @@ return function (globalTree, debuggg)
         s.currentTags = tags[pointer] or {}
 
         if lastpointer == pointer and lasttree == tree then
+            _debug(tree, pointer)
             err('nothing consumed in continue at pointer '..pointer)
         end
 

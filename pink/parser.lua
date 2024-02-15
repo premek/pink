@@ -332,6 +332,11 @@ return function(input, source, debug)
                 consume('false')
                 return token('bool', false)
             end
+            if aheadAnyOf('!', 'not') then
+                consumeAnyOf('!', 'not');
+                consumeWhitespace()
+                return {'call', 'not', {expression()}}
+            end
 
             local id = identifier()
             consumeWhitespace()
@@ -361,12 +366,6 @@ return function(input, source, debug)
         end
 
         expression = function()
-            if aheadAnyOf('not', '!') then
-                consumeAnyOf('not', '!')
-                consumeWhitespace()
-                return token('call', 'not', {expression()})
-            end
-
             -- The shunting yard algorithm
             local operandStack = {}
             local operatorStack = {}
@@ -590,7 +589,7 @@ return function(input, source, debug)
 
         -- choice wraps multiple options + an optional gather
         -- All those are at the same nesting level, options could have sub-choices (nested options)
-        local choice = function(minNesting)
+        local choice = function(minNesting, opts)
             if not (ahead('*') or ahead('+')) then return end
             local options = {}
             while not isAtEnd() do
@@ -604,7 +603,10 @@ return function(input, source, debug)
             -- where we would see the 'depth' already
             if #options == 0 then return end
 
-            local gatherNode = gather(minNesting)
+            local gatherNode = nil
+            if not opts or not opts.gatherNotAllowed then
+                gatherNode = gather(minNesting)
+            end
 
             return token('choice', options, gatherNode)
 
@@ -744,7 +746,6 @@ return function(input, source, debug)
                 return {'shuf', 'cycle', result}
             end
 
-
             -- Sequence: go through the alternatives, and stick on last
             if ahead('stopping') then
                 consume('stopping')
@@ -841,8 +842,14 @@ return function(input, source, debug)
 
 
             local beginning = current
+
+            if ahead('-') and not ahead('->') then
+                consume('-')
+            end
+            consumeWhitespaceAndNewlines()
+
             local first = expression()
-            consumeWhitespace()
+            consumeWhitespaceAndNewlines()
 
             if ahead('}') then
                 -- variable printing: {expression}
@@ -850,36 +857,66 @@ return function(input, source, debug)
                 return first
 
             elseif ahead(':') then
-                -- Conditional block: {expr:textIfTrue} or {expr:textIfTrue|textIfFalse}
+                -- Conditional block: {expr:textIfTrue}
+                -- or {expr:textIfTrue|textIfFalse}
                 consume(':')
                 consumeWhitespaceAndNewlines()
-                local ifTrue = branchInkText() -- TODO whats allowed here
-                consumeWhitespaceAndNewlines()
-                local ifFalse = nil
-                if ahead('|') then
-                    consume('|')
-                    ifFalse = branchInkText()
-                elseif ahead('-') then
-                    consume('-')
+                local branches = {}
+                if ahead('-') and not ahead('->') then
+                    -- switch: {x: -0: zero -1: one}
+                    while ahead('-') do
+                        consume('-')
+                        consumeWhitespaceAndNewlines()
+                        if ahead('else') then
+                            consume('else')
+                            consumeWhitespaceAndNewlines()
+                            consume(':')
+                            consumeWhitespaceAndNewlines()
+                            table.insert(branches, {{'bool', true}, {branchInkText()}})
+                        else
+                            local condition = {'call', '==', {first, expression()}}
+                            consumeWhitespace()
+                            consume(':')
+                            consumeWhitespaceAndNewlines()
+                            table.insert(branches, {condition, {branchInkText()}})
+                        end
+                    end
+
+                else
+                    table.insert(branches, {first, {branchInkText()}}) -- TODO wrap
                     consumeWhitespaceAndNewlines()
-                    if ahead('else') then
-                        consume('else')
-                        consumeWhitespaceAndNewlines()
-                        consume(':')
-                        consumeWhitespaceAndNewlines()
-                        ifFalse = branchInkText()
-                    else
-                        errorAt('TODO switch')
+                    if ahead('|') then
+                        consume('|')
+                        -- else branch, the condition is always true
+                        table.insert(branches, {{'bool', true}, {branchInkText()}})
+                    elseif ahead('-') then
+                        while ahead('-') do
+                            consume('-')
+                            consumeWhitespaceAndNewlines()
+                            if ahead('else') then
+                                consume('else')
+                                consumeWhitespaceAndNewlines()
+                                consume(':')
+                                consumeWhitespaceAndNewlines()
+                                table.insert(branches, {{'bool', true}, {branchInkText()}})
+                            else
+                                local condition = expression()
+                                consumeWhitespace()
+                                consume(':')
+                                consumeWhitespaceAndNewlines()
+                                table.insert(branches, {condition, {branchInkText()}})
+                            end
+                        end
                     end
                 end
 
                 consume("}")
-                return token('if', first, {ifTrue}, {ifFalse}) -- TODO wrapping
+                return token('if', branches) -- TODO wrapping
             end
 
             -- reset parser pointer back after the opening '{'
             -- and read the first element again, this time as ink text
-            current = beginning
+            current = beginning --TODO use mark
             first = inkText()
             consumeWhitespace()
 
@@ -1130,7 +1167,7 @@ return function(input, source, debug)
             elseif ahead('=') then
                 return nil------------------------
             elseif ahead('*') or ahead('+') then
-                return choice(1)
+                return choice(1, {gatherNotAllowed = true})
             elseif ahead('-') then -- new branch start
                 return nil ----------------gather()
             elseif ahead('#') then
