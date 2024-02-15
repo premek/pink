@@ -412,18 +412,16 @@ return function (globalTree, debuggg)
 
     local getEnv = function(name, token)
         local e = env
-        local val = nil
-        while val == nil and e ~= nil do
-            val = e[name]
+        while e ~= nil do
+            local val = e[name]
+            if val ~= nil then
+                return val, e
+            end
             e=e._parent
         end
-
-        if val == nil then
-            -- FIXME detect on compile time
-            _debug(env)
-            err('unresolved variable: ' .. name, token)
-        end
-        return val
+        -- FIXME detect on compile time
+        _debug(env)
+        err('unresolved variable: ' .. name, token)
     end
 
     local stepInto = function(block)
@@ -704,11 +702,12 @@ return function (globalTree, debuggg)
     getValue=function(val)
 
         if val == nil then
-            err('nil value')
-            --print('get nil')
-            --val = tree[pointer] --FIXME 111
-            --_debug(val)
-            --update()
+            return nil --FIXME ???
+                --err('nil value')
+                --print('get nil')
+                --val = tree[pointer] --FIXME 111
+                --_debug(val)
+                --update()
         end
 
 
@@ -720,15 +719,6 @@ return function (globalTree, debuggg)
             local name = val[2]
             local var = getEnv(name, val)
             return getValue(var)
-
-        elseif is('if', val) then
-            if isTruthy(getValue(val[2])) then
-                return getValue(val[3])
-            elseif val[4] ~= nil then
-                return getValue(val[4])
-            else
-                return
-            end
 
         elseif is('call', val) then
             local name = val[2]
@@ -760,7 +750,7 @@ return function (globalTree, debuggg)
                 local argumentDefinitions = target[2]
                 local body = target[3]
 
-                stepInto(body)
+                local newEnv = {}
                 for i = 1, #argumentDefinitions do
                     local argumentName = argumentDefinitions[i][1]
                     local argumentExpression = argumentExpressions[i]
@@ -768,10 +758,16 @@ return function (globalTree, debuggg)
                     local ref = argumentDefinitions[i][2] == 'ref' -- TODO
                     if ref then
                         requireType(argumentExpression, 'ref')
-                        env[argumentName] = argumentExpression
+                        -- do not create a local variable that would reference to itself and create an inf. loop
                     else
-                        env[argumentName] = getValue(argumentExpression)
+                        -- get values from old env, set new env only after all vars are resolved from the old one
+                        newEnv[argumentName] = getValue(argumentExpression)
                     end
+                end
+                stepInto(body)
+                -- TODO tidy up?
+                for varName, varValue in pairs(newEnv) do
+                    env[varName] = varValue
                 end
 
                 -----goTo(target[2]+1) -- jump after fn declaration
@@ -854,8 +850,9 @@ return function (globalTree, debuggg)
         end
 
         if isNext('assign') then
-            -- TODO scope
-            -- TODO env[tree[pointer][2]] = tree[pointer][3]
+            local name = tree[pointer][2]
+            local _oldValue, e = getEnv(name)
+            e[name] = getValue(tree[pointer][3])
             pointer = pointer + 1
             update()
             return
@@ -932,7 +929,6 @@ return function (globalTree, debuggg)
             or isNext('float')
             or isNext('ref')
             or isNext('call')
-            or isNext('if')
         --or tree[pointer] and type(tree[pointer][1]) == 'table' -- FIXME what for?
         then
 
@@ -1058,6 +1054,16 @@ return function (globalTree, debuggg)
             end
             update()
             --return
+
+        elseif isNext('if') then
+            if isTruthy(getValue(tree[pointer][2])) then
+                stepInto(tree[pointer][3])
+            elseif tree[pointer][4] ~= nil then
+                stepInto(tree[pointer][4])
+            else
+                pointer = pointer + 1
+            end
+            update()
 
         elseif isNext('ink') then
             stepInto(tree[pointer][2])

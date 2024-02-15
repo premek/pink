@@ -709,7 +709,7 @@ return function(input, source, debug)
             end
 
             -- Once-only alternatives are like sequences, but when they
-            -- run out of new content to display, they display nothing. 
+            -- run out of new content to display, they display nothing.
             -- (as a sequence with a blank last entry.)
             if ahead('!') then
                 consume('!')
@@ -795,7 +795,7 @@ return function(input, source, debug)
                 consume("}")
                 return {'shuf', shuffleType, result}
             end
-            
+
             -- Cycle: show each in turn, and then cycle
             if ahead('cycle') then
                 consume('cycle')
@@ -853,16 +853,28 @@ return function(input, source, debug)
                 -- Conditional block: {expr:textIfTrue} or {expr:textIfTrue|textIfFalse}
                 consume(':')
                 consumeWhitespaceAndNewlines()
-                local ifTrue = inkText()
+                local ifTrue = branchInkText() -- TODO whats allowed here
                 consumeWhitespaceAndNewlines()
                 local ifFalse = nil
                 if ahead('|') then
                     consume('|')
-                    ifFalse = inkText()
+                    ifFalse = branchInkText()
+                elseif ahead('-') then
+                    consume('-')
+                    consumeWhitespaceAndNewlines()
+                    if ahead('else') then
+                        consume('else')
+                        consumeWhitespaceAndNewlines()
+                        consume(':')
+                        consumeWhitespaceAndNewlines()
+                        ifFalse = branchInkText()
+                    else
+                        errorAt('TODO switch')
+                    end
                 end
 
                 consume("}")
-                return token('if', first, ifTrue, ifFalse)
+                return token('if', first, {ifTrue}, {ifFalse}) -- TODO wrapping
             end
 
             -- reset parser pointer back after the opening '{'
@@ -872,8 +884,8 @@ return function(input, source, debug)
             consumeWhitespace()
 
             if ahead('|') then
-                -- A sequence (or a "stopping block") is a set of alternatives that tracks 
-                -- how many times its been seen, and each time, shows the next element along. 
+                -- A sequence (or a "stopping block") is a set of alternatives that tracks
+                -- how many times its been seen, and each time, shows the next element along.
                 -- When it runs out of new content it continues the show the final element.
                 -- {text|text|...}
                 local result = {{first}} -- TODO too much wrapping?
