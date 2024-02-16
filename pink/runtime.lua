@@ -578,6 +578,24 @@ return function (globalTree, debuggg)
             pointer = pointer + 1
         end
 
+
+        -- 1st pass, top level const/var can reference each other in any order
+        for _, n in ipairs(t) do
+
+            -- TODO check if name already taken
+            -- Errors:
+            -- VAR/CONST already defined
+            -- VAR/CONST name already used for a function
+            if is('var', n) then
+                env[n[2]] = n[3]
+            end
+            if is('const', n) then
+                env[n[2]] = n[3] -- TODO make it constant
+            end
+        end
+
+
+
         local aboveTags = {}
         --local lastPara = {}
 
@@ -684,17 +702,6 @@ return function (globalTree, debuggg)
 
 
 
-            -- TODO check if name already taken
-            -- Errors:
-            -- VAR/CONST already defined
-            -- VAR/CONST name already used for a function
-            if is('var', n) then
-                env[n[2]] = n[3]
-            end
-            if is('const', n) then
-                env[n[2]] = n[3] -- TODO make it constant
-            end
-
 
 
             --  if is('tag', n) then
@@ -716,6 +723,19 @@ return function (globalTree, debuggg)
             end
 
         end
+
+
+
+        -- 2nd pass for const/var - resolve values
+        for _, n in ipairs(t) do
+            if is('var', n) then
+                env[n[2]] = getValue(n[3])
+            end
+            if is('const', n) then
+                env[n[2]] = getValue(n[3]) -- TODO make it constant
+            end
+        end
+
 
         return result
     end
