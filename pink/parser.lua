@@ -481,6 +481,13 @@ return function(input, source, debug)
         end
 
         -- == function add(x,y) ==
+        -- functions are knots, with the following limitations and features: (TODO)
+        -- cannot contain stitches
+        -- cannot use diverts or offer choices
+        -- can call other functions
+        -- can include printed content
+        -- can return a value of any type
+        -- can recurse safely
         local fnction = function()
             consumeWhitespace()
             local name = identifier()

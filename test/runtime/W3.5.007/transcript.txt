@@ -1,0 +1,5 @@
+
+1: I ate a biscuit
+2: I gave a biscuit to Monsieur Fogg
+?> I ate a biscuit and felt refreshed. Then we continued on our way.
+6
