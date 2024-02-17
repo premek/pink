@@ -257,7 +257,7 @@ return function(input, source, debug)
 
         -- cross dependency, must be defined earlier
         local term, expression, divert, inkText, knotBody,functionBody,
-            optionBody, gatherBody, branchInkText;
+            optionText, optionBody, gatherBody, branchInkText;
 
         local stringLiteral = function()
             consume('"')
@@ -497,6 +497,9 @@ return function(input, source, debug)
 
             consumeWhitespace()
             consumeAll('=')
+            consumeWhitespace()
+            consume('\n')
+            consumeWhitespaceAndNewlines()
             local body = functionBody();
             return token('fn', name, params, body)
         end
@@ -514,6 +517,8 @@ return function(input, source, debug)
             consumeWhitespace()
             local params = parameters()
             consumeAll('=')
+            consumeWhitespace()
+            consume('\n')
             consumeWhitespaceAndNewlines()
             local body = knotBody()
             -- TODO are they the same? use functions for knots? what about stitches
@@ -599,32 +604,33 @@ return function(input, source, debug)
                 consumeWhitespaceAndNewlines()
             end
 
-            local t1 = text()
+            local t1 = optionText()
 
-            local t2 = ""
+            local t2 = nil
             if ahead('[') then
                 consume('[')
-                t2 = text()
+                t2 = optionText()
                 consume(']')
             end
 
-            local t3 = text()
+            local t3 = optionText()
 
             consumeWhitespaceAndNewlines()
 
             local body = optionBody(nesting+1) -- the parameter will come back to this function as minNesting
-            if #t1 > 0 or #t3 > 0 then
+            if #t1[2] > 0 or #t3[2] > 0 then
                 -- FIXME
-                local str = t1
-                if t3:sub(1,1) == ' ' and t1:sub(-1) == ' ' then
-                    str = str:sub(1, -2)
-                end
-                str = str .. t3
-                table.insert(body, 1, {'str', str}) -- FIXME
-                table.insert(body, 2, {'nl'}) -- FIXME I034
+                --local str = t1
+                --if t3:sub(1,1) == ' ' and t1:sub(-1) == ' ' then
+                --    str = str:sub(1, -2)
+                --end
+                --str = str .. t3
+                table.insert(body, 1, t1) -- FIXME
+                table.insert(body, 2, t3) -- FIXME
+                table.insert(body, 3, {'nl'}) -- FIXME I034
             end
             -- TODO use named arguments or some other mechanism
-            return token('option', nesting, t1, t2, t3, name, sticky, conditions, body)
+            return token('option', nesting, {t1}, {t2}, {t3}, name, sticky, conditions, body)
         end
 
         -- choice wraps multiple options + an optional gather
@@ -1147,6 +1153,46 @@ return function(input, source, debug)
             end
         end
 
+        local optionTextNode = function(opts)
+            if ahead('\n') then
+                return nil --nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return divert()
+            elseif ahead('==') then
+                return nil------------------------
+            elseif ahead('=') then
+                return nil------------------------
+            elseif ahead('*') or ahead('+') then
+                return nil -- choice(minNesting)
+            elseif ahead('-') then
+                return nil ----------------gather()
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
+
         local optionBodyNode = function(minNesting, opts)
             if ahead('\n') then
                 return nl()
@@ -1292,6 +1338,19 @@ return function(input, source, debug)
                 table.insert(result, node)
             end
             return result
+        end
+
+        optionText = function(opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+                local node = optionTextNode(opts)
+                if node == nil then
+                    break
+                end
+                table.insert(result, node)
+            end
+            return {'ink', result}
         end
 
         optionBody = function(minNesting, opts)

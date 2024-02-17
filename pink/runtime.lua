@@ -384,7 +384,7 @@ return function (globalTree, debuggg)
 
     local returnValue -- set when interpreting a 'return' statement, read after stepping 'Out'
     -- does it have to be a stack?
-    -- adding isReturning boolean flag would allow returning nil - TODO
+    -- TODO add isReturning boolean flag  - allow returning nil
 
     -- story - this table will be passed to client code
     local s = {
@@ -798,9 +798,8 @@ return function (globalTree, debuggg)
     -- but inside it can be used e.g. for recursive function call/return values
     update = function ()
 
-        _debug('upd', pointer, tree[pointer] and tree[pointer][1] or 'END')
+        _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer][1] or 'END'))
 
-        -- TODO not needed???
         if returnValue ~= nil then
             -- do not proceed when returning from a (nested?) function call
             return
@@ -886,7 +885,20 @@ return function (globalTree, debuggg)
 
                 if displayOption then
                     -- all possible choices printed like this before selecting
-                    local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
+                    -- FIXME
+                    local oldOut = out
+                    local oldCS = callstack
+                    callstack = {}
+                    out = {}
+                    stepInto(option[3])
+                    update()
+                    stepInto(option[4])
+                    update()
+                    local text = trim(table.concat(out))
+                    _debug("TTT", text, out)
+                    out = oldOut
+                    callstack = oldCS
+                    --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
                     table.insert(s.currentChoices, {text = text, option=option, gather=gather})
                 end
             end
@@ -1081,6 +1093,7 @@ return function (globalTree, debuggg)
             end
             pointer = pointer + 1
             s.canContinue = #out > 0
+            return
         end
 
 
