@@ -379,7 +379,12 @@ return function (globalTree, debuggg)
         ['>']={'native', gt},
         ['>=']={'native', gte},
     }
-    local env = rootEnv
+
+    local env = rootEnv -- TODO should env be part of the callstack?
+
+    local returnValue -- set when interpreting a 'return' statement, read after stepping 'Out'
+    -- does it have to be a stack?
+    -- adding isReturning boolean flag would allow returning nil - TODO
 
     -- story - this table will be passed to client code
     local s = {
@@ -441,13 +446,12 @@ return function (globalTree, debuggg)
     local stepOut = function()
         local frame = table.remove(callstack)
         if not frame then
-            return false
+            return err('failed to step out')
         end
         pointer = frame.pointer
         tree = frame.tree
         env = env._parent -- TODO encapsulate somehow / add to the frame?
         pointer = pointer + 1 -- step after the function call where we stepped inside the function
-        return true
     end
 
     -- var = var + a
@@ -599,11 +603,6 @@ return function (globalTree, debuggg)
         local aboveTags = {}
         --local lastPara = {}
 
-        local result = {}
-        local addTo = {result} -- stack, number of items represents current depth
-        local addThisTo
-
-
         for p, n in ipairs(t) do
 
             if is('ink', n) then
@@ -620,42 +619,6 @@ return function (globalTree, debuggg)
             end
 
 
-
-            addThisTo = addTo[#addTo]
-
-            if is('fn', n) or is('knot', n) then
-                addTo = {result} -- start adding tokens incl. this one to the top level
-                addThisTo = result
-            end
-
-
-            if is('fn', n) then
-                local fnBody = {}
-                n[4] = fnBody
-                table.insert(addTo, fnBody) -- start adding following tokens to the body
-            end
-
-            --[[ if is('option', n) then
-            local optionBody = {}
-            n[9] = optionBody -- TODO call it body? call other numbered item by names?
-            local optionDepth = n[2]
-
-            while optionDepth < #addTo do
-            table.remove(addTo)
-            addThisTo = addTo[#addTo]
-            end
-
-            table.insert(addTo, optionBody) -- start adding following tokens to the body
-
-            table.insert(optionBody, {'str', n[3]})
-            table.insert(optionBody, {'str', n[5]})
-            if #trim(n[3]) ~= 0 or #trim(n[5]) ~= 0 then
-            table.insert(optionBody, {'nl'}) -- FIXME the whole trimming everywhere
-            end
-
-            end]]
-
-            table.insert(addThisTo, n)
 
 
             if is('knot', n) then
@@ -737,13 +700,14 @@ return function (globalTree, debuggg)
         end
 
 
-        return result
+        return t
     end
 
 
     -- "run" the node and return the return value
     -- may return "nothing" (nil)
     getValue=function(val)
+        _debug("getValue", val)
 
         if val == nil then
             return nil --FIXME ???
@@ -795,31 +759,19 @@ return function (globalTree, debuggg)
                 local body = target[3]
                 local newEnv = getArgumentsEnv(params, args)
                 stepInto(body, newEnv)
+                update()
+                local ret = returnValue
+                _debug('RET', ret)
+                returnValue = nil
+                return ret
 
-                -- TODO trim fn output?
-                -- TODO return value - print after what the function prints
-                return {"str", ''}
+                    -- TODO trim fn output?
+                    -- TODO return value - print after what the function prints
+                    --                return {"str", ''}
             else
                 error('invalid call target: ' .. target[1])
             end
 
-            --[[   elseif #val == 0 or type(val[1]) == 'table' then
-            err('invalid') --TODO remove
-
-
-            -- {} or {{'xxx', ...}, {'xxx', ...}}
-            -- FIXME I006 - consolidate continue(), update() and getValue() and call recursively here
-            local result = ""
-            for i=1, #val do
-            local value = getValue(val[i])
-            if value ~= nil then
-            result = result .. output(value)
-            end
-            end
-            return {'str', result}
-
-
-            ]]
         elseif is('ink', val) then
             -- FIXME
             local result = ""
@@ -849,6 +801,13 @@ return function (globalTree, debuggg)
 
         _debug('upd', pointer, tree[pointer] and tree[pointer][1] or 'END')
 
+        -- TODO not needed???
+        if returnValue ~= nil then
+            -- do not proceed when returning from a (nested?) function call
+            return
+        end
+
+
         if tree[pointer] and tree[pointer].location then
             lastLocation = tree[pointer].location
         end
@@ -862,7 +821,9 @@ return function (globalTree, debuggg)
             return
         end
 
-        if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') then
+        if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') or
+            isNext('knot') or isNext('fn')
+        then
             pointer = pointer + 1
             update()
             return
@@ -879,7 +840,12 @@ return function (globalTree, debuggg)
         if isNext('assign') then
             local name = tree[pointer][2]
             local _oldValue, e = getEnv(name)
-            e[name] = getValue(tree[pointer][3])
+            local newValue = getValue(tree[pointer][3])
+            _debug("ASSIGN", e[name], newValue)
+            if newValue == nil then
+                err('cannot assign nil')
+            end
+            e[name] = newValue
             pointer = pointer + 1
             update()
             return
@@ -894,13 +860,10 @@ return function (globalTree, debuggg)
         end
 
         if isNext('return') then
-            _debug(getValue(tree[pointer][2]))
-            local steppedOut = stepOut()
-            if not steppedOut then
-                err('failed to return')
-            end
-            update()
-            -- no return
+            returnValue = getValue(tree[pointer][2])
+            stepOut()
+            --update()
+            return
         end
 
         if isNext('choice') then
@@ -940,6 +903,7 @@ return function (globalTree, debuggg)
             end
 
             pointer = pointer + 1
+            s.canContinue = #out > 0
             return
         end
 
@@ -952,7 +916,6 @@ return function (globalTree, debuggg)
             or isNext('float')
             or isNext('ref')
             or isNext('call')
-        --or tree[pointer] and type(tree[pointer][1]) == 'table' -- FIXME what for?
         then
 
             local val = getValue(tree[pointer])
@@ -961,17 +924,20 @@ return function (globalTree, debuggg)
             end
             pointer = pointer + 1
             update()
+            return
             --table.insert(out, s.continue())
 
         elseif isNext('todo') then
             log(tree[pointer][2], tree[pointer]) -- TODO
             pointer = pointer + 1
             update()
+            return
 
         elseif isNext('glue') then
             out.sticky = true -- TODO or separate variable?
             pointer = pointer + 1
             update()
+            return
 
             -- TODO tidy up
             --local last = #out > 0 and out[#out] or lastOut -- FIXME when the whole ink starts with glue
@@ -998,10 +964,12 @@ return function (globalTree, debuggg)
             incrementSeenCounter(tree[pointer][2])
             pointer = pointer + 1
             update()
+            return
 
         elseif isNext('gather') then
             stepInto(tree[pointer][3])
             update()
+            return
 
         elseif isNext('seq') then
             local seq = tree[pointer]
@@ -1010,6 +978,7 @@ return function (globalTree, debuggg)
             stepInto(seq[2][current])
             seq.current = math.min(#seq[2], current + 1)
             update()
+            return
 
         elseif isNext('shuf') then
             local shuf = tree[pointer]
@@ -1043,6 +1012,7 @@ return function (globalTree, debuggg)
                 pointer = pointer + 1
             end
             update()
+            return
 
         elseif isNext('cycle') then
             local cycle = tree[pointer]
@@ -1054,6 +1024,7 @@ return function (globalTree, debuggg)
                 cycle.current = 1
             end
             update()
+            return
 
         elseif isNext('once') then
             local once = tree[pointer]
@@ -1066,17 +1037,17 @@ return function (globalTree, debuggg)
                 once.current = once.current + 1
             end
             update()
+            return
 
 
             -- separates "a -> b" from "a\n -> b"
         elseif isNext('nl') then
-            pointer = pointer + 1
-
             if not out.sticky and not isNext('glue') then
                 table.insert(out, '\n')
             end
+            pointer = pointer + 1
             update()
-            --return
+            return
 
         elseif isNext('if') then
             for _, branch in ipairs(tree[pointer][2]) do
@@ -1094,20 +1065,22 @@ return function (globalTree, debuggg)
         elseif isNext('ink') then
             stepInto(tree[pointer][2])
             update()
+            return
         end
 
 
-        if isEnd() or isNext('knot') or isNext('fn') then
-            -- TODO change the parser so knots, fns etc are in separate table?
-
+        if isEnd() then
             --FIXME refactor so we don't need this if
             if #s.currentChoices == 0 then
-                local steppedOut = stepOut()
-                if steppedOut then
+                if #callstack > 0 then
+                    _debug("step out at end")
+                    stepOut()
                     update()
+                    return
                 end
             end
             pointer = pointer + 1
+            s.canContinue = #out > 0
         end
 
 
@@ -1118,11 +1091,6 @@ return function (globalTree, debuggg)
             err('nothing consumed in continue at pointer '..pointer)
         end
 
-
-        s.canContinue = #out > 0
-        if not s.canContinue then
-            _debug('--can-not-continue--')
-        end
 
     end
 
@@ -1208,14 +1176,8 @@ return function (globalTree, debuggg)
     tree = preProcess(tree)
     _debug(tree)
     _debug(s.variablesState)
-    --_debug(tags)
-    --_debug(knots)
-
-    -- debug
-    --s._tree = tree
 
     update()
-    --getValue()
 
     return s
 end

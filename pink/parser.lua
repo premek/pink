@@ -256,7 +256,8 @@ return function(input, source, debug)
 
 
         -- cross dependency, must be defined earlier
-        local term, expression, divert, inkText, knotBody, optionBody, gatherBody, branchInkText;
+        local term, expression, divert, inkText, knotBody,functionBody,
+            optionBody, gatherBody, branchInkText;
 
         local stringLiteral = function()
             consume('"')
@@ -496,8 +497,8 @@ return function(input, source, debug)
 
             consumeWhitespace()
             consumeAll('=')
-            --local body = functionBody();
-            return token('fn', name, params)
+            local body = functionBody();
+            return token('fn', name, params, body)
         end
 
         local knotOrFunction = function()
@@ -1002,7 +1003,7 @@ return function(input, source, debug)
 
             consume("~")
             consumeWhitespace()
-            if ahead('return') then
+            if ahead('return') then -- TODO only in function
                 return returnStatement()
             elseif ahead('temp') then
                 return tempVariable()
@@ -1088,6 +1089,45 @@ return function(input, source, debug)
                 return stitch()
             elseif ahead('*') or ahead('+') then
                 return choice(1)
+            elseif ahead('-') then
+                return gather(1) -- labelled gathers could exist without choices
+            elseif ahead('#') then
+                return tag()
+            elseif ahead('CONST') then -- TODO must be on new line?
+                return constant()
+            elseif ahead('VAR') then
+                return variable()
+            elseif ahead('LIST') then
+                return list()
+            elseif ahead('{') then
+                return alternative()
+            elseif ahead('~') then
+                return statement()
+            else
+                return para(opts)
+            end
+        end
+        local functionBodyNode = function(opts)
+            if ahead('\n') then
+                return nl()
+            elseif ahead('//') then
+                return singleLineComment()
+            elseif ahead('/*') then
+                return multiLineComment()
+            elseif ahead('TODO:') then
+                return todo()
+            elseif ahead('INCLUDE') then
+                return include()
+            elseif ahead('<>') then
+                return glue()
+            elseif ahead('->') then
+                return nil --------divert()
+            elseif ahead('==') then
+                return nil------------------------
+            elseif ahead('=') then
+                return nil ----------------
+            elseif ahead('*') or ahead('+') then
+                return nil -----------choice(1)
             elseif ahead('-') then
                 return gather(1) -- labelled gathers could exist without choices
             elseif ahead('#') then
@@ -1232,6 +1272,20 @@ return function(input, source, debug)
 
             while not isAtEnd() do
                 local node = knotBodyNode(opts)
+                if node == nil then
+                    break
+                end
+                table.insert(result, node)
+            end
+            return result
+        end
+
+        -- TODO this is getting ridiculous
+        functionBody = function(opts)
+            local result = {} -- TODO just table or 'block'?
+
+            while not isAtEnd() do
+                local node = functionBodyNode(opts)
                 if node == nil then
                     break
                 end
