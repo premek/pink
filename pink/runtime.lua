@@ -451,7 +451,6 @@ return function (globalTree, debuggg)
         pointer = frame.pointer
         tree = frame.tree
         env = env._parent -- TODO encapsulate somehow / add to the frame?
-        pointer = pointer + 1 -- step after the function call where we stepped inside the function
     end
 
     -- var = var + a
@@ -1075,6 +1074,7 @@ return function (globalTree, debuggg)
                 if #callstack > 0 then
                     _debug("step out at end")
                     stepOut()
+                    pointer = pointer + 1 -- step after the call where we stepped in
                     update()
                     return
                 end
