@@ -615,6 +615,8 @@ return function(input, source, debug)
 
             local t3 = optionText()
 
+            consumeWhitespace()
+            local insertNl = ahead('\n')
             consumeWhitespaceAndNewlines()
 
             local body = optionBody(nesting+1) -- the parameter will come back to this function as minNesting
@@ -627,7 +629,9 @@ return function(input, source, debug)
                 --str = str .. t3
                 table.insert(body, 1, t1) -- FIXME
                 table.insert(body, 2, t3) -- FIXME
-                table.insert(body, 3, {'nl'}) -- FIXME I034
+                if insertNl then
+                    table.insert(body, 3, {'nl'})
+                end
             end
             -- TODO use named arguments or some other mechanism
             return token('option', nesting, {t1}, {t2}, {t3}, name, sticky, conditions, body)
@@ -1167,7 +1171,7 @@ return function(input, source, debug)
             elseif ahead('<>') then
                 return glue()
             elseif ahead('->') then
-                return divert()
+                return nil---divert()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
