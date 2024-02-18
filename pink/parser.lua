@@ -907,8 +907,6 @@ return function(input, source, debug)
                 return first
 
             elseif ahead(':') then
-                -- Conditional block: {expr:textIfTrue}
-                -- or {expr:textIfTrue|textIfFalse}
                 consume(':')
                 consumeWhitespaceAndNewlines()
                 local branches = {}
@@ -928,14 +926,22 @@ return function(input, source, debug)
                             consumeWhitespace()
                             consume(':')
                             consumeWhitespaceAndNewlines()
-                            table.insert(branches, {condition, {branchInkText()}})
+                            -- TODO would be nicer without this if
+                            if ahead('-') then
+                                -- empty branch body, but the condition should be evaluated
+                                table.insert(branches, {condition, {}})
+                            else
+                                table.insert(branches, {condition, {branchInkText()}})
+                            end
                         end
                     end
 
                 else
+                    -- Conditional block: {expr:textIfTrue}
                     table.insert(branches, {first, {branchInkText()}}) -- TODO wrap
                     consumeWhitespaceAndNewlines()
                     if ahead('|') then
+                        -- {expr:textIfTrue|textIfFalse}
                         consume('|')
                         -- else branch, the condition is always true
                         table.insert(branches, {{'bool', true}, {branchInkText()}})
@@ -951,6 +957,7 @@ return function(input, source, debug)
                                 table.insert(branches, {{'bool', true}, {branchInkText()}})
                             else
                                 local condition = expression()
+                                _debug(condition)
                                 consumeWhitespace()
                                 consume(':')
                                 consumeWhitespaceAndNewlines()
@@ -1059,7 +1066,7 @@ return function(input, source, debug)
                 return stitch()
             elseif ahead('*') or ahead('+') then
                 return choice(1)
-            elseif ahead('-') then
+            elseif ahead('-') then -- TODO must be on new line?
                 return gather(1) -- labelled gathers could exist without choices
             elseif ahead('#') then
                 return tag()
@@ -1278,7 +1285,13 @@ return function(input, source, debug)
         end
         local branchInkNode = function(opts)
             if ahead('\n') then
-                return nl()
+                local ret = nl()
+                if ahead('-') then
+                    return nil
+                        -- FIXME --- end branch here, the next one starts,
+                        -- but - is allowed when it's not after NL
+                end
+                return ret
             elseif ahead('//') then
                 return singleLineComment()
             elseif ahead('/*') then
@@ -1297,8 +1310,9 @@ return function(input, source, debug)
                 return nil------------------------
             elseif ahead('*') or ahead('+') then
                 return choice(1, {gatherNotAllowed = true})
-            elseif ahead('-') then -- new branch start
-                return nil ----------------gather()
+                    --elseif ahead('-') athen -- new branch start
+                    --stay in 'para'
+                    --    return nil ----------------gather()
             elseif ahead('#') then
                 return tag()
             elseif ahead('CONST') then -- TODO must be on new line?
