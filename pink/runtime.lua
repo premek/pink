@@ -481,7 +481,16 @@ return function (globalTree, debuggg)
             local arg = args[i]
             if paramType == 'ref' then -- TODO supported for knots?
                 requireType(arg, 'ref')
-                -- do not create a local variable that would reference to itself and create an inf. loop
+                local refName = arg[2]
+                if paramName ~= refName then
+                    -- the referenced variable has different name inside the function
+                    -- (the paramtere has different name than what's used when calling the fn)
+                    -- we will point to the same value
+                    -- but when assigning to it we cannot just replace it in the local env
+                    newEnv[paramName] = {'ref', refName}
+                end
+                -- if the name is the same in and out-side the function:
+                -- do not create a local variable that would reference to itself and create a loop
             elseif paramType == '->' then
                 requireType(arg, 'divert')
                 -- TODO
@@ -837,13 +846,19 @@ return function (globalTree, debuggg)
 
         if isNext('assign') then
             local name = tree[pointer][2]
-            local _oldValue, e = getEnv(name)
+            local oldValue, e = getEnv(name)
             local newValue = getValue(tree[pointer][3])
-            _debug("ASSIGN", e[name], newValue)
+            _debug("ASSIGN", e[name], newValue, oldValue)
             if newValue == nil then
                 err('cannot assign nil')
             end
-            e[name] = newValue
+            if is('ref', oldValue) then
+                local refName = oldValue[2]
+                local _, refEnv = getEnv(refName)
+                refEnv[refName] = newValue
+            else
+                e[name] = newValue
+            end
             pointer = pointer + 1
             update()
             return

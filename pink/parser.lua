@@ -315,6 +315,7 @@ return function(input, source, debug)
                 end
             end
             consume(')')
+            consumeWhitespaceAndNewlines()
 
             return args
         end
@@ -968,6 +969,7 @@ return function(input, source, debug)
                 end
 
                 consume("}")
+--                consumeWhitespaceAndNewlines() -- FIXME I052
                 return token('if', branches) -- TODO wrapping
             end
 
@@ -1040,7 +1042,13 @@ return function(input, source, debug)
                 elseif ahead('=') then
                     consume('=')
                     consumeWhitespace()
-                    return token('assign', id, expression())
+
+                    -- FIXME! W3.5.002 - have call in expression?
+                    -- ~ x = lerp(2, 8, 0.3)
+
+                    local expr = expression()
+                    consumeWhitespaceAndNewlines()
+                    return token('assign', id, expr)
                 end
 
                 errorAt('unexpected statement near ' .. id)
