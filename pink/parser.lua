@@ -1031,9 +1031,11 @@ return function(input, source, debug)
                     return functionCall(id)
                 elseif ahead('++') then
                     consume('++')
+                    consumeWhitespaceAndNewlines()
                     return token('call', '++', {{'ref', id}})
                 elseif ahead('--') then
                     consume('--')
+                    consumeWhitespaceAndNewlines()
                     return token('call', '--', {{'ref', id}})
                 elseif ahead('=') then
                     consume('=')
