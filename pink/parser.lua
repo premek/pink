@@ -165,6 +165,7 @@ return function(input, source, debug)
             while not eolAhead() do
                 next()
             end
+            consumeWhitespaceAndNewlines()
             -- we have to return something so the caller does not stop here
             return token('nop') -- TODO or a comment token??
         end
@@ -179,6 +180,7 @@ return function(input, source, debug)
                 next()
             end
             consume('*/')
+            consumeWhitespaceAndNewlines()
             -- we have to return something so the caller does not stop here
             return token('nop')
         end

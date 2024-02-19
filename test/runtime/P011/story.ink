@@ -1,7 +1,8 @@
 // whitespace around function call is trimmed
 
-a{ba()}c
+a{b()}c
 === function b()
 
  b 
  
+
