@@ -1101,6 +1101,10 @@ return function (globalTree, debuggg)
                 if #callstack > 0 then
                     _debug("step out at end")
                     stepOut()
+                    if isNext('call') then -- we stepped in from here, now we stepped back out
+                        -- we just stepped out of a function, trim the output
+                        out = {rtrim(table.concat(out))}
+                    end
                     pointer = pointer + 1 -- step after the call where we stepped in
                     update()
                     return

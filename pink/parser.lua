@@ -971,7 +971,7 @@ return function(input, source, debug)
                 end
 
                 consume("}")
---                consumeWhitespaceAndNewlines() -- FIXME I052
+                --                consumeWhitespaceAndNewlines() -- FIXME I052
                 return token('if', branches) -- TODO wrapping
             end
 
