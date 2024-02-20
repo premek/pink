@@ -947,6 +947,7 @@ return function (globalTree, debuggg)
             local val = getValue(tree[pointer])
             if val ~= nil then
                 table.insert(out, output(val))
+                out.sticky = false
             end
             pointer = pointer + 1
             update()
@@ -960,6 +961,9 @@ return function (globalTree, debuggg)
             return
 
         elseif isNext('glue') then
+            while out[#out] == '\n' do
+                table.remove(out, #out)
+            end
             out.sticky = true -- TODO or separate variable?
             pointer = pointer + 1
             update()
@@ -1068,7 +1072,7 @@ return function (globalTree, debuggg)
 
             -- separates "a -> b" from "a\n -> b"
         elseif isNext('nl') then
-            if not out.sticky and not isNext('glue') then
+            if not out.sticky then
                 table.insert(out, '\n')
             end
             pointer = pointer + 1
