@@ -402,6 +402,96 @@ return function (globalTree, debuggg)
     local tags = {} -- maps (pointer to para) -> (list of tags)
     local tagsForContentAtPath = {}
 
+    -- TODO rewrite
+    local out = {
+        buffer = {},
+        instr = function(self, instr)
+            table.insert(self.buffer, {[instr] = true})
+        end,
+        add = function(self, text)
+            table.insert(self.buffer, text)
+        end,
+        collect = function(self)
+            _debug(self.buffer)
+
+            local t = {}
+            local glue = false
+            for _, e in ipairs(self.buffer) do
+                if e['glue'] then
+                    glue = true
+                    while t[#t] == '\n' do
+                        table.remove(t)
+                    end
+                elseif glue and e=='\n' then
+                    local _
+                    -- ignore newlines after glue
+                else
+                    table.insert(t, e)
+                    glue = false
+                end
+            end
+            self.buffer = t
+
+
+            t = {}
+            for i, e in ipairs(self.buffer) do
+                if e['trimEnd'] then
+                    for j=i-1, 1, -1 do
+                        if t[j] then
+                            if t[j]['trim'] then
+                                break
+                            end
+                            t[j] = rtrim(t[j])
+                            if #(t[j]) > 0 then
+                                break
+                            end
+                        end
+                    end
+                else
+                    table.insert(t, e)
+                end
+            end
+            self.buffer = t
+            _debug(t)
+
+
+            t = {}
+            for _, e in ipairs(self.buffer) do
+                if e['trim'] then
+                    local _
+                elseif e == '' then
+                    local _
+                else
+                    table.insert(t, e)
+                end
+            end
+            self.buffer = t
+
+            t = {}
+            for _, e in ipairs(self.buffer) do
+                if e == '\n' and t[#t] == '\n' then
+                    local _
+                    -- remove double newlines
+                else
+                    table.insert(t, e)
+                end
+            end
+
+            _debug(t)
+            self.buffer = {table.concat(t)}
+        end,
+        toString = function(self)
+            self:collect()
+            return rtrim(self.buffer[1])
+        end,
+        clear = function(self)
+            self.buffer = {}
+        end,
+        isEmpty = function(self)
+            return (#(self:toString()) == 0)
+        end
+    }
+
     -- TODO state should contain tree/pointer to be able to save / load
 
 
@@ -427,7 +517,8 @@ return function (globalTree, debuggg)
     end
 
     local stepInto = function(block, newEnv)
-        _debug("step into", block)
+        _debug("step into")
+        -- TODO everything on the stack, current pointer, tree, env; not 'out'
         table.insert(callstack, {tree=tree, pointer=pointer})
         newEnv = newEnv or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
@@ -448,6 +539,8 @@ return function (globalTree, debuggg)
         if not frame then
             return err('failed to step out')
         end
+        _debug("stepOut")
+
         pointer = frame.pointer
         tree = frame.tree
         env = env._parent -- TODO encapsulate somehow / add to the frame?
@@ -730,6 +823,8 @@ return function (globalTree, debuggg)
         if is('str', val) or is('int', val) or is('float', val) or is('bool', val) then
             return val
 
+        elseif is('out', val) then
+            return getValue(val[2])
 
         elseif is('ref', val) then
             local name = val[2]
@@ -767,15 +862,13 @@ return function (globalTree, debuggg)
                 local body = target[3]
                 local newEnv = getArgumentsEnv(params, args)
                 stepInto(body, newEnv)
+                out:instr('trim')
                 update()
                 local ret = returnValue
+                out:instr('trimEnd')
                 _debug('RET', ret)
                 returnValue = nil
                 return ret
-
-                    -- TODO trim fn output?
-                    -- TODO return value - print after what the function prints
-                    --                return {"str", ''}
             else
                 error('invalid call target: ' .. target[1])
             end
@@ -797,11 +890,12 @@ return function (globalTree, debuggg)
         end
     end
 
-
-
-
-    local out = {}
-    local lastOut = ''
+    local canContinue = function()
+        if #s.currentChoices > 0 then
+            return false
+        end
+        return not out:isEmpty()
+    end
 
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
@@ -880,6 +974,12 @@ return function (globalTree, debuggg)
         end
 
         if isNext('choice') then
+            s.canContinue = canContinue()
+            if s.canContinue then
+                -- output buffer first
+                return
+            end
+
             local options = tree[pointer][2]
             local gather = tree[pointer][3]
 
@@ -901,26 +1001,24 @@ return function (globalTree, debuggg)
                 if displayOption then
                     -- all possible choices printed like this before selecting
                     -- FIXME
-                    local oldOut = out
+                    local oldBuf = out.buffer
                     local oldCS = callstack
                     callstack = {}
-                    out = {}
+                    --TODO
+                    out:clear()
                     stepInto(option[3])
                     update()
                     stepInto(option[4])
                     update()
-                    local text = trim(table.concat(out))
-                    _debug("TTT", text, out)
-                    out = oldOut
+                    local text = trim(out:toString())
+                    out.buffer = oldBuf
                     callstack = oldCS
                     --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
                     table.insert(s.currentChoices, {text = text, option=option, gather=gather})
                 end
             end
 
-            if #s.currentChoices > 0 then
-                s.canContinue = false
-            end
+            s.canContinue = canContinue()
 
             if #s.currentChoices == 0 and gather then
                 stepInto(gather[3])
@@ -929,7 +1027,6 @@ return function (globalTree, debuggg)
             end
 
             pointer = pointer + 1
-            s.canContinue = #out > 0
             return
         end
 
@@ -941,18 +1038,25 @@ return function (globalTree, debuggg)
             or isNext('int')
             or isNext('float')
             or isNext('ref')
-            or isNext('call')
+            or isNext('out')
         then
 
             local val = getValue(tree[pointer])
             if val ~= nil then
-                table.insert(out, output(val))
-                out.sticky = false
+                out:add(output(val))
             end
             pointer = pointer + 1
             update()
             return
             --table.insert(out, s.continue())
+
+        elseif isNext('call') then
+            -- ~ fn()
+            -- call but ignore the result
+            getValue(tree[pointer])
+            pointer = pointer + 1
+            update()
+            return
 
         elseif isNext('todo') then
             log(tree[pointer][2], tree[pointer]) -- TODO
@@ -961,10 +1065,7 @@ return function (globalTree, debuggg)
             return
 
         elseif isNext('glue') then
-            while out[#out] == '\n' do
-                table.remove(out, #out)
-            end
-            out.sticky = true -- TODO or separate variable?
+            out:instr('glue')
             pointer = pointer + 1
             update()
             return
@@ -1072,9 +1173,7 @@ return function (globalTree, debuggg)
 
             -- separates "a -> b" from "a\n -> b"
         elseif isNext('nl') then
-            if not out.sticky then
-                table.insert(out, '\n')
-            end
+            out:add('\n')
             pointer = pointer + 1
             update()
             return
@@ -1103,11 +1202,12 @@ return function (globalTree, debuggg)
             --FIXME refactor so we don't need this if
             if #s.currentChoices == 0 then
                 if #callstack > 0 then
-                    _debug("step out at end")
                     stepOut()
-                    if isNext('call') then -- we stepped in from here, now we stepped back out
-                        -- we just stepped out of a function, trim the output
-                        out = {rtrim(table.concat(out))}
+                    _debug("step out at end")
+                    -- FIXME
+                    if isNext('call') or (isNext('out') and is('call', tree[pointer][2])) then
+                        -- we just stepped out of a function without a return statement
+                        out:instr('trimEnd')
                     end
                     pointer = pointer + 1 -- step after the call where we stepped in
                     update()
@@ -1115,7 +1215,7 @@ return function (globalTree, debuggg)
                 end
             end
             pointer = pointer + 1
-            s.canContinue = #out > 0
+            s.canContinue = canContinue()
             return
         end
 
@@ -1132,38 +1232,10 @@ return function (globalTree, debuggg)
 
 
     s.continue = function()
-        _debug("out", out)
-        if #out == 0 then
-            err('no output available')
-        end
-
-        local res = out[1]
-        for i = 2, #out do
-            if not (out[i] == '\n' and out[i-1] == '\n') then
-                res = res .. out[i]
-            end
-        end
-        res = rtrim(res)
-
-        -- if last output ended with a space and this one starts with one, we want just one space
-        if res:sub(1,1) == ' ' and lastOut:sub(-1) == ' ' then
-            res = res:sub(1)
-        end
-        -- TODO whitespace when printing, not just here
-        -- https://github.com/inkle/ink/blob/
-        -- 6a512190365002f54bd501b0863ded40123cb8e5/ink-engine-runtime/StoryState.cs#L894
-
-        lastOut = res;
-
-        out={}
+        _debug("out", out.buffer)
+        local res = out:toString()
+        out:clear()
         update()
-
-        -- TODO in update???
-        if out.sticky then
-            table.insert(out, 1, res)
-            return s.continue()
-        end
-
         _debug("OUT:"..res)
         return res;
     end

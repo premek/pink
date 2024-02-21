@@ -907,7 +907,7 @@ return function(input, source, debug)
             if ahead('}') then
                 -- variable printing: {expression}
                 consume("}")
-                return first
+                return {"out", first}
 
             elseif ahead(':') then
                 consume(':')
