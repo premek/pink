@@ -1,0 +1,7 @@
+a<> #->{
+/no-comment
+/*not comment*/
+//not comment
+
+1: option[]
+?> option[]

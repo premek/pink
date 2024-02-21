@@ -196,9 +196,6 @@ return function(input, source, debug)
         text = function(opts)
             local s = current
             local result = ""
-
-            -- TODO different kind of "text' when we are inside an option?
-            -- or treat text differently than other tokens?
             -- TODO list allowed chars only?
             -- FIXME this is wierd
             --
@@ -206,14 +203,22 @@ return function(input, source, debug)
             while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
                 and not isAtEnd()
                 and not (opts and opts.stopAtQuote and ahead('"')) do -- FIXME hack or not?
-                if ahead('\\') then
+                if not ahead('\\') then
+                    next()
+                else
+                    -- skip the backslash
                     result = result .. currentText(s)
-                    next() -- skip the backslash
-                    result = result .. peek(1)
                     next()
                     s = current
+
+                    -- a comment will be a comment anyway
+                    if not aheadAnyOf('//', '/*') then
+                        -- if not a comment, get the escaped character
+                        result = result .. peek(1)
+                        next()
+                        s = current
+                    end
                 end
-                next()
             end
             return result .. currentText(s)
         end

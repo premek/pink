@@ -1233,7 +1233,7 @@ return function (globalTree, debuggg)
 
     s.continue = function()
         _debug("out", out.buffer)
-        local res = out:toString()
+        local res = trim(out:toString())
         out:clear()
         update()
         _debug("OUT:"..res)
