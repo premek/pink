@@ -911,10 +911,12 @@ return function(input, source, debug)
 
             elseif ahead(':') then
                 consume(':')
+                setMark()
                 consumeWhitespaceAndNewlines()
                 local branches = {}
                 if ahead('-') and not ahead('->') then
                     -- switch: {x: -0: zero -1: one}
+                    -- newlines after the first ':' ignored
                     while ahead('-') do
                         consume('-')
                         consumeWhitespaceAndNewlines()
@@ -941,6 +943,9 @@ return function(input, source, debug)
 
                 else
                     -- Conditional block: {expr:textIfTrue}
+                    -- newlines after the first ':' significant
+                    resetToMark()
+                    consumeWhitespace()
                     table.insert(branches, {first, {branchInkText()}}) -- TODO wrap
                     consumeWhitespaceAndNewlines()
                     if ahead('|') then
