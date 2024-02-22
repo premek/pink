@@ -478,7 +478,8 @@ return function (globalTree, debuggg)
             end
 
             _debug(t)
-            self.buffer = {table.concat(t)}
+            local str, _ = table.concat(t):gsub(" +", " ")
+            self.buffer = {str}
         end,
         toString = function(self)
             self:collect()
