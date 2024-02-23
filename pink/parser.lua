@@ -68,6 +68,26 @@ return function(input, source, debug)
             return input:sub(current, current+chars-1)
         end
 
+        -- one char at position 'pos'
+        local peekAt = function(pos)
+            return input:sub(pos, pos)
+        end
+
+        local isLineStart = function()
+            for i=current-1, 1, -1 do
+                local char = peekAt(i)
+                if char == '\n' then
+                    return true
+                elseif char == ' ' or char == '\t' then
+                    local _ -- keepSearching
+                else
+                    -- non-whitespace characters between newline and 'current' position
+                    return false
+                end
+            end
+            return true -- start of the first line
+        end
+
         local peekCode = function()
             if isAtEnd() then return nil end
             return input:byte(current, current)
@@ -748,6 +768,8 @@ return function(input, source, debug)
         local alternative = function()
             if not ahead('{') then return end
 
+            local lineStart = isLineStart()
+
             consume("{")
             consumeWhitespaceAndNewlines()
 
@@ -765,7 +787,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'cycle', result}
+                return {'cycle', result, lineStart}
             end
 
             -- Once-only alternatives are like sequences, but when they
@@ -784,7 +806,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'once', result}
+                return {'once', result, lineStart}
             end
 
             -- shuffle (randomised output)
@@ -801,7 +823,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'shuf', 'cycle', result}
+                return {'shuf', 'cycle', result, lineStart}
             end
 
             -- Sequence: go through the alternatives, and stick on last
@@ -812,7 +834,7 @@ return function(input, source, debug)
                 consume(':')
                 consumeWhitespaceAndNewlines()
                 local result = {}
-                while ahead('-') do
+                while ahead('-') and not ahead('->') do
                     consume('-')
                     consumeWhitespaceAndNewlines()
                     local element = branchInkText()
@@ -821,7 +843,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'seq', result}
+                return {'seq', result, lineStart}
             end
 
             -- Shuffle: show one at random
@@ -843,7 +865,7 @@ return function(input, source, debug)
                 consume(':')
                 consumeWhitespaceAndNewlines()
                 local result = {}
-                while ahead('-') do
+                while ahead('-') and not ahead('->') do
                     consume('-')
                     consumeWhitespaceAndNewlines() -- ?
                     local element = branchInkText()
@@ -852,7 +874,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'shuf', shuffleType, result}
+                return {'shuf', shuffleType, result, lineStart}
             end
 
             -- Cycle: show each in turn, and then cycle
@@ -863,7 +885,7 @@ return function(input, source, debug)
                 consume(':')
                 consumeWhitespaceAndNewlines()
                 local result = {}
-                while ahead('-') do
+                while ahead('-') and not ahead('->') do
                     consume('-')
                     consumeWhitespaceAndNewlines()
                     local element = branchInkText()
@@ -872,7 +894,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'cycle', result}
+                return {'cycle', result, lineStart}
             end
 
             -- Once-only alternatives are like sequences, but when they
@@ -885,7 +907,7 @@ return function(input, source, debug)
                 consume(':')
                 consumeWhitespaceAndNewlines()
                 local result = {}
-                while ahead('-') do
+                while ahead('-') and not ahead('->') do
                     consume('-')
                     consumeWhitespaceAndNewlines()
                     local element = branchInkText()
@@ -894,7 +916,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'once', result}
+                return {'once', result, lineStart}
             end
 
 
@@ -912,7 +934,7 @@ return function(input, source, debug)
             if ahead('}') then
                 -- variable printing: {expression}
                 consume("}")
-                return {"out", first}
+                return {"out", first, lineStart}
 
             elseif ahead(':') then
                 consume(':')
@@ -922,7 +944,7 @@ return function(input, source, debug)
                 if ahead('-') and not ahead('->') then
                     -- switch: {x: -0: zero -1: one}
                     -- newlines after the first ':' ignored
-                    while ahead('-') do
+                    while ahead('-') and not ahead('->') do
                         consume('-')
                         consumeWhitespaceAndNewlines()
                         if ahead('else') then
@@ -932,12 +954,21 @@ return function(input, source, debug)
                             consumeWhitespaceAndNewlines()
                             table.insert(branches, {{'bool', true}, {branchInkText()}})
                         else
+
+                            -- {expr:\n -val1:text\n -val2:text\n}
+
+                            -- not supported:
+                            -- {expr:
+                            --   -textiftrue
+                            --   -textiffalse
+                            -- }
+
                             local condition = {'call', '==', {first, expression()}}
                             consumeWhitespace()
                             consume(':')
                             consumeWhitespaceAndNewlines()
                             -- TODO would be nicer without this if
-                            if ahead('-') then
+                            if ahead('-') and not ahead('->') then
                                 -- empty branch body, but the condition should be evaluated
                                 table.insert(branches, {condition, {}})
                             else
@@ -958,8 +989,8 @@ return function(input, source, debug)
                         consume('|')
                         -- else branch, the condition is always true
                         table.insert(branches, {{'bool', true}, {branchInkText()}})
-                    elseif ahead('-') then
-                        while ahead('-') do
+                    elseif ahead('-') and not ahead('->') then
+                        while ahead('-') and not ahead('->') do
                             consume('-')
                             consumeWhitespaceAndNewlines()
                             if ahead('else') then
@@ -982,7 +1013,7 @@ return function(input, source, debug)
 
                 consume("}")
                 --                consumeWhitespaceAndNewlines() -- FIXME I052
-                return token('if', branches) -- TODO wrapping
+                return token('if', branches, lineStart)
             end
 
             -- reset parser pointer back after the opening '{'
@@ -1005,7 +1036,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'seq', result}
+                return {'seq', result, lineStart}
             end
             -- TODO other types
             errorAt('invalid alternative')

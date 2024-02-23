@@ -427,7 +427,10 @@ return function (globalTree, debuggg)
                     -- ignore newlines after glue
                 else
                     table.insert(t, e)
-                    glue = false
+                    if type(e)=='string' then -- TODO
+                        -- don't stop glueing at instructions
+                        glue = false
+                    end
                 end
             end
             self.buffer = t
@@ -517,11 +520,15 @@ return function (globalTree, debuggg)
         err('unresolved variable: ' .. name, token)
     end
 
-    local stepInto = function(block, newEnv)
+    local stepInto = function(block, opts)
+        opts = opts or {}
         _debug("step into")
+        if opts.lineStart ~= nil and not opts.lineStart then
+            out:instr('glue')
+        end
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
         table.insert(callstack, {tree=tree, pointer=pointer})
-        newEnv = newEnv or {}
+        local newEnv = opts.env or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
         tree = block
@@ -651,7 +658,7 @@ return function (globalTree, debuggg)
             local params = knots[path].params
             local body = knots[path].tree
             local newEnv = getArgumentsEnv(params, args)
-            stepInto(body, newEnv)
+            stepInto(body, {env=newEnv})
 
             incrementSeenCounter(path) -- TODO not just knots
 
@@ -862,7 +869,7 @@ return function (globalTree, debuggg)
                 local params = target[2]
                 local body = target[3]
                 local newEnv = getArgumentsEnv(params, args)
-                stepInto(body, newEnv)
+                stepInto(body, {env=newEnv})
                 out:instr('trim')
                 update()
                 local ret = returnValue
@@ -1038,8 +1045,7 @@ return function (globalTree, debuggg)
             or isNext('bool')
             or isNext('int')
             or isNext('float')
-            or isNext('ref')
-            or isNext('out')
+            or isNext('ref') --?
         then
 
             local val = getValue(tree[pointer])
@@ -1050,6 +1056,20 @@ return function (globalTree, debuggg)
             update()
             return
             --table.insert(out, s.continue())
+
+        elseif isNext('out') then
+
+            local lineStart = tree[pointer][3]
+            if not lineStart then
+                out:instr('glue')
+            end
+            local val = getValue(tree[pointer])
+            if val ~= nil then
+                out:add(output(val))
+            end
+            pointer = pointer + 1
+            update()
+            return
 
         elseif isNext('call') then
             -- ~ fn()
@@ -1107,7 +1127,9 @@ return function (globalTree, debuggg)
             local seq = tree[pointer]
             -- FIXME store somewhere else, support save/load, could be a "seen counter" too
             local current = seq.current or 1
-            stepInto(seq[2][current])
+            -- TODO the lineStart parameter is on multiple places
+            -- and a bit non systematic
+            stepInto(seq[2][current], {lineStart=seq[3]})
             seq.current = math.min(#seq[2], current + 1)
             update()
             return
@@ -1139,7 +1161,7 @@ return function (globalTree, debuggg)
                 shuf.current = math.min(#shuf.shuffled, shuf.current) -- TODO store for save/load
             end
             if shuf.shuffled[shuf.current] then
-                stepInto(shuf.shuffled[shuf.current])
+                stepInto(shuf.shuffled[shuf.current], {lineStart=shuf[4]})
             else
                 pointer = pointer + 1
             end
@@ -1150,7 +1172,7 @@ return function (globalTree, debuggg)
             local cycle = tree[pointer]
             -- FIXME store somewhere else, support save/load, could be a "seen counter" too
             cycle.current = cycle.current or 1
-            stepInto(cycle[2][cycle.current])
+            stepInto(cycle[2][cycle.current], {lineStart=cycle[3]})
             cycle.current = cycle.current + 1
             if cycle.current > #cycle[2] then
                 cycle.current = 1
@@ -1165,7 +1187,7 @@ return function (globalTree, debuggg)
             if once.current > #once[2] then
                 pointer = pointer + 1
             else
-                stepInto(once[2][once.current])
+                stepInto(once[2][once.current], {lineStart=once[3]})
                 once.current = once.current + 1
             end
             update()
@@ -1182,7 +1204,7 @@ return function (globalTree, debuggg)
         elseif isNext('if') then
             for _, branch in ipairs(tree[pointer][2]) do
                 if isTruthy(getValue(branch[1])) then
-                    stepInto(branch[2])
+                    stepInto(branch[2], {lineStart=tree[pointer][3]})
                     update()
                     return
                 end
