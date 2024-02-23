@@ -426,7 +426,7 @@ return function(input, source, debug)
 
         -- precedence from lowest to highest
         local operatorList = {
-            {'?'},
+            {'?'}, -- string contains
             {'or', '||', 'and', '&&'},
             {'!=', '=='},
             {'<=', '>=', '>', '<'},
@@ -503,10 +503,35 @@ return function(input, source, debug)
             if not ahead('->') then return end
             consume("->")
             consumeWhitespace()
+            if ahead('->') then
+                -- ->-> return from a tunnel -- TODO should be a different token?
+                consume("->")
+                consumeWhitespace()
+                if eolAhead() then
+                    return token('return')
+                end
+                -- ->-> return_to -- return as normal divert?
+                -- TODO it should step out and then divert
+            end
             local targetName = identifier()
             consumeWhitespace()
             local args = arguments()
-            return token('divert', targetName, args)
+            local tunnel = nil
+            if ahead('->') then
+                setMark()
+                consume("->")
+                consumeWhitespace()
+                tunnel = 'tunnel'
+                if not eolAhead() then
+                    -- Tunnels can be chained together, or finish on a normal divert
+                    -- -> tunnel -> tunnel -> divert
+                    resetToMark()
+                    -- set the current one as a tunnel but parse the arrow again as part of the next one
+                    -- the final '->' will stay consumed in this case: -> tunnel ->  \n
+                end
+            end
+
+            return token('divert', targetName, args, tunnel)
         end
 
         -- == function add(x,y) ==
@@ -1082,6 +1107,18 @@ return function(input, source, debug)
                     consume('--')
                     consumeWhitespaceAndNewlines()
                     return token('call', '--', {{'ref', id}})
+                elseif ahead('-=') then
+                    consume('-=')
+                    consumeWhitespace()
+                    local expr = expression()
+                    consumeWhitespaceAndNewlines()
+                    return token('assign', id, {'call', '-', {{'ref', id}, expr}})
+                elseif ahead('+=') then
+                    consume('+=')
+                    consumeWhitespace()
+                    local expr = expression()
+                    consumeWhitespaceAndNewlines()
+                    return token('assign', id, {'call', '+', {{'ref', id}, expr}})
                 elseif ahead('=') then
                     consume('=')
                     consumeWhitespace()
@@ -1339,7 +1376,7 @@ return function(input, source, debug)
         local branchInkNode = function(opts)
             if ahead('\n') then
                 local ret = nl()
-                if ahead('-') then
+                if ahead('-') and not ahead('->') then
                     return nil
                         -- FIXME --- end branch here, the next one starts,
                         -- but - is allowed when it's not after NL

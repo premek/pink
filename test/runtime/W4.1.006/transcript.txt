@@ -1,0 +1,13 @@
+The dark grass is soft under your feet.
+
+1: Sleep
+?> You lie down and try to close your eyes.
+monster attacks
+Then it is time to sleep.
+dream
+You wake as the sun rises.
+
+1: Eat something
+2: Make a move
+?> eat something
+It is time to move on.

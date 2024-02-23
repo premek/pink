@@ -1,0 +1,3 @@
+We arrived at the large island of Honolulu.
+...
+end

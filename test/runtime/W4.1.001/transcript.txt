@@ -1,0 +1,9 @@
+
+1: "Monsieur!"
+?> "Monsieur!" I declared with sudden horror. "I have just realised. We have crossed the international date line!"
+Monsieur Fogg barely lifted an eyebrow. "I have adjusted for it."
+
+1: I mopped the sweat from my brow
+2: I nodded, becalmed
+3: I cursed, under my breath
+?> I mopped the sweat from my brow. A relief!

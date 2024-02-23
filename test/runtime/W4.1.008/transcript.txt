@@ -1,0 +1,12 @@
+
+1: Ask about the warp lacelles
+2: Ask about the shield generators
+3: Stop talking
+?> 
+"Don't worry about the warp lacelles. They're fine."
+
+1: Ask about the shield generators
+2: Stop talking
+?> 
+"What's with all these questions?" Jim demands, suddenly.
+...
