@@ -220,7 +220,7 @@ return function(input, source, debug)
             -- FIXME this is wierd
             --
             --
-            while not aheadAnyOf('#', '->', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
+            while not aheadAnyOf('#', '->', '<-', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
                 and not isAtEnd()
                 and not (opts and opts.stopAtQuote and ahead('"')) do -- FIXME hack or not?
                 if not ahead('\\') then
@@ -534,6 +534,17 @@ return function(input, source, debug)
             return token('divert', targetName, args, tunnel)
         end
 
+        -- fork into a thread
+        local fork = function()
+            if not ahead('<-') then return end
+            consume('<-')
+            consumeWhitespace()
+            local targetName = identifier()
+            consumeWhitespace()
+            local args = arguments()
+            return token('fork', targetName, args)
+        end
+
         -- == function add(x,y) ==
         -- functions are knots, with the following limitations and features: (TODO)
         -- cannot contain stitches
@@ -584,9 +595,8 @@ return function(input, source, debug)
             consumeWhitespace()
             local id = identifier()
             consumeWhitespace()
-            consume('\n')
-            consumeWhitespaceAndNewlines()
-            return token('stitch', id)
+            local args = arguments()
+            return token('stitch', id, args)
         end
 
         local gather = function(minNesting)
@@ -1150,6 +1160,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return divert()
+            elseif ahead('<-') then
+                return fork()
             elseif ahead('==') then
                 return knotOrFunction()
             elseif ahead('=') then
@@ -1190,6 +1202,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return divert()
+            elseif ahead('<-') then
+                return fork()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
@@ -1229,6 +1243,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return nil --------divert()
+            elseif ahead('<-') then
+                return nil ---fork()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
@@ -1269,6 +1285,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return nil---divert()
+            elseif ahead('<-') then
+                return nil---fork()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
@@ -1309,6 +1327,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return divert()
+            elseif ahead('<-') then
+                return fork()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
@@ -1349,6 +1369,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return divert()
+            elseif ahead('<-') then
+                return fork()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
@@ -1394,6 +1416,8 @@ return function(input, source, debug)
                 return glue()
             elseif ahead('->') then
                 return divert()
+            elseif ahead('<-') then
+                return fork()
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then

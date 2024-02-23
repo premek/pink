@@ -1,0 +1,25 @@
+
+1: Ask the General about the bloodied knife
+2: Drawers
+3: Wardrobe
+4: Go to Office
+?> "It's a bad business, I can tell you."
+
+1: Drawers
+2: Wardrobe
+3: Go to Office
+?> examine_drawers
+
+1: Wardrobe
+2: Go to Office
+?> examine_wardrobe
+
+1: Go to Office
+?> 
+
+1: Ask the Doctor about the bloodied knife
+2: Go to Hallway
+?> "There's nothing strange about blood, is there?"
+
+1: Go to Hallway
+?> 

@@ -1,0 +1,30 @@
+
+1: drawers 1
+2: drawers 2
+3: cupboards 1
+4: cupboards 2
+5: exit1
+6: exit2
+?> drawers 1
+
+1: drawers 2
+2: cupboards 1
+3: cupboards 2
+4: exit1
+5: exit2
+?> drawers 2
+
+1: cupboards 1
+2: cupboards 2
+3: exit1
+4: exit2
+?> cupboards 1
+
+1: cupboards 2
+2: exit1
+3: exit2
+?> cupboards 2
+
+1: exit1
+2: exit2
+?> exit1

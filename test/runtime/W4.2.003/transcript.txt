@@ -1,0 +1,16 @@
+The front step. The house smells. Of murder. And lavender.
+
+1: Review my case notes
+2: Go through the front door
+3: Sniff the air
+?> I stepped inside the house.
+The hallway. Front door open to the street. Little bureau.
+
+1: Review my case notes
+2: Go through the front door
+3: Open the bureau
+?> I flicked through the notes I'd made so far. Still not obvious suspects.
+
+1: Go through the front door
+2: Open the bureau
+?> Keys. More keys. Even more keys. How many locks do these people need?
