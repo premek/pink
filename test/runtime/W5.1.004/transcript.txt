@@ -1,0 +1,11 @@
+
+1: Turn on kettle
+2: Touch the kettle
+?> The kettle is cool to the touch.
+
+1: Turn on kettle
+2: Touch the kettle
+?> The kettle begins to bubble and boil.
+
+1: Touch the kettle
+?> The outside of the kettle is very warm!

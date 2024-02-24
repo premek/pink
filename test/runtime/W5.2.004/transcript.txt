@@ -1,0 +1,4 @@
+
+1: Turn on kettle
+2: Turn on pot
+?> The kettle begins to heat up.

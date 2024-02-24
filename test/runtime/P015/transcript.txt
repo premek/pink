@@ -1,0 +1,8 @@
+false
+false
+true
+true
+boiling
+cold
+cold, cold2
+boiling2

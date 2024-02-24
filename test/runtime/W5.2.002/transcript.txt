@@ -1,0 +1,5 @@
+
+1: Turn on kettle
+2: Light stove
+?> The kettle begins to boil and bubble.
+boiling

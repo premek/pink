@@ -56,287 +56,12 @@ local isNum = function(a)
     return a[1] == 'int' or a[1] == 'float'
 end
 
--- converts pink type to lua string type
--- TODO name?
-local output = function(a)
-    requirePinkType(a)
-
-    if a[1] == 'str' then
-        return a[2]
-
-    elseif a[1] == 'int' then
-        return tostring(math.floor(a[2]))
-
-    elseif a[1] == 'float' then
-        local int, frac = math.modf(a[2])
-        if frac == 0 then
-            return tostring(int)
-        else
-            local formatted, _ = string.format("%.7f", a[2]):gsub("%.?0+$", "")
-            return formatted
-        end
-
-    elseif a[1] == 'bool' then
-        return tostring(a[2])
-
-    else
-        error('cannot output: '..a[1])
-    end
-end
-
--- casting (not conversion; int->float possible, float->int not possible)
-
-local toInt = function(a)
-    requirePinkType(a)
-
-    if a[1] == 'int' then
-        return a
-    elseif a[1] == 'bool' then
-        return {'int', a[2] and 1 or 0}
-    else
-        error('cannot convert: '..a[1])
-    end
-end
 
 
-local toFloat = function(a)
-    requirePinkType(a)
-
-    if a[1] == 'float' then
-        return a
-    elseif a[1] == 'int' then
-        return {'float', a[2]}
-    elseif a[1] == 'bool' then
-        return {'float', a[2] and 1 or 0}
-    else
-        error('cannot convert: '..a[1])
-    end
-end
+local output
 
 
-local toStr = function(a)
-    requirePinkType(a)
 
-    if a[1] == 'str' then
-        return a
-    else
-        return {'str', output(a)}
-    end
-end
-
-local toBool = function(a)
-    requirePinkType(a)
-
-    if a[1] == 'bool' then
-        return a
-    elseif a[1] == 'int' or a[1] == 'float' then
-        return {'bool', a[2] ~= 0}
-    elseif a[1] == 'str' then
-        return  {'bool', #a[2] ~= 0}
-    else
-        error('cannot convert: '..a[1])
-    end
-end
-
-
-local requireType = function(a, ...)
-    requirePinkType(a)
-    for _, requiredType in ipairs{...} do
-        if a[1] == requiredType then
-            return
-        end
-    end
-    err("unexpected type: " .. a[1] .. ", expected one of: " .. table.concat({...}, ', '), a)
-end
-
-
--- builtin functions
-
-local floor = function(a)
-    requireType(a, 'float', 'int')
-    return {'int', math.floor(a[2])}
-end
-
-local ceil = function(a)
-    requireType(a, 'float', 'int')
-    -- int -> int, float -> float
-    return {a[1], math.ceil(a[2])}
-end
-
-local int = function(a)
-    requireType(a, 'float', 'int')
-
-    if a[2] > 0 then
-        return {'int', math.floor(a[2])}
-    else
-        return {'int', math.ceil(a[2])}
-    end
-end
-
-local float = function(a)
-    requireType(a, 'float', 'int')
-    return {'float', a[2]}
-end
-
-local seedRandom = function(a)
-    requireType(a, 'float', 'int')
-    math.randomseed(a[2])
-end
-local random = function(minInclusive, maxInclusive)
-    requireType(minInclusive, 'int')
-    requireType(maxInclusive, 'int')
-    return {'int', math.random(minInclusive[2], maxInclusive[2])}
-end
-
-local add = function(a,b)
-    requireType(a, 'bool', 'str', 'float', 'int')
-    requireType(b, 'bool', 'str', 'float', 'int')
-
-    if a[1] == 'str' or b[1] == 'str' then
-        return {"str", toStr(a)[2] .. toStr(b)[2]}
-    end
-
-    if a[1] == 'bool' then
-        a = toInt(a)
-    end
-    if b[1] == 'bool' then
-        b = toInt(b)
-    end
-
-    if a[1] == 'float' or b[1] == 'float' then
-        return {"float", toFloat(a)[2] + toFloat(b)[2]}
-    end
-
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
-    return {t, a[2] + b[2]}
-end
-
-local sub = function(a,b)
-    requireType(a, 'float', 'int', 'bool')
-    requireType(b, 'float', 'int', 'bool')
-
-    if a[1] == 'bool' then
-        a = toInt(a)
-    end
-    if b[1] == 'bool' then
-        b = toInt(b)
-    end
-
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
-    return {t, a[2] - b[2]}
-end
-
-local mul = function(a,b)
-    requireType(a, 'float', 'int')
-    requireType(b, 'float', 'int')
-
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
-
-    return {t, a[2] * b[2]}
-end
-
-local div = function(a,b)
-    requireType(a, 'float', 'int')
-    requireType(b, 'float', 'int')
-
-    if a[1] == 'float' or b[1] == 'float' then
-        return {'float', a[2]/b[2]}
-    else
-        return {"int", math.floor(a[2]/b[2])}
-    end
-end
-
-local pow = function(a, b)
-    requireType(a, 'float', 'int')
-    requireType(b, 'float', 'int')
-
-    if a[1] == 'float' or b[1] == 'float' then
-        return {'float', a[2] ^ b[2]}
-    else
-        return {"int", math.floor(a[2] ^ b[2])}
-    end
-end
-
-
-local mod = function(a,b)
-    requireType(a, 'float', 'int')
-    requireType(b, 'float', 'int')
-
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
-
-    return {t, math.fmod(a[2],b[2])}
-end
-
-
-local eq = function(a,b)
-    requireType(a, 'bool', 'str', 'float', 'int')
-    requireType(b, 'bool', 'str', 'float', 'int')
-
-    if a[1] == 'str' or b[1] == 'str' then
-        return {"bool", toStr(a)[2] == toStr(b)[2]}
-    end
-
-    if a[1] == 'bool' or b[1] == 'bool' then
-        -- bool and number -> only '1' evaluates to true
-        if isNum(a) then
-            return {"bool", (a[2] == 1) == b[2]}
-        elseif isNum(b) then
-            return {"bool", (b[2] == 1) == a[2]}
-        end
-    end
-    return {"bool", a[1]==b[1] and a[2]==b[2]}
-end
-
-local notEq = function(a,b)
-    return {"bool", not eq(a,b)[2]}
-end
-
-local gt = function(a,b)
-    requireType(a, 'bool', 'int', 'float')
-    requireType(b, 'bool', 'int', 'float')
-    return {'bool', toFloat(a)[2] > toFloat(b)[2]}
-end
-local gte = function(a,b)
-    requireType(a, 'bool', 'int', 'float')
-    requireType(b, 'bool', 'int', 'float')
-    return {'bool', toFloat(a)[2] >= toFloat(b)[2]}
-end
-local lt = function(a,b)
-    requireType(a, 'bool', 'int', 'float')
-    requireType(b, 'bool', 'int', 'float')
-    return {'bool', toFloat(a)[2] < toFloat(b)[2]}
-end
-local lte = function(a,b)
-    requireType(a, 'bool', 'int', 'float')
-    requireType(b, 'bool', 'int', 'float')
-    return {'bool', toFloat(a)[2] <= toFloat(b)[2]}
-end
-
-local contains = function(a,b)
-    requireType(a, 'str')
-    requireType(b, 'str')
-
-    return {"bool", string.find(a[2], b[2])}
-end
-
-local notFn = function(a)
-    requireType(a, 'bool', 'int', 'float') -- str not allowed
-
-    return {"bool", not toBool(a)[2]}
-end
-
-
-local orFn = function(a,b)
-    requireType(a, 'bool', 'int', 'float') -- str not allowed
-    requireType(b, 'bool', 'int', 'float') -- str not allowed
-    return {"bool", toBool(a)[2] or toBool(b)[2]}
-end
-
-local andFn = function(a,b)
-    requireType(a, 'bool', 'int', 'float') -- str not allowed
-    requireType(b, 'bool', 'int', 'float') -- str not allowed
-    return {"bool", toBool(a)[2] and toBool(b)[2]}
-end
 
 local rtrim = function(s)
     return s:match("(.-)%s*$")
@@ -351,6 +76,346 @@ end
 
 return function (globalTree, debuggg)
     debugOn = debuggg
+    -- casting (not conversion; int->float possible, float->int not possible)
+
+    local getEnv
+
+
+    local toInt = function(a)
+        requirePinkType(a)
+
+        if a[1] == 'int' then
+            return a
+        elseif a[1] == 'bool' then
+            return {'int', a[2] and 1 or 0}
+        else
+            error('cannot convert: '..a[1])
+        end
+    end
+
+
+    local toFloat = function(a)
+        requirePinkType(a)
+
+        if a[1] == 'float' then
+            return a
+        elseif a[1] == 'int' then
+            return {'float', a[2]}
+        elseif a[1] == 'bool' then
+            return {'float', a[2] and 1 or 0}
+        else
+            error('cannot convert: '..a[1])
+        end
+    end
+
+
+    local toStr = function(a)
+        requirePinkType(a)
+
+        if a[1] == 'str' then
+            return a
+        else
+            return {'str', output(a)}
+        end
+    end
+
+    local toBool = function(a)
+        requirePinkType(a)
+
+        if a[1] == 'bool' then
+            return a
+        elseif a[1] == 'int' or a[1] == 'float' then
+            return {'bool', a[2] ~= 0}
+        elseif a[1] == 'str' then
+            return  {'bool', #a[2] ~= 0}
+        else
+            error('cannot convert: '..a[1])
+        end
+    end
+
+
+    local requireType = function(a, ...)
+        requirePinkType(a)
+        for _, requiredType in ipairs{...} do
+            if a[1] == requiredType then
+                return
+            end
+        end
+        err("unexpected type: " .. a[1] .. ", expected one of: " .. table.concat({...}, ', '), a)
+    end
+
+
+    -- builtin functions
+
+    local floor = function(a)
+        requireType(a, 'float', 'int')
+        return {'int', math.floor(a[2])}
+    end
+
+    local ceil = function(a)
+        requireType(a, 'float', 'int')
+        -- int -> int, float -> float
+        return {a[1], math.ceil(a[2])}
+    end
+
+    local int = function(a)
+        requireType(a, 'float', 'int')
+
+        if a[2] > 0 then
+            return {'int', math.floor(a[2])}
+        else
+            return {'int', math.ceil(a[2])}
+        end
+    end
+
+    local float = function(a)
+        requireType(a, 'float', 'int')
+        return {'float', a[2]}
+    end
+
+    local seedRandom = function(a)
+        requireType(a, 'float', 'int')
+        math.randomseed(a[2])
+    end
+    local random = function(minInclusive, maxInclusive)
+        requireType(minInclusive, 'int')
+        requireType(maxInclusive, 'int')
+        return {'int', math.random(minInclusive[2], maxInclusive[2])}
+    end
+
+    local add = function(a,b)
+        requireType(a, 'bool', 'str', 'float', 'int')
+        requireType(b, 'bool', 'str', 'float', 'int')
+
+        if a[1] == 'str' or b[1] == 'str' then
+            return {"str", toStr(a)[2] .. toStr(b)[2]}
+        end
+
+        if a[1] == 'bool' then
+            a = toInt(a)
+        end
+        if b[1] == 'bool' then
+            b = toInt(b)
+        end
+
+        if a[1] == 'float' or b[1] == 'float' then
+            return {"float", toFloat(a)[2] + toFloat(b)[2]}
+        end
+
+        local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+        return {t, a[2] + b[2]}
+    end
+
+    local sub = function(a,b)
+        requireType(a, 'float', 'int', 'bool')
+        requireType(b, 'float', 'int', 'bool')
+
+        if a[1] == 'bool' then
+            a = toInt(a)
+        end
+        if b[1] == 'bool' then
+            b = toInt(b)
+        end
+
+        local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+        return {t, a[2] - b[2]}
+    end
+
+    local mul = function(a,b)
+        requireType(a, 'float', 'int')
+        requireType(b, 'float', 'int')
+
+        local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+
+        return {t, a[2] * b[2]}
+    end
+
+    local div = function(a,b)
+        requireType(a, 'float', 'int')
+        requireType(b, 'float', 'int')
+
+        if a[1] == 'float' or b[1] == 'float' then
+            return {'float', a[2]/b[2]}
+        else
+            return {"int", math.floor(a[2]/b[2])}
+        end
+    end
+
+    local pow = function(a, b)
+        requireType(a, 'float', 'int')
+        requireType(b, 'float', 'int')
+
+        if a[1] == 'float' or b[1] == 'float' then
+            return {'float', a[2] ^ b[2]}
+        else
+            return {"int", math.floor(a[2] ^ b[2])}
+        end
+    end
+
+
+    local mod = function(a,b)
+        requireType(a, 'float', 'int')
+        requireType(b, 'float', 'int')
+
+        local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+
+        return {t, math.fmod(a[2],b[2])}
+    end
+
+    local listValueInt = function(a)
+        requireType(a, 'el', 'list')
+
+        if is('el', a) then
+            local elementName = a[3]
+            if #a[2] ~= 1 then
+                err('ambiguous list element: '..elementName)
+            end
+            local list = getEnv(a[2][1])
+            return list[2][elementName][1]
+
+        elseif is('list', a) then
+            local result = 0
+            for _, el in pairs(a[2]) do
+                if el[2] then
+                    result = el[1]
+                    -- do not break, use the last one that is set to true
+                end
+            end
+            return result
+        end
+    end
+
+    local listValue = function(a)
+        return {'int', listValueInt(a)}
+    end
+
+    -- copies the list
+    local listCopy = function(list)
+        requireType(list, 'list')
+        local newList = {'list', {}}
+        for k,v in pairs(list[2]) do
+            newList[2][k] = {v[1], v[2]}
+        end
+        return newList
+    end
+
+    -- set all to false,
+    -- except the element identified by the value (not name) will be set to true
+    local listSetValue = function(list, value)
+        requireType(list, 'list')
+        for _,el in pairs(list[2]) do
+            el[2] = (el[1] == value)
+        end
+    end
+
+    local isListElementPresent = function(list, el)
+        -- TODO check el is from this list, even if list is assigned to a different variable
+        local elName = el[3]
+        return list[2][elName][2]
+    end
+
+    local eq = function(a,b)
+        _debug("EQ", a, b)
+        requireType(a, 'bool', 'str', 'float', 'int', 'list', 'el')
+        requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
+
+        -- str and bool/num
+        if a[1] == 'str' or b[1] == 'str' then
+            return {"bool", toStr(a)[2] == toStr(b)[2]}
+        end
+
+        -- bool and str/num
+        if a[1] == 'bool' or b[1] == 'bool' then
+            -- bool and number -> only '1' evaluates to true
+            if isNum(a) then
+                return {"bool", (a[2] == 1) == b[2]}
+            elseif isNum(b) then
+                return {"bool", (b[2] == 1) == a[2]}
+            end
+        end
+
+        -- TODO all combinations
+        if a[1] == 'list' and b[1] == 'el' then
+            return {'bool', isListElementPresent(a, b)}
+        elseif a[1] == 'el' and b[1] == 'list' then
+            return {'bool', isListElementPresent(b, a)}
+        end
+
+        -- same type
+        if a[1]==b[1] then
+            return {"bool", a[2]==b[2]}
+        end
+
+        return {'bool', false}
+    end
+
+    local notEq = function(a,b)
+        return {"bool", not eq(a,b)[2]}
+    end
+
+    local gt
+    gt = function(a,b)
+        requireType(a, 'bool', 'int', 'float', 'el', 'list')
+        requireType(b, 'bool', 'int', 'float', 'el', 'list')
+        if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+            return gt(listValue(a), listValue(b))
+        end
+        return {'bool', toFloat(a)[2] > toFloat(b)[2]}
+    end
+    local gte
+    gte = function(a,b)
+        requireType(a, 'bool', 'int', 'float', 'el', 'list')
+        requireType(b, 'bool', 'int', 'float', 'el', 'list')
+        if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+            return gte(listValue(a), listValue(b))
+        end
+        return {'bool', toFloat(a)[2] >= toFloat(b)[2]}
+    end
+    local lt
+    lt = function(a,b)
+        requireType(a, 'bool', 'int', 'float', 'el', 'list')
+        requireType(b, 'bool', 'int', 'float', 'el', 'list')
+        if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+            return lt(listValue(a), listValue(b))
+        end
+        return {'bool', toFloat(a)[2] < toFloat(b)[2]}
+    end
+    local lte
+    lte = function(a,b)
+        requireType(a, 'bool', 'int', 'float', 'el', 'list')
+        requireType(b, 'bool', 'int', 'float', 'el', 'list')
+        if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+            return lte(listValue(a), listValue(b))
+        end
+        return {'bool', toFloat(a)[2] <= toFloat(b)[2]}
+    end
+
+    local contains = function(a,b)
+        requireType(a, 'str')
+        requireType(b, 'str')
+
+        return {"bool", string.find(a[2], b[2])}
+    end
+
+    local notFn = function(a)
+        requireType(a, 'bool', 'int', 'float') -- str not allowed
+
+        return {"bool", not toBool(a)[2]}
+    end
+
+
+    local orFn = function(a,b)
+        requireType(a, 'bool', 'int', 'float') -- str not allowed
+        requireType(b, 'bool', 'int', 'float') -- str not allowed
+        return {"bool", toBool(a)[2] or toBool(b)[2]}
+    end
+
+    local andFn = function(a,b)
+        requireType(a, 'bool', 'int', 'float') -- str not allowed
+        requireType(b, 'bool', 'int', 'float') -- str not allowed
+        return {"bool", toBool(a)[2] and toBool(b)[2]}
+    end
+
 
     local rootEnv = {
         FLOOR={'native', floor},
@@ -378,6 +443,7 @@ return function (globalTree, debuggg)
         ['<=']={'native', lte},
         ['>']={'native', gt},
         ['>=']={'native', gte},
+        LIST_VALUE={'native', listValue},
     }
 
     local env = rootEnv -- TODO should env be part of the callstack?
@@ -506,7 +572,7 @@ return function (globalTree, debuggg)
         return is(what, tree[pointer])
     end
 
-    local getEnv = function(name, token)
+    getEnv = function(name, token)
         local e = env
         while e ~= nil do
             local val = e[name]
@@ -516,7 +582,7 @@ return function (globalTree, debuggg)
             e=e._parent
         end
         -- FIXME detect on compile time
-        _debug(env)
+        _debug(name, env)
         err('unresolved variable: ' .. name, token)
     end
 
@@ -558,8 +624,16 @@ return function (globalTree, debuggg)
     local addVariable = function(ref, a)
         local name = ref[2]
         local var = getEnv(name)
-        requireType(var, 'float', 'int')
-        var[2] = var[2] + a
+        requireType(var, 'float', 'int', 'list')
+        if is('list', var) then
+            local value = listValueInt(var)
+            if value > 0 then -- when no elements are set it stays like that
+                value = value + a
+            end
+            listSetValue(var, value)
+        else
+            var[2] = var[2] + a
+        end
     end
 
     local incrementSeenCounter = function(path)
@@ -602,6 +676,44 @@ return function (globalTree, debuggg)
         end
         return newEnv
 
+    end
+
+
+    -- converts pink type to lua string type
+    -- TODO name?
+    output = function(a)
+        requirePinkType(a)
+
+        if a[1] == 'str' then
+            return a[2]
+
+        elseif a[1] == 'int' then
+            return tostring(math.floor(a[2]))
+
+        elseif a[1] == 'float' then
+            local intPart, fracPart = math.modf(a[2])
+            if fracPart == 0 then
+                return tostring(intPart)
+            else
+                local formatted, _ = string.format("%.7f", a[2]):gsub("%.?0+$", "")
+                return formatted
+            end
+
+        elseif a[1] == 'bool' then
+            return tostring(a[2])
+
+        elseif a[1] == 'list' then
+            local names = {}
+            for name, el in pairs(a[2]) do
+                if el[2] then
+                    table.insert(names, name)
+                end
+            end
+            return table.concat(names, ', ')
+
+        else
+            error('cannot output: '..a[1])
+        end
     end
 
     local currentKnot = nil
@@ -705,6 +817,19 @@ return function (globalTree, debuggg)
             if is('const', n) then
                 env[n[2]] = n[3] -- TODO make it constant
             end
+            if is('list', n) then
+                local listName = n[2]
+                local elements = {}
+                for _, el in pairs(n[3]) do
+                    if env[el[1]] == nil then
+                        env[el[1]] = {'el', {listName}, el[1]}
+                    else
+                        table.insert(env[el[1]][2], listName)
+                    end
+                    elements[el[1]] = {el[3], el[2]}
+                end
+                env[listName] = {'list', elements}
+            end
         end
 
 
@@ -801,7 +926,24 @@ return function (globalTree, debuggg)
         -- 2nd pass for const/var - resolve values
         for _, n in ipairs(t) do
             if is('var', n) then
-                env[n[2]] = getValue(n[3])
+                local val = getValue(n[3])
+                if is('el', val) then
+                    local newValueName = val[3]
+                    if #val[2] ~= 1 then
+                        err('ambiguous list element: ' .. newValueName)
+                    end
+                    -- element in one list only: copy the list, set the value
+                    local listName = val[2][1]
+                    local list = env[listName]
+                    local elements = {}
+                    for k, v in pairs(list[2]) do
+                        -- copy all elements, set all to false except the one from the 'var' statement
+                        elements[k] = {v[1], k == newValueName}
+                    end
+                    env[n[2]] = {'list', elements}
+                else
+                    env[n[2]] = val
+                end
             end
             if is('const', n) then
                 env[n[2]] = getValue(n[3]) -- TODO make it constant
@@ -815,7 +957,7 @@ return function (globalTree, debuggg)
 
     -- "run" the node and return the return value
     -- may return "nothing" (nil)
-    getValue=function(val)
+    getValue = function(val)
         _debug("getValue", val)
 
         if val == nil then
@@ -828,7 +970,9 @@ return function (globalTree, debuggg)
         end
 
 
-        if is('str', val) or is('int', val) or is('float', val) or is('bool', val) then
+        if is('str', val) or is('int', val) or is('float', val) or is('bool', val)
+            or is('list', val) or is('el', val)
+        then
             return val
 
         elseif is('out', val) then
@@ -877,6 +1021,16 @@ return function (globalTree, debuggg)
                 _debug('RET', ret)
                 returnValue = nil
                 return ret
+            elseif target[1] == 'list' then
+                if #args == 0 then
+                    return {'str', ""} -- TODO empty list? list with no elements set?
+                elseif #args > 1 then
+                    err('too many arguments')
+                end
+                requireType(args[1], 'int')
+                local newList = listCopy(target)
+                listSetValue(newList, args[1][2])
+                return newList
             else
                 error('invalid call target: ' .. target[1])
             end
@@ -931,7 +1085,7 @@ return function (globalTree, debuggg)
         end
 
         if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') or
-            isNext('knot') or isNext('fn')
+            isNext('knot') or isNext('fn') or isNext('list')
         then
             pointer = pointer + 1
             update()
@@ -949,30 +1103,39 @@ return function (globalTree, debuggg)
         if isNext('assign') then
             local name = tree[pointer][2]
             local oldValue, e = getEnv(name)
-            local newValue = getValue(tree[pointer][3])
-            _debug("ASSIGN", e[name], newValue, oldValue)
-            if newValue == nil then
-                err('cannot assign nil')
-            end
+            _debug("ASSIGN", oldValue, name, tree[pointer][3])
+
             if is('ref', oldValue) then
-                local refName = oldValue[2]
-                local _, refEnv = getEnv(refName)
-                refEnv[refName] = newValue
-            else
-                e[name] = newValue
+                local referenced = getEnv(oldValue[2])
+
+                if is('list', referenced) then
+                    oldValue = referenced
+                end
             end
+
+            if is('list', oldValue) then
+                local newValue = getValue(tree[pointer][3])
+                requireType(newValue, 'el', 'list')
+                listSetValue(oldValue, listValueInt(newValue))                
+            else
+                local newValue = getValue(tree[pointer][3])
+                if newValue == nil then
+                    err('cannot assign nil')
+                end
+                if is('ref', oldValue) then
+                    local refName = oldValue[2]
+                    local _, refEnv = getEnv(refName)
+                    refEnv[refName] = newValue
+                else
+                    e[name] = newValue
+                end
+            end
+            _debug(env)
             pointer = pointer + 1
             update()
             return
         end
 
-
-        if isNext('list') then
-            env[tree[pointer][2]] = { table.unpack(tree[pointer], 3) }
-            pointer = pointer + 1
-            update()
-            return
-        end
 
         if isNext('return') then
             returnValue = getValue(tree[pointer][2])

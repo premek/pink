@@ -1,0 +1,11 @@
+The murmuring gets louder.
+The lecturer's voice becomes medium.
+The murmurer's voice becomes medium.
+The murmuring gets louder.
+The lecturer's voice becomes loud.
+The murmurer's voice becomes loud.
+The murmuring gets louder.
+The lecturer's voice becomes deafening.
+The murmurer's voice becomes deafening.
+The lecturer's voice becomes deafening.
+The murmurer's voice becomes deafening.

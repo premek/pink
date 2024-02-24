@@ -451,6 +451,7 @@ return function(input, source, debug)
             consumeWhitespace()
 
             while aheadAnyOf(table.unpack(operators)) do
+                if ahead('//') then break end -- '/' vs '//'
                 local operator = consumeAnyOf(table.unpack(operators))
                 consumeWhitespace()
 
@@ -781,15 +782,37 @@ return function(input, source, debug)
             consume("=")
             consumeWhitespace()
 
-            local list = {'list', name, expression()}
+            local elements = {}
+            local elementPresent = false
+            local elementValue = 1
             while not eolAhead() do
+                if ahead('(') then
+                    consume('(')
+                    consumeWhitespace()
+                    elementPresent = true
+                end
+                local elementName = identifier()
                 consumeWhitespace()
-                consume(",")
-                consumeWhitespace()
-                table.insert(list, expression())
+                if ahead('=') then
+                    consume('=')
+                    consumeWhitespace()
+                    elementValue = tonumber(number())
+                    consumeWhitespace()
+                end
+                table.insert(elements, {elementName, elementPresent, elementValue})
+                elementValue = elementValue + 1
+                if elementPresent then
+                    consume(')')
+                    consumeWhitespace()
+                    elementPresent = false
+                end
+                if ahead(',') then
+                    consume(",")
+                    consumeWhitespace()
+                end
             end
             consumeWhitespaceAndNewlines()
-            return list
+            return {'list', name, elements}
         end
 
         local para = function(opts)

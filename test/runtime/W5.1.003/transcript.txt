@@ -1,0 +1,4 @@
+
+1: Turn on kettle
+?> The kettle begins to bubble and boil.
+boiling

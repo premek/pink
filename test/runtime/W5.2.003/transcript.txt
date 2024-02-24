@@ -1,0 +1,6 @@
+
+1: Turn on kettle
+2: Light stove
+3: Turn on microwave
+?> The kettle begins to heat up.
+boiling
