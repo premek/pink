@@ -596,7 +596,7 @@ return function (globalTree, debuggg)
             end
 
             _debug(t)
-            local str, _ = table.concat(t):gsub(" +", " ")
+            local str, _ = table.concat(t):gsub(" +", " "):gsub("\n +", "\n")
             self.buffer = {str}
         end,
         toString = function(self)
