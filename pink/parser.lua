@@ -310,6 +310,7 @@ return function(input, source, debug)
             return token('float', tonumber(intPart..'.'..number()))
         end
 
+        -- TODO name!
         local intLiteral = function()
             local val = number()
             if ahead('.') then
@@ -318,6 +319,7 @@ return function(input, source, debug)
             return token('int', tonumber(val))
         end
 
+        -- Arguments are the actual values or expressions passed to the function when calling it
         local argument = function()
             if ahead('->') then
                 return divert()
@@ -325,8 +327,8 @@ return function(input, source, debug)
             return expression()
         end
 
-        -- Arguments are the actual values or expressions passed to the function when calling it
-        local arguments = function()
+        -- (element, element, ...)
+        local listOf = function(elementParser)
             if not ahead('(') then
                 return {}
             end
@@ -334,7 +336,7 @@ return function(input, source, debug)
             consume('(')
             consumeWhitespace()
             while not ahead(')') do
-                table.insert(args, argument())
+                table.insert(args, elementParser())
                 consumeWhitespace()
                 if ahead(',') then
                     consume(",")
@@ -379,7 +381,7 @@ return function(input, source, debug)
 
 
         local functionCall = function(functionName)
-            local argumentExpressions = arguments()
+            local argumentExpressions = listOf(argument)
             return token('call', functionName, argumentExpressions)
         end
 
@@ -516,7 +518,7 @@ return function(input, source, debug)
             end
             local targetName = identifier()
             consumeWhitespace()
-            local args = arguments()
+            local args = listOf(argument)
             local tunnel = nil
             if ahead('->') then
                 setMark()
@@ -542,7 +544,7 @@ return function(input, source, debug)
             consumeWhitespace()
             local targetName = identifier()
             consumeWhitespace()
-            local args = arguments()
+            local args = listOf(argument)
             return token('fork', targetName, args)
         end
 
@@ -596,7 +598,7 @@ return function(input, source, debug)
             consumeWhitespace()
             local id = identifier()
             consumeWhitespace()
-            local args = arguments()
+            local args = listOf(argument)
             return token('stitch', id, args)
         end
 
@@ -741,9 +743,19 @@ return function(input, source, debug)
             consumeWhitespace()
             consume("=")
             consumeWhitespace()
-            local value = expression()
+            local value
+            if ahead('->') then
+                value = divert()
+            else
+                value = term()
+            end
             consumeWhitespaceAndNewlines()
             return token('const', name, value)
+        end
+
+        local listLiteral = function()
+            if not ahead('(') then return end
+            return {'listlit', listOf(identifier)}
         end
 
         local variable = function()
@@ -754,7 +766,14 @@ return function(input, source, debug)
             consumeWhitespace()
             consume("=")
             consumeWhitespace()
-            local value = expression()
+            local value
+            if ahead('->') then
+                value = divert()
+            elseif ahead('(') then
+                value = listLiteral()
+            else
+                value = term()
+            end
             consumeWhitespaceAndNewlines()
             return token('var', name, value)
         end
@@ -783,16 +802,24 @@ return function(input, source, debug)
             consumeWhitespace()
 
             local elements = {}
-            local elementPresent = false
             local elementValue = 1
             while not eolAhead() do
+                local elementPresent = false
+                local parenOpen = false
                 if ahead('(') then
                     consume('(')
                     consumeWhitespace()
                     elementPresent = true
+                    parenOpen = true
                 end
                 local elementName = identifier()
                 consumeWhitespace()
+                -- ')' could be before '=' or after
+                if parenOpen and ahead(')') then
+                    consume(')')
+                    consumeWhitespace()
+                    parenOpen = false
+                end
                 if ahead('=') then
                     consume('=')
                     consumeWhitespace()
@@ -801,10 +828,10 @@ return function(input, source, debug)
                 end
                 table.insert(elements, {elementName, elementPresent, elementValue})
                 elementValue = elementValue + 1
-                if elementPresent then
+                if parenOpen then
                     consume(')')
                     consumeWhitespace()
-                    elementPresent = false
+                    parenOpen = false
                 end
                 if ahead(',') then
                     consume(",")
@@ -812,7 +839,7 @@ return function(input, source, debug)
                 end
             end
             consumeWhitespaceAndNewlines()
-            return {'list', name, elements}
+            return {'listdef', name, elements}
         end
 
         local para = function(opts)
@@ -1575,6 +1602,7 @@ return function(input, source, debug)
 
 
         local statements = {inkText()}
+        _debug(input)
         --_debug(statements)
         return statements
 end

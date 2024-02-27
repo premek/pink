@@ -78,6 +78,8 @@ return function (globalTree, debuggg)
     debugOn = debuggg
     -- casting (not conversion; int->float possible, float->int not possible)
 
+    local listDefs = {}
+    local env
     local getEnv
 
 
@@ -266,18 +268,17 @@ return function (globalTree, debuggg)
         requireType(a, 'el', 'list')
 
         if is('el', a) then
-            local elementName = a[3]
-            if #a[2] ~= 1 then
+            local listName, elementName = a[2], a[3]
+            if not listName then
                 err('ambiguous list element: '..elementName)
             end
-            local list = getEnv(a[2][1])
-            return list[2][elementName][1]
+            return listDefs[listName].byName[elementName]
 
         elseif is('list', a) then
             local result = 0
-            for _, el in pairs(a[2]) do
-                if el[2] then
-                    result = el[1]
+            for listName, els in pairs(a[2]) do
+                for elementName, _ in pairs(els) do
+                    result = listDefs[listName].byName[elementName]
                     -- do not break, use the last one that is set to true
                 end
             end
@@ -299,20 +300,75 @@ return function (globalTree, debuggg)
         return newList
     end
 
-    -- set all to false,
-    -- except the element identified by the value (not name) will be set to true
-    local listSetValue = function(list, value)
+
+    local listContains = function(list, el)
+        local listName, elName = el[2], el[3]
+        return list[2][listName] ~= nil and list[2][listName][elName] ~= nil
+    end
+
+local listElByValue = function(listName, elementValue)
+                return {'el', listName, listDefs[listName].byValue[elementValue]}
+end 
+
+    local getListElements = function(els)
+        local elements = {}
+        for _, el in ipairs(els) do
+            requireType(el, 'el')
+            local listName, elName = el[2], el[3]
+            if listName == nil then
+                err('ambiguous list element: ' .. elName)
+            end
+
+            elements[listName] = elements[listName] or {}
+            elements[listName][elName] = 1
+        end
+        -- elements: {[listName1] = {elName1=1, elName2=1}, [listName2] = {...}, ...}
+        return elements
+    end
+
+    local listFromEls = function(els)
+        return {'list', getListElements(els)}
+    end
+
+    local listFromLit = function(listLiteral)
+        requireType(listLiteral, 'listlit')
+        local els = {}
+        for _, elName in ipairs(listLiteral[2]) do
+            local el = getEnv(elName)
+            table.insert(els, el)
+        end
+        return listFromEls(els)
+    end
+
+    local listSet = function(list, new)
         requireType(list, 'list')
-        for _,el in pairs(list[2]) do
-            el[2] = (el[1] == value)
+        requireType(new, 'el', 'list')-- TODO just el
+        if is('el', new) then
+            list[2] = getListElements({new})
+        else
+            err('TODO')-- TODO remove, not needed
         end
     end
 
-    local isListElementPresent = function(list, el)
-        -- TODO check el is from this list, even if list is assigned to a different variable
-        local elName = el[3]
-        return list[2][elName][2]
+    -- set all to false,except the element (element does not have to be from the same list)
+    local listSetValue = function(list, value)
+        for listName, _ in pairs(list[2]) do
+            local elName = listDefs[listName].byValue[value]
+            if elName then
+                listSet(list, {'el', listName, elName}) --FIXME
+            end
+        end
     end
+
+    -- sets the present value of the list 'a' times to the next element
+    -- empty list stays empty
+    -- list with elements from different listDefs: undefined??? --TODO
+    local listAdd = function(list, a)
+        local value=listValueInt(list) + a
+        listSetValue(list, value)
+    end
+
+
 
     local eq = function(a,b)
         _debug("EQ", a, b)
@@ -336,9 +392,9 @@ return function (globalTree, debuggg)
 
         -- TODO all combinations
         if a[1] == 'list' and b[1] == 'el' then
-            return {'bool', isListElementPresent(a, b)}
+            return {'bool', listContains(a, b)}
         elseif a[1] == 'el' and b[1] == 'list' then
-            return {'bool', isListElementPresent(b, a)}
+            return {'bool', listContains(b, a)}
         end
 
         -- same type
@@ -391,10 +447,12 @@ return function (globalTree, debuggg)
     end
 
     local contains = function(a,b)
-        requireType(a, 'str')
-        requireType(b, 'str')
-
-        return {"bool", string.find(a[2], b[2])}
+        if is('str', a) and is('str', b) then
+            return {"bool", string.find(a[2], b[2])}
+        elseif is('list', a) and is('el', b) then
+            return {"bool", listContains(a, b)}
+        end
+        err('unexpected type')
     end
 
     local notFn = function(a)
@@ -446,7 +504,7 @@ return function (globalTree, debuggg)
         LIST_VALUE={'native', listValue},
     }
 
-    local env = rootEnv -- TODO should env be part of the callstack?
+    env = rootEnv -- TODO should env be part of the callstack?
 
     local returnValue -- set when interpreting a 'return' statement, read after stepping 'Out'
     -- does it have to be a stack?
@@ -626,11 +684,7 @@ return function (globalTree, debuggg)
         local var = getEnv(name)
         requireType(var, 'float', 'int', 'list')
         if is('list', var) then
-            local value = listValueInt(var)
-            if value > 0 then -- when no elements are set it stays like that
-                value = value + a
-            end
-            listSetValue(var, value)
+            listAdd(var, a)
         else
             var[2] = var[2] + a
         end
@@ -704,9 +758,9 @@ return function (globalTree, debuggg)
 
         elseif a[1] == 'list' then
             local names = {}
-            for name, el in pairs(a[2]) do
-                if el[2] then
-                    table.insert(names, name)
+            for listName, els in pairs(a[2]) do
+                for elName, _ in pairs(els) do
+                    table.insert(names, elName)
                 end
             end
             return table.concat(names, ', ')
@@ -817,18 +871,28 @@ return function (globalTree, debuggg)
             if is('const', n) then
                 env[n[2]] = n[3] -- TODO make it constant
             end
-            if is('list', n) then
+            if is('listdef', n) then
                 local listName = n[2]
                 local elements = {}
-                for _, el in pairs(n[3]) do
-                    if env[el[1]] == nil then
-                        env[el[1]] = {'el', {listName}, el[1]}
+                listDefs[listName] = {byName={}, byValue={}}
+                for _, elDef in pairs(n[3]) do
+                    local elName, elSet, elValue = elDef[1], elDef[2], elDef[3]
+                    local el = {'el', listName, elName}
+                    if env[elName] == nil then
+                        env[elName] = el
                     else
-                        table.insert(env[el[1]][2], listName)
+                        -- multiple lists has an element with the same name
+                        env[elName][2] = nil
                     end
-                    elements[el[1]] = {el[3], el[2]}
+                    -- TODO do we need both
+                    listDefs[listName].byName[elName] = elValue
+                    listDefs[listName].byValue[elValue] = elName
+
+                    if elSet then
+                        table.insert(elements, el)
+                    end
                 end
-                env[listName] = {'list', elements}
+                env[listName] = listFromEls(elements)
             end
         end
 
@@ -927,20 +991,12 @@ return function (globalTree, debuggg)
         for _, n in ipairs(t) do
             if is('var', n) then
                 local val = getValue(n[3])
+
                 if is('el', val) then
-                    local newValueName = val[3]
-                    if #val[2] ~= 1 then
-                        err('ambiguous list element: ' .. newValueName)
-                    end
-                    -- element in one list only: copy the list, set the value
-                    local listName = val[2][1]
-                    local list = env[listName]
-                    local elements = {}
-                    for k, v in pairs(list[2]) do
-                        -- copy all elements, set all to false except the one from the 'var' statement
-                        elements[k] = {v[1], k == newValueName}
-                    end
-                    env[n[2]] = {'list', elements}
+                    -- TODO in getValue???
+                    env[n[2]] = listFromLit({'listlit', {val[3]}})
+                elseif is('listlit', val) then
+                    env[n[2]] = listFromLit(val)
                 else
                     env[n[2]] = val
                 end
@@ -971,7 +1027,7 @@ return function (globalTree, debuggg)
 
 
         if is('str', val) or is('int', val) or is('float', val) or is('bool', val)
-            or is('list', val) or is('el', val)
+            or is('list', val) or is('listlit', val) or is('el', val)
         then
             return val
 
@@ -1028,9 +1084,7 @@ return function (globalTree, debuggg)
                     err('too many arguments')
                 end
                 requireType(args[1], 'int')
-                local newList = listCopy(target)
-                listSetValue(newList, args[1][2])
-                return newList
+                return listElByValue(name, args[1][2])
             else
                 error('invalid call target: ' .. target[1])
             end
@@ -1048,7 +1102,7 @@ return function (globalTree, debuggg)
 
         else
             _debug(val)
-            error('unsupported value type: ' .. (type(val[1])=='string' and val[1] or type(val[1])))
+            error('getValue: unsupported type: ' .. (type(val[1])=='string' and val[1] or type(val[1])))
         end
     end
 
@@ -1085,7 +1139,7 @@ return function (globalTree, debuggg)
         end
 
         if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') or
-            isNext('knot') or isNext('fn') or isNext('list')
+            isNext('knot') or isNext('fn') or isNext('listdef')
         then
             pointer = pointer + 1
             update()
@@ -1113,12 +1167,10 @@ return function (globalTree, debuggg)
                 end
             end
 
+            local newValue = getValue(tree[pointer][3])
             if is('list', oldValue) then
-                local newValue = getValue(tree[pointer][3])
-                requireType(newValue, 'el', 'list')
-                listSetValue(oldValue, listValueInt(newValue))                
+                listSet(oldValue, newValue)
             else
-                local newValue = getValue(tree[pointer][3])
                 if newValue == nil then
                     err('cannot assign nil')
                 end
@@ -1469,6 +1521,7 @@ return function (globalTree, debuggg)
 
     tree = preProcess(tree)
     _debug(tree)
+    _debug(listDefs)
     _debug(s.variablesState)
 
     update()
