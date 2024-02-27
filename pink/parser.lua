@@ -5,6 +5,8 @@ return function(input, source, debug)
             print( require('test/luaunit').prettystr(x) )
         end
 
+        _debug(input)
+
         source = source or 'unknown source'
 
         local current=1
@@ -831,7 +833,6 @@ return function(input, source, debug)
                 if parenOpen then
                     consume(')')
                     consumeWhitespace()
-                    parenOpen = false
                 end
                 if ahead(',') then
                     consume(",")
@@ -1447,13 +1448,7 @@ return function(input, source, debug)
         end
         local branchInkNode = function(opts)
             if ahead('\n') then
-                local ret = nl()
-                if ahead('-') and not ahead('->') then
-                    return nil
-                        -- FIXME --- end branch here, the next one starts,
-                        -- but - is allowed when it's not after NL
-                end
-                return ret
+                return nl()
             elseif ahead('//') then
                 return singleLineComment()
             elseif ahead('/*') then
@@ -1468,6 +1463,8 @@ return function(input, source, debug)
                 return divert()
             elseif ahead('<-') then
                 return fork()
+            elseif ahead('-') and isLineStart() then ----------TODO
+                return nil -- new branch
             elseif ahead('==') then
                 return nil------------------------
             elseif ahead('=') then
@@ -1602,7 +1599,6 @@ return function(input, source, debug)
 
 
         local statements = {inkText()}
-        _debug(input)
         --_debug(statements)
         return statements
 end

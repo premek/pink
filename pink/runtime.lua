@@ -290,25 +290,14 @@ return function (globalTree, debuggg)
         return {'int', listValueInt(a)}
     end
 
-    -- copies the list
-    local listCopy = function(list)
-        requireType(list, 'list')
-        local newList = {'list', {}}
-        for k,v in pairs(list[2]) do
-            newList[2][k] = {v[1], v[2]}
-        end
-        return newList
-    end
-
-
     local listContains = function(list, el)
         local listName, elName = el[2], el[3]
         return list[2][listName] ~= nil and list[2][listName][elName] ~= nil
     end
 
-local listElByValue = function(listName, elementValue)
-                return {'el', listName, listDefs[listName].byValue[elementValue]}
-end 
+    local listElByValue = function(listName, elementValue)
+        return {'el', listName, listDefs[listName].byValue[elementValue]}
+    end
 
     local getListElements = function(els)
         local elements = {}
@@ -395,6 +384,8 @@ end
             return {'bool', listContains(a, b)}
         elseif a[1] == 'el' and b[1] == 'list' then
             return {'bool', listContains(b, a)}
+        elseif a[1] == 'el' and b[1] == 'el' then
+            return {'bool', a[2]==b[2] and a[3]==b[3]}
         end
 
         -- same type
@@ -758,7 +749,7 @@ end
 
         elseif a[1] == 'list' then
             local names = {}
-            for listName, els in pairs(a[2]) do
+            for _, els in pairs(a[2]) do
                 for elName, _ in pairs(els) do
                     table.insert(names, elName)
                 end
@@ -1027,7 +1018,7 @@ end
 
 
         if is('str', val) or is('int', val) or is('float', val) or is('bool', val)
-            or is('list', val) or is('listlit', val) or is('el', val)
+            or is('divert', val) or is('list', val) or is('listlit', val) or is('el', val)
         then
             return val
 
@@ -1055,7 +1046,20 @@ end
             end
 
             local target = getEnv(name, val)
+            _debug("CALL target", target)
             -- FIXME detect unresolved function on compile time
+            --
+
+            -- call divert as fn -- FIXME
+            if target[1] == 'divert' then
+                local path = target[2]
+                local divertTarget = getEnv(path)
+                if divertTarget[1] == 'fn' then
+                    target = divertTarget
+                end
+            end
+
+
 
             if target[1] == 'native' then
                 local argumentValues = {}
