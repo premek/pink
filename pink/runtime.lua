@@ -308,6 +308,22 @@ return function (globalTree, debuggg)
         return {'el', listName, listDefs[listName].byValue[elementValue]}
     end
 
+    local listIterateElements = function(list, callback)
+        for listName, els in pairs(list[2]) do
+            for elName, _ in pairs(els) do
+                callback({'el', listName, elName})
+            end
+        end
+    end
+
+    local listGetElements = function(list)
+        local els = {}
+        listIterateElements(list, function(el)
+            table.insert(els, el)
+        end)
+        return els
+    end
+
     local getListElements = function(els, knownListNames)
         local elements = {}
         for _, listName in ipairs(knownListNames) do
@@ -390,11 +406,20 @@ return function (globalTree, debuggg)
 
     local listSet = function(list, new)
         requireType(list, 'list')
-        requireType(new, 'el', 'list')-- TODO just el
+        requireType(new, 'list', 'el')
+
+        local els
         if is('el', new) then
-            list[2] = getListElements({new}, {}) -- FIXME messy?
+            els = {new}
         else
-            err('TODO')-- TODO remove, not needed
+            -- TODO -- rename functions
+            els = listGetElements(new)
+        end
+        if #els == 0 then
+            -- keep the known lists
+            listIterateElements(list, function(el) list[2][el[2]] = {} end)
+        else
+            list[2] = getListElements(els, {}) --FIXME known lists
         end
     end
 
@@ -409,13 +434,11 @@ return function (globalTree, debuggg)
     end
 
     local listOutput = function(list)
-        local outEls = {}
-        for listName, els in pairs(list[2]) do
-            for elName, _ in pairs(els) do
-                table.insert(outEls, {'el', listName, elName})
-            end
-        end
-        table.sort(outEls, function(a,b) return listValueInt(a) < listValueInt(b) end)
+        local outEls = listGetElements(list)
+        table.sort(outEls, function(a,b)
+            local val = listValueInt(a) - listValueInt(b)
+            return val == 0 and a[2]<b[2] or val<0
+        end)
 
         local names = {}
         for _, el in ipairs(outEls) do
@@ -466,7 +489,27 @@ return function (globalTree, debuggg)
         return new
     end
 
+    local listRange = function(list, minIncl, maxIncl)
+        if is('el', minIncl) then
+            minIncl = listValue(minIncl)
+        end
+        if is('el', maxIncl) then
+            maxIncl = listValue(maxIncl)
+        end
+        requireType(minIncl, 'int')
+        requireType(maxIncl, 'int')
 
+        local els = {}
+        local listNames = {}
+        listIterateElements(list, function(el)
+            table.insert(listNames, el[2])
+            local val = listValueInt(el)
+            if minIncl[2] <= val and val <= maxIncl[2] then
+                table.insert(els, el)
+            end
+        end)
+        return listFromEls(els, listNames)
+    end
 
 
     local eq = function(a,b)
@@ -605,6 +648,7 @@ return function (globalTree, debuggg)
         LIST_VALUE={'native', listValue},
         LIST_ALL={'native', listAll},
         LIST_INVERT={'native', listInvert},
+        LIST_RANGE={'native', listRange},
     }
 
     env = rootEnv -- TODO should env be part of the callstack?
@@ -1125,7 +1169,7 @@ return function (globalTree, debuggg)
 
 
         if is('str', val) or is('int', val) or is('float', val) or is('bool', val)
-            or is('divert', val) or is('list', val) or is('listlit', val) or is('el', val)
+            or is('divert', val) or is('list', val) or is('el', val)
         then
             return val
 
@@ -1136,6 +1180,9 @@ return function (globalTree, debuggg)
             local name = val[2]
             local var = getEnv(name, val)
             return getValue(var)
+
+        elseif is('listlit', val) then
+            return getValue(listFromLit(val))
 
         elseif is('call', val) then
             local name = val[2]
@@ -1279,7 +1326,7 @@ return function (globalTree, debuggg)
             end
 
             local newValue = getValue(tree[pointer][3])
-            if is('list', oldValue) and is('el', newValue) then
+            if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
                 listSet(oldValue, newValue)
             else
                 if newValue == nil then

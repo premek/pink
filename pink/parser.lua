@@ -403,8 +403,14 @@ return function(input, source, debug)
                 setMark()
                 consume('(')
                 consumeWhitespace()
+                if ahead(')') then
+                    resetToMark()
+                    return listLiteral()
+                end
+
                 local exp = expression()
                 consumeWhitespace()
+
                 if exp[1] == 'ref' and ahead(',') then
                     resetToMark()
                     return listLiteral()
