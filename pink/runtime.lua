@@ -82,6 +82,7 @@ return function (globalTree, debuggg)
     local env
     local getEnv
 
+    local listPlus, listMinus
 
     local toInt = function(a)
         requirePinkType(a)
@@ -186,11 +187,15 @@ return function (globalTree, debuggg)
     end
 
     local add = function(a,b)
-        requireType(a, 'bool', 'str', 'float', 'int')
-        requireType(b, 'bool', 'str', 'float', 'int')
+        requireType(a, 'bool', 'str', 'float', 'int', 'list')
+        requireType(b, 'bool', 'str', 'float', 'int', 'el')
 
         if a[1] == 'str' or b[1] == 'str' then
             return {"str", toStr(a)[2] .. toStr(b)[2]}
+        end
+
+        if a[1] == 'list' and b[1] == 'el' then
+            return listPlus(a, b)
         end
 
         if a[1] == 'bool' then
@@ -209,8 +214,12 @@ return function (globalTree, debuggg)
     end
 
     local sub = function(a,b)
-        requireType(a, 'float', 'int', 'bool')
-        requireType(b, 'float', 'int', 'bool')
+        requireType(a, 'float', 'int', 'bool', 'list')
+        requireType(b, 'float', 'int', 'bool', 'el')
+
+        if a[1] == 'list' and b[1] == 'el' then
+            return listMinus(a, b)
+        end
 
         if a[1] == 'bool' then
             a = toInt(a)
@@ -329,6 +338,44 @@ return function (globalTree, debuggg)
         return listFromEls(els)
     end
 
+    local listCopy = function(list)
+        _debug("II", list)
+        local res = {}
+        for listName, els in pairs(list[2]) do
+
+            res[listName] = res[listName] or {}
+            for elName, _ in pairs(els) do
+                res[listName][elName] = 1
+            end
+        end
+        _debug("II", res)
+        return {'list', res}
+    end
+
+    local listSetInternal = function(list, el, internalValue)
+        requireType(list, 'list')
+        requireType(el, 'el')
+        list[2][el[2]] = list[2][el[2]] or {}
+        list[2][el[2]][el[3]] = internalValue -- just a placeholder value, we're using keys, nil to unset
+    end
+    local listAdd = function(list, el)
+        listSetInternal(list, el, 1)
+    end
+    local listRemove = function(list, el)
+        listSetInternal(list, el, nil)
+    end
+
+    listPlus = function(list, el)
+        local new = listCopy(list)
+        listAdd(new, el)
+        return new
+    end
+    listMinus = function(list, el)
+        local new = listCopy(list)
+        listRemove(new, el)
+        return new
+    end
+
     local listSet = function(list, new)
         requireType(list, 'list')
         requireType(new, 'el', 'list')-- TODO just el
@@ -352,10 +399,44 @@ return function (globalTree, debuggg)
     -- sets the present value of the list 'a' times to the next element
     -- empty list stays empty
     -- list with elements from different listDefs: undefined??? --TODO
-    local listAdd = function(list, a)
+    local listInc = function(list, a)
         local value=listValueInt(list) + a
         listSetValue(list, value)
     end
+
+    local listAll = function(a)
+        requireType(a, 'el', 'list') -- TODO is 'el' just a 'list' with one element?
+        local listNames = {}
+        if a[1] == 'el' then
+            table.insert(listNames, a[2])
+        else
+            -- TODO collect "known" lists
+            for listName, _ in pairs(a[2]) do
+                table.insert(listNames, listName)
+            end
+        end
+        local els = {}
+
+        for _, listName in ipairs(listNames) do
+            for elName, _ in pairs(listDefs[listName].byName) do
+                table.insert(els, {'el', listName, elName})
+            end
+        end
+
+        return listFromEls(els)
+    end
+
+    local listInvert = function(list)
+        -- TODO optimise
+        local new = listAll(list)
+        for listName, els in pairs(list[2]) do
+            for elName, _ in pairs(els) do
+                new = listMinus(new, {'el', listName, elName})
+            end
+        end
+        return new
+    end
+
 
 
 
@@ -493,6 +574,8 @@ return function (globalTree, debuggg)
         ['>']={'native', gt},
         ['>=']={'native', gte},
         LIST_VALUE={'native', listValue},
+        LIST_ALL={'native', listAll},
+        LIST_INVERT={'native', listInvert},
     }
 
     env = rootEnv -- TODO should env be part of the callstack?
@@ -675,7 +758,7 @@ return function (globalTree, debuggg)
         local var = getEnv(name)
         requireType(var, 'float', 'int', 'list')
         if is('list', var) then
-            listAdd(var, a)
+            listInc(var, a)
         else
             var[2] = var[2] + a
         end
@@ -747,10 +830,14 @@ return function (globalTree, debuggg)
         elseif a[1] == 'bool' then
             return tostring(a[2])
 
+        elseif a[1] == 'el' then
+            return a[3]
         elseif a[1] == 'list' then
             local names = {}
+            _debug("list out", a)
             for _, els in pairs(a[2]) do
                 for elName, _ in pairs(els) do
+                    _debug(elName)
                     table.insert(names, elName)
                 end
             end
@@ -1083,7 +1170,7 @@ return function (globalTree, debuggg)
                 return ret
             elseif target[1] == 'list' then
                 if #args == 0 then
-                    return {'str', ""} -- TODO empty list? list with no elements set?
+                    return {'list', {}}
                 elseif #args > 1 then
                     err('too many arguments')
                 end
@@ -1172,7 +1259,7 @@ return function (globalTree, debuggg)
             end
 
             local newValue = getValue(tree[pointer][3])
-            if is('list', oldValue) then
+            if is('list', oldValue) and is('el', newValue) then
                 listSet(oldValue, newValue)
             else
                 if newValue == nil then
