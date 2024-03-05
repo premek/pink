@@ -379,6 +379,11 @@ return function(input, source, debug)
         end
 
 
+        local listLiteral = function()
+            if not ahead('(') then return end
+            return {'listlit', listOf(identifier)}
+        end
+
 
         local functionCall = function(functionName)
             local argumentExpressions = listOf(argument)
@@ -395,10 +400,15 @@ return function(input, source, debug)
             end
 
             if ahead('(') then -- TODO this is expression and not term?
+                setMark()
                 consume('(')
                 consumeWhitespace()
                 local exp = expression()
                 consumeWhitespace()
+                if exp[1] == 'ref' and ahead(',') then
+                    resetToMark()
+                    return listLiteral()
+                end
                 consume(')')
                 return exp
             end
@@ -751,11 +761,6 @@ return function(input, source, debug)
             end
             consumeWhitespaceAndNewlines()
             return token('const', name, value)
-        end
-
-        local listLiteral = function()
-            if not ahead('(') then return end
-            return {'listlit', listOf(identifier)}
         end
 
         local variable = function()
