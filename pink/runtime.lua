@@ -188,13 +188,13 @@ return function (globalTree, debuggg)
 
     local add = function(a,b)
         requireType(a, 'bool', 'str', 'float', 'int', 'list')
-        requireType(b, 'bool', 'str', 'float', 'int', 'el')
+        requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
 
         if a[1] == 'str' or b[1] == 'str' then
             return {"str", toStr(a)[2] .. toStr(b)[2]}
         end
 
-        if a[1] == 'list' and b[1] == 'el' then
+        if a[1] == 'list' and (b[1] == 'list' or b[1] == 'el') then -- FIXME
             return listPlus(a, b)
         end
 
@@ -308,8 +308,11 @@ return function (globalTree, debuggg)
         return {'el', listName, listDefs[listName].byValue[elementValue]}
     end
 
-    local getListElements = function(els)
+    local getListElements = function(els, knownListNames)
         local elements = {}
+        for _, listName in ipairs(knownListNames) do
+            elements[listName] = {}
+        end
         for _, el in ipairs(els) do
             requireType(el, 'el')
             local listName, elName = el[2], el[3]
@@ -324,8 +327,8 @@ return function (globalTree, debuggg)
         return elements
     end
 
-    local listFromEls = function(els)
-        return {'list', getListElements(els)}
+    local listFromEls = function(els, knownListNames)
+        return {'list', getListElements(els, knownListNames)}
     end
 
     local listFromLit = function(listLiteral)
@@ -335,11 +338,10 @@ return function (globalTree, debuggg)
             local el = getEnv(elName)
             table.insert(els, el)
         end
-        return listFromEls(els)
+        return listFromEls(els, {})
     end
 
     local listCopy = function(list)
-        _debug("II", list)
         local res = {}
         for listName, els in pairs(list[2]) do
 
@@ -348,7 +350,6 @@ return function (globalTree, debuggg)
                 res[listName][elName] = 1
             end
         end
-        _debug("II", res)
         return {'list', res}
     end
 
@@ -365,9 +366,20 @@ return function (globalTree, debuggg)
         listSetInternal(list, el, nil)
     end
 
-    listPlus = function(list, el)
-        local new = listCopy(list)
-        listAdd(new, el)
+    listPlus = function(a, b)
+        requireType(a, 'list')
+        requireType(b, 'el', 'list')
+
+        local new = listCopy(a)
+        if is('el', b) then
+            listAdd(new, b)
+        else
+            for listName, els in pairs(b[2]) do
+                for elName, _ in pairs(els) do
+                    listAdd(new, {'el', listName, elName}) -- FIXME not nice?
+                end
+            end
+        end
         return new
     end
     listMinus = function(list, el)
@@ -380,7 +392,7 @@ return function (globalTree, debuggg)
         requireType(list, 'list')
         requireType(new, 'el', 'list')-- TODO just el
         if is('el', new) then
-            list[2] = getListElements({new})
+            list[2] = getListElements({new}, {}) -- FIXME messy?
         else
             err('TODO')-- TODO remove, not needed
         end
@@ -427,7 +439,7 @@ return function (globalTree, debuggg)
         if a[1] == 'el' then
             table.insert(listNames, a[2])
         else
-            -- TODO collect "known" lists
+            -- collect "known" lists
             for listName, _ in pairs(a[2]) do
                 table.insert(listNames, listName)
             end
@@ -440,7 +452,7 @@ return function (globalTree, debuggg)
             end
         end
 
-        return listFromEls(els)
+        return listFromEls(els, listNames)
     end
 
     local listInvert = function(list)
@@ -978,7 +990,7 @@ return function (globalTree, debuggg)
                         table.insert(elements, el)
                     end
                 end
-                env[listName] = listFromEls(elements)
+                env[listName] = listFromEls(elements, {listName})
             end
         end
 
