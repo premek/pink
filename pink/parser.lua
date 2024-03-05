@@ -331,23 +331,21 @@ return function(input, source, debug)
 
         -- (element, element, ...)
         local listOf = function(elementParser)
-            if not ahead('(') then
-                return {}
-            end
             local args = {}
-            consume('(')
-            consumeWhitespace()
-            while not ahead(')') do
-                table.insert(args, elementParser())
+            if ahead('(') then
+                consume('(')
                 consumeWhitespace()
-                if ahead(',') then
-                    consume(",")
+                while not ahead(')') do
+                    table.insert(args, elementParser())
                     consumeWhitespace()
+                    if ahead(',') then
+                        consume(",")
+                        consumeWhitespace()
+                    end
                 end
+                consume(')')
+                consumeWhitespaceAndNewlines()
             end
-            consume(')')
-            consumeWhitespaceAndNewlines()
-
             return args
         end
 

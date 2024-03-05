@@ -396,6 +396,23 @@ return function (globalTree, debuggg)
         end
     end
 
+    local listOutput = function(list)
+        local outEls = {}
+        for listName, els in pairs(list[2]) do
+            for elName, _ in pairs(els) do
+                table.insert(outEls, {'el', listName, elName})
+            end
+        end
+        table.sort(outEls, function(a,b) return listValueInt(a) < listValueInt(b) end)
+
+        local names = {}
+        for _, el in ipairs(outEls) do
+            table.insert(names, el[3])
+        end
+        return table.concat(names, ', ')
+    end
+
+
     -- sets the present value of the list 'a' times to the next element
     -- empty list stays empty
     -- list with elements from different listDefs: undefined??? --TODO
@@ -833,16 +850,7 @@ return function (globalTree, debuggg)
         elseif a[1] == 'el' then
             return a[3]
         elseif a[1] == 'list' then
-            local names = {}
-            _debug("list out", a)
-            for _, els in pairs(a[2]) do
-                for elName, _ in pairs(els) do
-                    _debug(elName)
-                    table.insert(names, elName)
-                end
-            end
-            return table.concat(names, ', ')
-
+            return listOutput(a)
         else
             error('cannot output: '..a[1])
         end
