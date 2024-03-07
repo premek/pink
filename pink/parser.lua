@@ -344,7 +344,7 @@ return function(input, source, debug)
                     end
                 end
                 consume(')')
-                consumeWhitespaceAndNewlines()
+                consumeWhitespace()
             end
             return args
         end
@@ -799,7 +799,7 @@ return function(input, source, debug)
             consume("=")
             consumeWhitespace()
             local value = expression()
-            consumeWhitespaceAndNewlines()
+            consumeWhitespace()
             return token('tempvar', name, value) --TODO better name? local var? var?
         end
 
