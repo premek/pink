@@ -1037,39 +1037,59 @@ return function(input, source, debug)
                 consumeWhitespaceAndNewlines()
                 local branches = {}
                 if ahead('-') and not ahead('->') then
-                    -- switch: {x: -0: zero -1: one}
                     -- newlines after the first ':' ignored
                     while ahead('-') and not ahead('->') do
                         consume('-')
                         consumeWhitespaceAndNewlines()
+                        setMark()
+
+                        local condition, branch
                         if ahead('else') then
                             consume('else')
                             consumeWhitespaceAndNewlines()
                             consume(':')
                             consumeWhitespaceAndNewlines()
-                            table.insert(branches, {{'bool', true}, {branchInkText()}})
+                            condition = {'bool', true}
+                            branch = {branchInkText()}
                         else
-
-                            -- {expr:\n -val1:text\n -val2:text\n}
-
-                            -- not supported:
-                            -- {expr:
-                            --   -textiftrue
-                            --   -textiffalse
-                            -- }
-
-                            local condition = {'call', '==', {first, expression()}}
+                            -- try to parse expression which would be followed by a ":"
+                            -- otherwise jump back and parse branch ink text
+                            -- FIXME without pcall?
+                            local expressionParsed, branchCaseExpression = pcall(expression)
                             consumeWhitespace()
-                            consume(':')
-                            consumeWhitespaceAndNewlines()
-                            -- TODO would be nicer without this if
-                            if ahead('-') and not ahead('->') then
-                                -- empty branch body, but the condition should be evaluated
-                                table.insert(branches, {condition, {}})
+
+                            if expressionParsed and ahead(':') then
+                                -- switch {expr:\n -val1:text\n -val2:text\n}
+                                condition = {'call', '==', {first, branchCaseExpression}}
+
+                                consume(':')
+                                consumeWhitespaceAndNewlines()
+
+                                -- TODO would be nicer without this if
+                                if ahead('-') and not ahead('->') then
+                                    -- empty branch body, but the condition should be evaluated
+                                    branch = {}
+                                else
+                                    branch = {branchInkText()}
+                                end
                             else
-                                table.insert(branches, {condition, {branchInkText()}})
+                                -- {expr:
+                                --   -textiftrue
+                                --   -textiffalse
+                                -- }
+                                resetToMark() -- jump after the '-' of the current branch
+
+                                branch = {branchInkText()}
+                                if #branches == 0 then
+                                    -- first branch (the iftrue)
+                                    condition = first
+                                else
+                                    -- else branch (iffalse)
+                                    condition = {'bool', true}
+                                end
                             end
                         end
+                        table.insert(branches, {condition, branch})
                     end
 
                 else
