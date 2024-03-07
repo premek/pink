@@ -444,10 +444,10 @@ return function(input, source, debug)
 
         -- precedence from lowest to highest
         local operatorList = {
-            {'?'}, -- string contains
             {'or', '||', 'and', '&&'},
             {'!=', '=='},
             {'<=', '>=', '>', '<'},
+            {'?', '!?', '^'},
             {'-', '+'},
             {'mod', '%', '/', '*'},
         }

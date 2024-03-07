@@ -273,6 +273,14 @@ return function (globalTree, debuggg)
         return {t, math.fmod(a[2],b[2])}
     end
 
+    local listIterateElements = function(list, callback)
+        for listName, els in pairs(list[2]) do
+            for elName, _ in pairs(els) do
+                callback({'el', listName, elName})
+            end
+        end
+    end
+
     local listValueInt = function(a)
         requireType(a, 'el', 'list')
 
@@ -300,20 +308,27 @@ return function (globalTree, debuggg)
     end
 
     local listContains = function(list, el)
+        requireType(list, 'list')
+        requireType(el, 'el')
+
         local listName, elName = el[2], el[3]
         return list[2][listName] ~= nil and list[2][listName][elName] ~= nil
+    end
+    local listContainsAll = function(hay, needles)
+        requireType(hay, 'list')
+        requireType(needles, 'list')
+
+        local empty = true -- no lists contain the empty list
+        local res = true
+        listIterateElements(needles, function(needle)
+            empty = false
+            res = res and listContains(hay, needle)
+        end)
+        return empty or res
     end
 
     local listElByValue = function(listName, elementValue)
         return {'el', listName, listDefs[listName].byValue[elementValue]}
-    end
-
-    local listIterateElements = function(list, callback)
-        for listName, els in pairs(list[2]) do
-            for elName, _ in pairs(els) do
-                callback({'el', listName, elName})
-            end
-        end
     end
 
     local listGetElements = function(list)
@@ -511,6 +526,18 @@ return function (globalTree, debuggg)
         return listFromEls(els, listNames)
     end
 
+    local listIntersection = function(a, b)
+        requireType(a, 'list')
+        requireType(b, 'list')
+        local els = {}
+        listIterateElements(b, function(el)
+            if listContains(a, el) then
+                table.insert(els, el)
+            end
+        end)
+        return listFromEls(els, {})
+    end
+
 
     local eq = function(a,b)
         _debug("EQ", a, b)
@@ -595,8 +622,14 @@ return function (globalTree, debuggg)
             return {"bool", string.find(a[2], b[2])}
         elseif is('list', a) and is('el', b) then
             return {"bool", listContains(a, b)}
+        elseif is('list', a) and is('list', b) then
+            return {"bool", listContainsAll(a, b)}
         end
         err('unexpected type')
+    end
+
+    local notContains = function(a,b)
+        return {"bool", not contains(a,b)[2]}
     end
 
     local notFn = function(a)
@@ -636,6 +669,7 @@ return function (globalTree, debuggg)
         ['==']={'native', eq},
         ['!=']={'native', notEq},
         ['?']={'native', contains},
+        ['!?']={'native', notContains},
         ['not']={'native', notFn},
         ['||']={'native', orFn},
         ['&&']={'native', andFn},
@@ -649,6 +683,7 @@ return function (globalTree, debuggg)
         LIST_ALL={'native', listAll},
         LIST_INVERT={'native', listInvert},
         LIST_RANGE={'native', listRange},
+        ['^']={'native', listIntersection},
     }
 
     env = rootEnv -- TODO should env be part of the callstack?
@@ -752,7 +787,7 @@ return function (globalTree, debuggg)
             end
 
             _debug(t)
-            local str, _ = table.concat(t):gsub(" +", " "):gsub("\n +", "\n")
+            local str, _ = table.concat(t):gsub(" +", " "):gsub("\n +", "\n"):gsub(" \n", "\n") --FIXME
             self.buffer = {str}
         end,
         toString = function(self)
