@@ -465,7 +465,7 @@ return function(input, source, debug)
             consumeWhitespace()
 
             while aheadAnyOf(table.unpack(operators)) do
-                if ahead('//') then break end -- '/' vs '//'
+                if ahead('//') then break end -- '/' vs '//' -- FIXME not needed if we had tokens
                 local operator = consumeAnyOf(table.unpack(operators))
                 consumeWhitespace()
 
@@ -1083,22 +1083,27 @@ return function(input, source, debug)
 
 
 
-            local beginning = current
 
             if ahead('-') and not ahead('->') then
                 consume('-')
             end
             consumeWhitespaceAndNewlines()
 
-            local first = expression()
+            setMark()
+
+            -- TODO I108
+            -- {a||b} is a sequence of 3 inktests, not a single expression
+            -- { x < 10 || x > 20: ... is an expression
+            local firstExpressionParsed, first = pcall(expression)
             consumeWhitespaceAndNewlines()
 
-            if ahead('}') then
+            if firstExpressionParsed and ahead('}') then
                 -- variable printing: {expression}
                 consume("}")
                 return {"out", first, lineStart}
+            end
 
-            elseif ahead(':') then
+            if firstExpressionParsed and ahead(':') then
                 consume(':')
                 setMark()
                 consumeWhitespaceAndNewlines()
@@ -1135,7 +1140,7 @@ return function(input, source, debug)
 
             -- reset parser pointer back after the opening '{'
             -- and read the first element again, this time as ink text
-            current = beginning --TODO use mark
+            resetToMark()
             first = inkText()
             consumeWhitespace()
 
