@@ -35,10 +35,6 @@ return function(input, source, debug)
             }
         end
 
-        local removeMark = function()
-            mark = nil
-        end
-
         local resetToMark = function()
             if mark == nil then
                 errorAt('mark not set')
@@ -633,7 +629,6 @@ return function(input, source, debug)
                 resetToMark()
                 return
             end
-            removeMark()
 
             local label = nil
             if ahead('(') then
@@ -654,6 +649,7 @@ return function(input, source, debug)
             if not (ahead('*') or ahead('+')) then return end
             local bulletSymbol = peek(1)
             local sticky = (bulletSymbol == '+') and "sticky" or nil
+            local fallback = nil
 
             setMark()
             local nesting = 0
@@ -666,7 +662,6 @@ return function(input, source, debug)
                 resetToMark()
                 return
             end
-            removeMark()
 
             local name = nil
             if ahead('(') then
@@ -686,6 +681,23 @@ return function(input, source, debug)
                 consumeWhitespaceAndNewlines()
             end
 
+            if ahead('->') then
+                fallback = "fallback"
+                -- A fallback choice is simply a "choice without choice text"
+                -- * -> out_of_options
+                --
+                -- a default choice with content in it, using an "choice then arrow" (consume the arrow)
+                -- * ->
+                --   text
+                setMark()
+                consume('->')
+                consumeWhitespace()
+                if not ahead('\n') then
+                    resetToMark()
+                    -- this will be parsed as a normal divert later
+                end
+            end
+
             local t1 = optionText()
 
             local t2 = nil
@@ -698,6 +710,7 @@ return function(input, source, debug)
             local t3 = optionText()
 
             consumeWhitespace()
+
             local insertNl = ahead('\n')
             consumeWhitespaceAndNewlines()
 
@@ -716,7 +729,7 @@ return function(input, source, debug)
                 end
             end
             -- TODO use named arguments or some other mechanism
-            return token('option', nesting, {t1}, {t2}, {t3}, name, sticky, conditions, body)
+            return token('option', nesting, {t1}, {t2}, {t3}, name, sticky, conditions, body, fallback)
         end
 
         -- choice wraps multiple options + an optional gather
@@ -1606,6 +1619,7 @@ return function(input, source, debug)
         inkText = function(opts)
             local result = {} -- TODO just table or 'block'?
 
+            consumeWhitespaceAndNewlines()
             while not isAtEnd() do
 
                 local startCursor = current

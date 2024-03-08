@@ -1398,12 +1398,19 @@ return function (globalTree, debuggg)
 
             local options = tree[pointer][2]
             local gather = tree[pointer][3]
+            local fallbackOption = nil
 
             s.currentChoices = {}
 
             for _, option in ipairs(options) do
                 local sticky = option[7] == "sticky" -- TODO
+                local fallback = option[10] == "fallback"
                 local displayOption = sticky or not option.used -- TODO seen counter
+
+                if fallback then
+                    fallbackOption = option
+                    displayOption = false
+                end
 
                 if displayOption then
                     for _, condition in ipairs(option[8]) do
@@ -1436,10 +1443,17 @@ return function (globalTree, debuggg)
 
             s.canContinue = canContinue()
 
-            if #s.currentChoices == 0 and gather then
-                stepInto(gather[3])
-                update()
-                return
+            if #s.currentChoices == 0 then
+                if gather then
+                    stepInto(gather[3])
+                end
+                if fallbackOption then
+                    stepInto(fallbackOption[9])
+                end
+                if fallbackOption or gather then
+                    update()
+                    return
+                end
             end
 
             pointer = pointer + 1
