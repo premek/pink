@@ -725,8 +725,14 @@ return function (globalTree, debuggg)
             for _, e in ipairs(self.buffer) do
                 if e['glue'] then
                     glue = true
-                    while t[#t] == '\n' do
-                        table.remove(t)
+                    for i=#t, 1, -1 do
+                        if t[i] == '\n' then
+                            table.remove(t, i)
+                        elseif t[i] == ' ' then
+                            local _ -- keep spaces, but keep glueing
+                        elseif type(t[i])=='string' then -- don't stop glueing at instructions
+                            break
+                        end
                     end
                 elseif glue and e=='\n' then
                     local _
@@ -1483,6 +1489,7 @@ return function (globalTree, debuggg)
 
             local lineStart = tree[pointer][3]
             if not lineStart then
+                _debug("AAA")
                 out:instr('glue')
             end
             local val = getValue(tree[pointer])
