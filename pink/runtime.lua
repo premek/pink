@@ -818,7 +818,7 @@ return function (globalTree, debuggg)
         return is(what, tree[pointer])
     end
 
-    getEnv = function(name, token)
+    local getEnvOptional = function(name)
         local e = env
         while e ~= nil do
             local val = e[name]
@@ -827,9 +827,16 @@ return function (globalTree, debuggg)
             end
             e=e._parent
         end
-        -- FIXME detect on compile time
-        _debug(name, env)
-        err('unresolved variable: ' .. name, token)
+    end
+
+    getEnv = function(name, token)
+        local val, e = getEnvOptional(name)
+        if val == nil then
+            -- FIXME detect on compile time
+            _debug(name, env)
+            err('unresolved variable: ' .. name, token)
+        end
+        return val, e
     end
 
     local stepInto = function(block, opts)
@@ -954,14 +961,23 @@ return function (globalTree, debuggg)
     end
 
     local currentKnot = nil
-    local goTo = function(path, args)
+    local goTo
+    goTo = function(path, args)
         _debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
             pointer = #tree+1
             callstack={} -- ? do not step out anywhere
+            return
+        end
 
-        elseif path:find('%.') ~= nil then
+        local val = getEnvOptional(path)
+        if is('divert', val) then
+            goTo(val[2])
+            return
+        end
+
+        if path:find('%.') ~= nil then
             -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
             local _, _, p1, p2 = path:find("(.+)%.(.+)")
 
@@ -1021,7 +1037,7 @@ return function (globalTree, debuggg)
             error("unknown path: " .. path) -- TODO check at compile time?
         end
 
-        s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
+        -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
     end
 
     local isTruthy = function(a)
