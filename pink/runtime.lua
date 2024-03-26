@@ -850,6 +850,7 @@ return function (globalTree, debuggg)
         local newEnv = opts.env or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
+        _debug(env)
         tree = block
         pointer = 1
     end
@@ -897,6 +898,7 @@ return function (globalTree, debuggg)
     -- args: the actual values or expressions passed to the function/knot when calling it
     -- returns a new env with names of params set to argument values
     local getArgumentsEnv = function(params, args)
+        _debug("getArguments", "params", params, "args", args)
         args=args or {}
         local newEnv = {}
         for i = 1, #params do
@@ -908,7 +910,7 @@ return function (globalTree, debuggg)
                 local refName = arg[2]
                 if paramName ~= refName then
                     -- the referenced variable has different name inside the function
-                    -- (the paramtere has different name than what's used when calling the fn)
+                    -- (the parameter has a different name than what's used when calling the fn)
                     -- we will point to the same value
                     -- but when assigning to it we cannot just replace it in the local env
                     newEnv[paramName] = {'ref', refName}
@@ -917,7 +919,7 @@ return function (globalTree, debuggg)
                 -- do not create a local variable that would reference to itself and create a loop
             elseif paramType == '->' then
                 requireType(arg, 'divert')
-                -- TODO
+                newEnv[paramName] = arg
             else
                 -- get values from old env, set new env only after all vars are resolved from the old one
                 newEnv[paramName] = getValue(arg)
