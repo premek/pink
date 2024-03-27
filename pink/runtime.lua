@@ -571,7 +571,7 @@ return function (globalTree, debuggg)
         -- same type
         if a[1]==b[1] then
             return {"bool", a[2]==b[2]}
-            -- TODO resolve path when comparing diverts?
+                -- TODO resolve path when comparing diverts?
         end
 
         return {'bool', false}
@@ -975,7 +975,7 @@ return function (globalTree, debuggg)
 
         local val = getEnvOptional(path)
         if is('divert', val) then
-            goTo(val[2])
+            goTo(val[2], args)
             return
         end
 
