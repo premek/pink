@@ -850,7 +850,6 @@ return function (globalTree, debuggg)
         local newEnv = opts.env or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
-        _debug(env)
         tree = block
         pointer = 1
     end
@@ -1472,6 +1471,9 @@ return function (globalTree, debuggg)
                     stepInto(gather[3])
                 end
                 if fallbackOption then
+                    if gather then
+                        returnTo(gather[3])
+                    end
                     stepInto(fallbackOption[9])
                 end
                 if fallbackOption or gather then
@@ -1724,10 +1726,10 @@ return function (globalTree, debuggg)
         end
         choice.option.used = true -- FIXME store somewhere else, support save/load
 
-
         if choice.gather then
             returnTo(choice.gather[3])
         end
+
         stepInto(choice.option[9])
 
         s.currentChoices = {}

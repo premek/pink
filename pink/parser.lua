@@ -716,12 +716,6 @@ return function(input, source, debug)
 
             local body = optionBody(nesting+1) -- the parameter will come back to this function as minNesting
             if #t1[2] > 0 or #t3[2] > 0 then
-                -- FIXME
-                --local str = t1
-                --if t3:sub(1,1) == ' ' and t1:sub(-1) == ' ' then
-                --    str = str:sub(1, -2)
-                --end
-                --str = str .. t3
                 table.insert(body, 1, t1) -- FIXME
                 table.insert(body, 2, t3) -- FIXME
                 if insertNl then
