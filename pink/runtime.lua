@@ -541,8 +541,8 @@ return function (globalTree, debuggg)
 
     local eq = function(a,b)
         _debug("EQ", a, b)
-        requireType(a, 'bool', 'str', 'float', 'int', 'list', 'el')
-        requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
+        requireType(a, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
+        requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
 
         -- str and bool/num
         if a[1] == 'str' or b[1] == 'str' then
@@ -571,6 +571,7 @@ return function (globalTree, debuggg)
         -- same type
         if a[1]==b[1] then
             return {"bool", a[2]==b[2]}
+            -- TODO resolve path when comparing diverts?
         end
 
         return {'bool', false}

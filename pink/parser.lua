@@ -388,6 +388,10 @@ return function(input, source, debug)
 
 
         term = function()
+            if ahead('->') then
+                return divert()
+            end
+
             if ahead('"') then
                 return stringLiteral()
             end
@@ -466,6 +470,7 @@ return function(input, source, debug)
 
             while aheadAnyOf(table.unpack(operators)) do
                 if ahead('//') then break end -- '/' vs '//' -- FIXME not needed if we had tokens
+                if ahead('->') then break end -- '-' vs '->' -- FIXME not needed if we had tokens
                 local operator = consumeAnyOf(table.unpack(operators))
                 consumeWhitespace()
 
