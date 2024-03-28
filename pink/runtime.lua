@@ -689,9 +689,9 @@ return function (globalTree, debuggg)
 
     env = rootEnv -- TODO should env be part of the callstack?
 
-    local returnValue -- set when interpreting a 'return' statement, read after stepping 'Out'
-    -- does it have to be a stack?
-    -- TODO add isReturning boolean flag  - allow returning nil
+    -- set when interpreting a 'return' statement, read after stepping 'Out'
+    -- TODO does it have to be a stack?
+    local returnValue = {present = false, value = nil}
 
     -- story - this table will be passed to client code
     local s = {
@@ -708,6 +708,10 @@ return function (globalTree, debuggg)
     local knots = {}
     local tags = {} -- maps (pointer to para) -> (list of tags)
     local tagsForContentAtPath = {}
+
+    local next = function()
+        pointer = pointer + 1
+    end
 
     -- TODO rewrite
     local out = {
@@ -988,7 +992,7 @@ return function (globalTree, debuggg)
 
             -- enter inside the knot
             if isNext('knot') then
-                pointer = pointer + 1
+                next()
             end
 
             incrementSeenCounter(p1) -- TODO not just knots
@@ -997,12 +1001,13 @@ return function (globalTree, debuggg)
             currentKnot = p1
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
-                pointer = pointer + 1
+                next()
             end
 
         elseif knots[currentKnot] and knots[currentKnot][path] then
             tree=globalTree --TODO store with knots?
-            pointer = knots[currentKnot][path].pointer + 1
+            pointer = knots[currentKnot][path].pointer
+            next()
 
             -- FIXME hack
         elseif knots["//no-knot"] and knots["//no-knot"][path] then
@@ -1032,7 +1037,7 @@ return function (globalTree, debuggg)
             currentKnot = path
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
-                pointer = pointer + 1
+                next()
             end
 
         else
@@ -1055,7 +1060,7 @@ return function (globalTree, debuggg)
 
         while isNext('tag') do
             table.insert(s.globalTags, t[pointer][2])
-            pointer = pointer + 1
+            next()
         end
 
 
@@ -1289,10 +1294,10 @@ return function (globalTree, debuggg)
                 stepInto(body, {env=newEnv})
                 out:instr('trim')
                 update()
-                local ret = returnValue
+                local ret = returnValue.value
                 out:instr('trimEnd')
                 _debug('RET', ret)
-                returnValue = nil
+                returnValue = {present = false, value = nil}
                 return ret
             elseif target[1] == 'list' then
                 if #args == 0 then
@@ -1336,7 +1341,7 @@ return function (globalTree, debuggg)
 
         _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer][1] or 'END'))
 
-        if returnValue ~= nil then
+        if returnValue.present then
             -- do not proceed when returning from a (nested?) function call
             return
         end
@@ -1358,7 +1363,7 @@ return function (globalTree, debuggg)
         if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') or
             isNext('knot') or isNext('fn') or isNext('listdef')
         then
-            pointer = pointer + 1
+            next()
             update()
             return
         end
@@ -1366,7 +1371,7 @@ return function (globalTree, debuggg)
         if isNext('tempvar') then
             -- TODO scope
             env[tree[pointer][2]] = getValue(tree[pointer][3])
-            pointer = pointer + 1
+            next()
             update()
             return
         end
@@ -1400,16 +1405,23 @@ return function (globalTree, debuggg)
                 end
             end
             _debug(env)
-            pointer = pointer + 1
+            next()
             update()
             return
         end
 
 
         if isNext('return') then
-            returnValue = getValue(tree[pointer][2])
+            returnValue = {present=true, value=getValue(tree[pointer][2])}
             stepOut()
-            --update()
+            next()
+            return
+        end
+
+        if isNext('tunnelreturn') then
+            stepOut()
+            next()
+            update()
             return
         end
 
@@ -1483,7 +1495,7 @@ return function (globalTree, debuggg)
                 end
             end
 
-            pointer = pointer + 1
+            next()
             return
         end
 
@@ -1501,7 +1513,7 @@ return function (globalTree, debuggg)
             if val ~= nil then
                 out:add(output(val))
             end
-            pointer = pointer + 1
+            next()
             update()
             return
             --table.insert(out, s.continue())
@@ -1517,7 +1529,7 @@ return function (globalTree, debuggg)
             if val ~= nil then
                 out:add(output(val))
             end
-            pointer = pointer + 1
+            next()
             update()
             return
 
@@ -1525,19 +1537,19 @@ return function (globalTree, debuggg)
             -- ~ fn()
             -- call but ignore the result
             getValue(tree[pointer])
-            pointer = pointer + 1
+            next()
             update()
             return
 
         elseif isNext('todo') then
             log(tree[pointer][2], tree[pointer]) -- TODO
-            pointer = pointer + 1
+            next()
             update()
             return
 
         elseif isNext('glue') then
             out:instr('glue')
-            pointer = pointer + 1
+            next()
             update()
             return
 
@@ -1564,7 +1576,7 @@ return function (globalTree, debuggg)
             --table.insert(out, rest)
         elseif isNext('stitch') then
             incrementSeenCounter(tree[pointer][2])
-            pointer = pointer + 1
+            next()
             update()
             return
 
@@ -1613,7 +1625,7 @@ return function (globalTree, debuggg)
             if shuf.shuffled[shuf.current] then
                 stepInto(shuf.shuffled[shuf.current], {lineStart=shuf[4]})
             else
-                pointer = pointer + 1
+                next()
             end
             update()
             return
@@ -1635,7 +1647,7 @@ return function (globalTree, debuggg)
             -- FIXME store somewhere else, support save/load, could be a "seen counter" too
             once.current = once.current or 1
             if once.current > #once[2] then
-                pointer = pointer + 1
+                next()
             else
                 stepInto(once[2][once.current], {lineStart=once[3]})
                 once.current = once.current + 1
@@ -1647,7 +1659,7 @@ return function (globalTree, debuggg)
             -- separates "a -> b" from "a\n -> b"
         elseif isNext('nl') then
             out:add('\n')
-            pointer = pointer + 1
+            next()
             update()
             return
 
@@ -1660,7 +1672,7 @@ return function (globalTree, debuggg)
                 end
             end
             -- no condition evaluated to true (and the else branch not present): do nothing
-            pointer = pointer + 1
+            next()
             update()
             return
 
@@ -1682,12 +1694,12 @@ return function (globalTree, debuggg)
                         -- we just stepped out of a function without a return statement
                         out:instr('trimEnd')
                     end
-                    pointer = pointer + 1 -- step after the call where we stepped in
+                    next()
                     update()
                     return
                 end
             end
-            pointer = pointer + 1
+            next()
             s.canContinue = canContinue()
             return
         end

@@ -528,7 +528,7 @@ return function(input, source, debug)
                 consume("->")
                 consumeWhitespace()
                 if eolAhead() then
-                    return token('return')
+                    return token('tunnelreturn') -- FIXME name, could it be the same as normal return?
                 end
                 -- ->-> return_to -- return as normal divert?
                 -- TODO it should step out and then divert
