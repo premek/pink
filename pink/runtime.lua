@@ -621,11 +621,14 @@ return function (globalTree, debuggg)
     local contains = function(a,b)
         if is('str', a) and is('str', b) then
             return {"bool", string.find(a[2], b[2])}
+        elseif is('el', a) and is('el', b) then
+            return eq(a,b)
         elseif is('list', a) and is('el', b) then
             return {"bool", listContains(a, b)}
         elseif is('list', a) and is('list', b) then
             return {"bool", listContainsAll(a, b)}
         end
+        _debug(a, b)
         err('unexpected type')
     end
 
@@ -1413,13 +1416,13 @@ return function (globalTree, debuggg)
 
         if isNext('return') then
             returnValue = {present=true, value=getValue(tree[pointer][2])}
-            stepOut()
+            stepOut() --TODO step out of the function, not just the last block we stepped into            
             next()
             return
         end
 
         if isNext('tunnelreturn') then
-            stepOut()
+            stepOut() --TODO step out of the tunnel, not just the last block we stepped into
             next()
             update()
             return
