@@ -539,6 +539,12 @@ return function (globalTree, debuggg)
     end
 
 
+    local notFn = function(a)
+        requireType(a, 'bool', 'int', 'float') -- str not allowed
+
+        return {"bool", not toBool(a)[2]}
+    end
+
     local eq = function(a,b)
         _debug("EQ", a, b)
         requireType(a, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
@@ -574,11 +580,11 @@ return function (globalTree, debuggg)
                 -- TODO resolve path when comparing diverts?
         end
 
-        return {'bool', false}
+        err('not yet implemented')
     end
 
     local notEq = function(a,b)
-        return {"bool", not eq(a,b)[2]}
+        return notFn(eq(a,b))
     end
 
     local gt
@@ -635,13 +641,6 @@ return function (globalTree, debuggg)
     local notContains = function(a,b)
         return {"bool", not contains(a,b)[2]}
     end
-
-    local notFn = function(a)
-        requireType(a, 'bool', 'int', 'float') -- str not allowed
-
-        return {"bool", not toBool(a)[2]}
-    end
-
 
     local orFn = function(a,b)
         requireType(a, 'bool', 'int', 'float') -- str not allowed
@@ -895,7 +894,9 @@ return function (globalTree, debuggg)
 
     local incrementSeenCounter = function(path)
         _debug('increment seen counter: '..path)
-        rootEnv[path][2] = rootEnv[path][2] + 1 --FIXME??
+        local var = rootEnv[path]
+        requireType(var, 'int')
+        var[2] = var[2] + 1
     end
 
     local update, getValue
@@ -1416,8 +1417,9 @@ return function (globalTree, debuggg)
 
         if isNext('return') then
             returnValue = {present=true, value=getValue(tree[pointer][2])}
-            stepOut() --TODO step out of the function, not just the last block we stepped into            
+            stepOut() --TODO step out of the function, not just the last block we stepped into
             next()
+            update()
             return
         end
 
