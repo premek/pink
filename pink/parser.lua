@@ -26,23 +26,18 @@ return function(input, source, debug)
         end
 
 
-        local mark
-
-        local setMark = function()
-            mark={current=current,
+        local newMark = function()
+            return {
+                current=current,
                 line = line,
                 column = column,
             }
         end
 
-        local resetToMark = function()
-            if mark == nil then
-                errorAt('mark not set')
-            end
+        local resetTo = function(mark)
             current=mark.current
             line = mark.line
             column = mark.column
-            mark = nil
         end
 
         local isAtEnd = function()
@@ -85,12 +80,6 @@ return function(input, source, debug)
             end
             return true -- start of the first line
         end
-
-        local peekCode = function()
-            if isAtEnd() then return nil end
-            return input:byte(current, current)
-        end
-
 
         local ahead = function(str)
             return str == peek(#str)
@@ -253,32 +242,35 @@ return function(input, source, debug)
             return textLine()
         end
 
+        local charsRange = function(tbl, from, to)
+            for i = string.byte(from), string.byte(to or from) do
+                tbl[string.char(i)] = true
+            end
+        end
+        local identifierChars = {}
+        charsRange(identifierChars, '_')
+        charsRange(identifierChars, '.')
+        charsRange(identifierChars, 'A', 'Z')
+        charsRange(identifierChars, 'a', 'z')
+        charsRange(identifierChars, '0', '9')
+
+        local identifierCharAhead = function()
+            return identifierChars[peek(1)]
+        end
+
         local identifier = function()
+            if not identifierCharAhead() then
+                errorAt('identifier expected')
+            end
             local s = current
             -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
             -- /WritingWithInk.md#part-6-international-character-support-in-identifiers
-            local c = peekCode()
-            local first = true
-            while c ~= nil and (
-                -- TODO
-                c==95 -- _
-                or c==46 -- .
-                or (c>=65 and c<=90) -- A-Z
-                or (c>=97 and c<=122) -- a-z
-                or (not first and c>=48 and c<=57)
-                ) do -- TODO!
-
-
+            while identifierCharAhead() do
                 next()
-                c = peekCode()
-                first = false
             end
-            if s == current then -- nothing consumed
-                errorAt('identifier expected')
-            end
+
             return currentText(s)
         end
-
 
         -- cross dependency, must be defined earlier
         local term, expression, divert, inkText, knotBody,functionBody,
@@ -310,9 +302,14 @@ return function(input, source, debug)
 
         -- TODO name!
         local intLiteral = function()
+            local mark = newMark()
             local val = number()
             if ahead('.') then
                 return floatLiteral(val)
+            end
+            if identifierCharAhead() then
+                resetTo(mark)
+                return token('ref', identifier())
             end
             return token('int', tonumber(val))
         end
@@ -400,11 +397,11 @@ return function(input, source, debug)
             end
 
             if ahead('(') then -- TODO this is expression and not term?
-                setMark()
+                local mark = newMark()
                 consume('(')
                 consumeWhitespace()
                 if ahead(')') then
-                    resetToMark()
+                    resetTo(mark)
                     return listLiteral()
                 end
 
@@ -412,7 +409,7 @@ return function(input, source, debug)
                 consumeWhitespace()
 
                 if exp[1] == 'ref' and ahead(',') then
-                    resetToMark()
+                    resetTo(mark)
                     return listLiteral()
                 end
                 consume(')')
@@ -538,14 +535,14 @@ return function(input, source, debug)
             local args = listOf(argument)
             local tunnel = nil
             if ahead('->') then
-                setMark()
+                local mark = newMark()
                 consume("->")
                 consumeWhitespace()
                 tunnel = 'tunnel'
                 if not eolAhead() then
                     -- Tunnels can be chained together, or finish on a normal divert
                     -- -> tunnel -> tunnel -> divert
-                    resetToMark()
+                    resetTo(mark)
                     -- set the current one as a tunnel but parse the arrow again as part of the next one
                     -- the final '->' will stay consumed in this case: -> tunnel ->  \n
                 end
@@ -622,7 +619,7 @@ return function(input, source, debug)
         local gather = function(minNesting)
             if not ahead('-') then return end
 
-            setMark()
+            local mark = newMark()
             local nesting = 0
             while ahead("-") and not ahead("->") do
                 consume("-")
@@ -631,7 +628,7 @@ return function(input, source, debug)
             end
             -- TODO test unbalanced option/gather nesting
             if nesting < minNesting then
-                resetToMark()
+                resetTo(mark)
                 return
             end
 
@@ -656,7 +653,7 @@ return function(input, source, debug)
             local sticky = (bulletSymbol == '+') and "sticky" or nil
             local fallback = nil
 
-            setMark()
+            local mark = newMark()
             local nesting = 0
             while ahead(bulletSymbol) do
                 consume(bulletSymbol)
@@ -664,7 +661,7 @@ return function(input, source, debug)
                 consumeWhitespace()
             end
             if nesting < minNesting then
-                resetToMark()
+                resetTo(mark)
                 return
             end
 
@@ -694,11 +691,11 @@ return function(input, source, debug)
                 -- a default choice with content in it, using an "choice then arrow" (consume the arrow)
                 -- * ->
                 --   text
-                setMark()
+                local mark2 = newMark()
                 consume('->')
                 consumeWhitespace()
                 if not ahead('\n') then
-                    resetToMark()
+                    resetTo(mark2)
                     -- this will be parsed as a normal divert later
                 end
             end
@@ -874,7 +871,7 @@ return function(input, source, debug)
         local branch = function(first, isFirstBranch)
             consume('-')
             consumeWhitespaceAndNewlines()
-            setMark()
+            local mark = newMark()
 
             local condition, branch
             if ahead('else') then
@@ -910,7 +907,7 @@ return function(input, source, debug)
                     --   -textiftrue
                     --   -textiffalse
                     -- }
-                    resetToMark() -- jump after the '-' of the current branch
+                    resetTo(mark) -- jump after the '-' of the current branch
 
                     branch = {branchInkText()}
                     if isFirstBranch then
@@ -1088,7 +1085,7 @@ return function(input, source, debug)
             end
             consumeWhitespaceAndNewlines()
 
-            setMark()
+            local mark = newMark()
 
             -- TODO I108
             -- {a||b} is a sequence of 3 inktests, not a single expression
@@ -1104,7 +1101,7 @@ return function(input, source, debug)
 
             if firstExpressionParsed and ahead(':') then
                 consume(':')
-                setMark()
+                local mark2 = newMark()
                 consumeWhitespaceAndNewlines()
                 local branches = {}
                 if ahead('-') and not ahead('->') then
@@ -1116,7 +1113,7 @@ return function(input, source, debug)
                 else
                     -- Conditional block: {expr:textIfTrue}
                     -- newlines after the first ':' significant
-                    resetToMark() -- jump back after the ':'
+                    resetTo(mark2) -- jump back after the ':'
                     consumeWhitespace()
                     table.insert(branches, {first, {branchInkText()}}) -- TODO wrap
                     consumeWhitespaceAndNewlines()
@@ -1139,7 +1136,7 @@ return function(input, source, debug)
 
             -- reset parser pointer back after the opening '{'
             -- and read the first element again, this time as ink text
-            resetToMark()
+            resetTo(mark)
             first = inkText()
             consumeWhitespace()
 
