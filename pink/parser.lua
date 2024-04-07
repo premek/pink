@@ -922,6 +922,32 @@ return function(input, source, debug)
             return {condition, branch}
         end
 
+        local separatedList = function() -- TODO name
+            consumeWhitespaceAndNewlines()
+
+            local result = {inkText()}
+            while ahead('|') do
+                consume('|')
+                local element = inkText()
+                if element ~= nil then
+                    table.insert(result, element)
+                end
+            end
+            return result
+        end
+        local altBranches = function() -- TODO name
+            local result = {}
+            while ahead('-') and not ahead('->') do
+                consume('-')
+                consumeWhitespaceAndNewlines() -- ?
+                local element = branchInkText()
+                if element ~= nil then
+                    table.insert(result, {element}) -- TODO inkText in a table?
+                end
+            end
+            return result
+        end
+
         --TODO name? used for sequences, variable printing, conditional text, cond. option
         local alternative = function()
             if not ahead('{') then return end
@@ -934,16 +960,7 @@ return function(input, source, debug)
             -- Cycles are like sequences, but they loop their content.
             if ahead('&') then
                 consume('&')
-                -- TODO same as seq below, extract to a function
-                consumeWhitespaceAndNewlines()
-                local result = {inkText()}
-                while ahead('|') do
-                    consume('|')
-                    local element = inkText()
-                    if element ~= nil then
-                        table.insert(result, element)
-                    end
-                end
+                local result = separatedList()
                 consume("}")
                 return {'cycle', result, lineStart}
             end
@@ -953,16 +970,7 @@ return function(input, source, debug)
             -- (as a sequence with a blank last entry.)
             if ahead('!') then
                 consume('!')
-                -- TODO same as seq below, extract to a function
-                consumeWhitespaceAndNewlines()
-                local result = {inkText()}
-                while ahead('|') do
-                    consume('|')
-                    local element = inkText()
-                    if element ~= nil then
-                        table.insert(result, element)
-                    end
-                end
+                local result = separatedList()
                 consume("}")
                 return {'once', result, lineStart}
             end
@@ -970,16 +978,7 @@ return function(input, source, debug)
             -- shuffle (randomised output)
             if ahead('~') then
                 consume('~')
-                -- TODO same as seq below, extract to a function
-                consumeWhitespaceAndNewlines()
-                local result = {inkText()}
-                while ahead('|') do
-                    consume('|')
-                    local element = inkText()
-                    if element ~= nil then
-                        table.insert(result, element)
-                    end
-                end
+                local result = separatedList()
                 consume("}")
                 return {'shuf', 'cycle', result, lineStart}
             end
@@ -991,15 +990,7 @@ return function(input, source, debug)
                 consumeWhitespaceAndNewlines()
                 consume(':')
                 consumeWhitespaceAndNewlines()
-                local result = {}
-                while ahead('-') and not ahead('->') do
-                    consume('-')
-                    consumeWhitespaceAndNewlines()
-                    local element = branchInkText()
-                    if element ~= nil then
-                        table.insert(result, {element}) -- TODO inkText in a table?
-                    end
-                end
+                local result = altBranches()
                 consume("}")
                 return {'seq', result, lineStart}
             end
@@ -1022,15 +1013,7 @@ return function(input, source, debug)
                 end
                 consume(':')
                 consumeWhitespaceAndNewlines()
-                local result = {}
-                while ahead('-') and not ahead('->') do
-                    consume('-')
-                    consumeWhitespaceAndNewlines() -- ?
-                    local element = branchInkText()
-                    if element ~= nil then
-                        table.insert(result, {element}) -- TODO inkText in a table?
-                    end
-                end
+                local result = altBranches()
                 consume("}")
                 return {'shuf', shuffleType, result, lineStart}
             end
@@ -1042,15 +1025,7 @@ return function(input, source, debug)
                 consumeWhitespaceAndNewlines()
                 consume(':')
                 consumeWhitespaceAndNewlines()
-                local result = {}
-                while ahead('-') and not ahead('->') do
-                    consume('-')
-                    consumeWhitespaceAndNewlines()
-                    local element = branchInkText()
-                    if element ~= nil then
-                        table.insert(result, {element}) -- TODO inkText in a table?
-                    end
-                end
+                local result = altBranches()
                 consume("}")
                 return {'cycle', result, lineStart}
             end
@@ -1064,15 +1039,7 @@ return function(input, source, debug)
                 consumeWhitespaceAndNewlines()
                 consume(':')
                 consumeWhitespaceAndNewlines()
-                local result = {}
-                while ahead('-') and not ahead('->') do
-                    consume('-')
-                    consumeWhitespaceAndNewlines()
-                    local element = branchInkText()
-                    if element ~= nil then
-                        table.insert(result, {element}) -- TODO inkText in a table?
-                    end
-                end
+                local result = altBranches()
                 consume("}")
                 return {'once', result, lineStart}
             end
