@@ -186,6 +186,13 @@ return function (globalTree, debuggg)
         return {'int', math.random(minInclusive[2], maxInclusive[2])}
     end
 
+    local readCount = function(a)
+        requireType(a, 'divert')
+        local var = getEnv(a[2])
+        requireType(var, 'int')
+        return var
+    end
+
     local add = function(a,b)
         requireType(a, 'bool', 'str', 'float', 'int', 'list')
         requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
@@ -663,6 +670,7 @@ return function (globalTree, debuggg)
         FLOAT={'native', float},
         SEED_RANDOM={'native', seedRandom},
         RANDOM={'native', random},
+        READ_COUNT={'native', readCount},
         ['+']={'native', add},
         ['-']={'native', sub},
         ['*']={'native', mul},
