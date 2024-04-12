@@ -709,7 +709,7 @@ return function (globalTree, debuggg)
     local pointer = 1
     local callstack = {}
     local knots = {}
-    local tags = {} -- maps (pointer to para) -> (list of tags)
+    local tags = {}
     local tagsForContentAtPath = {}
 
     local next = function()
@@ -1095,11 +1095,6 @@ return function (globalTree, debuggg)
             end
         end
 
-
-
-        local aboveTags = {}
-        --local lastPara = {}
-
         for p, n in ipairs(t) do
 
             if is('ink', n) then
@@ -1176,11 +1171,11 @@ return function (globalTree, debuggg)
             --    end
             --  end
 
-            if is('para', n) then
-                tags[p] = aboveTags
-                aboveTags = {}
-                -- lastPara = p
-            end
+            --if is('para', n) then
+            --    tags[p] = aboveTags
+            --    aboveTags = {}
+            --    -- lastPara = p
+            --end
 
         end
 
@@ -1341,9 +1336,17 @@ return function (globalTree, debuggg)
             return
         end
 
-        if isNext('tag') or isNext('var') or isNext('const') or isNext('nop') or
+        if isNext('var') or isNext('const') or isNext('nop') or
             isNext('knot') or isNext('fn') or isNext('listdef')
         then
+            next()
+            update()
+            return
+        end
+
+        if isNext('tag') then
+            _debug("TAG")
+            table.insert(tags, tree[pointer][2])
             next()
             update()
             return
@@ -1687,8 +1690,6 @@ return function (globalTree, debuggg)
         end
 
 
-        s.currentTags = tags[pointer] or {}
-
         if lastpointer == pointer and lasttree == tree then
             _debug(tree, pointer)
             err('nothing consumed in continue at pointer '..pointer)
@@ -1701,6 +1702,8 @@ return function (globalTree, debuggg)
     s.continue = function()
         _debug("out", out.buffer)
         local res = trim(out:toString())
+        s.currentTags = tags
+        tags = {}
         out:clear()
         update()
         _debug("OUT:"..res)
