@@ -826,6 +826,32 @@ return function (globalTree, debuggg)
         return is(what, tree[pointer])
     end
 
+
+    local splitName = function(name)
+        local first
+        local rest = {}
+        for token in name:gmatch("[^.]+") do
+            if first == nil then
+                first = token
+            else
+                table.insert(rest, token)
+            end
+        end
+        return first, rest
+    end
+
+    local getChildren = function(parentName, path, tbl, token)
+        for _, part in ipairs(path) do
+            if not tbl._children or not tbl._children[part] then
+                _debug(parentName, path, env)
+                err('error accessing "' .. part .. '" in "' .. parentName .. '"', token)
+            end
+            tbl = tbl._children[part]
+            parentName = parentName .. '.' .. part
+        end
+        return tbl
+    end
+
     local getEnvOptional = function(name)
         local e = env
         while e ~= nil do
@@ -838,12 +864,14 @@ return function (globalTree, debuggg)
     end
 
     getEnv = function(name, token)
-        local val, e = getEnvOptional(name)
+        local first, rest = splitName(name)
+        local val, e = getEnvOptional(first)
         if val == nil then
             -- FIXME detect on compile time
             _debug(name, env)
             err('unresolved variable: ' .. name, token)
         end
+        val = getChildren(first, rest, val, token)
         return val, e
     end
 
