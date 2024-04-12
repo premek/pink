@@ -82,7 +82,7 @@ return function (globalTree, debuggg)
     local env
     local getEnv
 
-    local listPlus, listMinus
+    local listPlus, listMinus, listCopy, listInc
 
     local toInt = function(a)
         requirePinkType(a)
@@ -197,6 +197,9 @@ return function (globalTree, debuggg)
         if a[1] == 'list' and (b[1] == 'list' or b[1] == 'el') then -- FIXME
             return listPlus(a, b)
         end
+        if a[1] == 'list' and b[1] == 'int' then
+            return listInc(a, b[2])
+        end
 
         if a[1] == 'bool' then
             a = toInt(a)
@@ -221,15 +224,11 @@ return function (globalTree, debuggg)
             return listMinus(a, b)
         end
 
-        if a[1] == 'bool' then
-            a = toInt(a)
-        end
         if b[1] == 'bool' then
             b = toInt(b)
         end
 
-        local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
-        return {t, a[2] - b[2]}
+        return add(a, {b[1], -b[2]})
     end
 
     local mul = function(a,b)
@@ -372,7 +371,7 @@ return function (globalTree, debuggg)
         return listFromEls(els, {})
     end
 
-    local listCopy = function(list)
+    listCopy = function(list)
         local res = {}
         for listName, els in pairs(list[2]) do
 
@@ -397,6 +396,7 @@ return function (globalTree, debuggg)
         listSetInternal(list, el, nil)
     end
 
+    -- TODO name list functions
     listPlus = function(a, b)
         requireType(a, 'list')
         requireType(b, 'el', 'list')
@@ -466,9 +466,11 @@ return function (globalTree, debuggg)
     -- sets the present value of the list 'a' times to the next element
     -- empty list stays empty
     -- list with elements from different listDefs: undefined??? --TODO
-    local listInc = function(list, a)
-        local value=listValueInt(list) + a
-        listSetValue(list, value)
+    listInc = function(list, a)
+        local new = listCopy(list)
+        local value=listValueInt(new) + a
+        listSetValue(new, value)
+        return new
     end
 
     local listAll = function(a)
@@ -494,11 +496,10 @@ return function (globalTree, debuggg)
     end
 
     local listInvert = function(list)
-        -- TODO optimise
         local new = listAll(list)
         for listName, els in pairs(list[2]) do
             for elName, _ in pairs(els) do
-                new = listMinus(new, {'el', listName, elName})
+                listRemove(new, {'el', listName, elName})
             end
         end
         return new
@@ -880,18 +881,6 @@ return function (globalTree, debuggg)
         env = env._parent -- TODO encapsulate somehow / add to the frame?
     end
 
-    -- var = var + a
-    local addVariable = function(ref, a)
-        local name = ref[2]
-        local var = getEnv(name)
-        requireType(var, 'float', 'int', 'list')
-        if is('list', var) then
-            listInc(var, a)
-        else
-            var[2] = var[2] + a
-        end
-    end
-
     local incrementSeenCounter = function(path)
         _debug('increment seen counter: '..path)
         local var = rootEnv[path]
@@ -1256,21 +1245,9 @@ return function (globalTree, debuggg)
             local name = val[2]
             local args = val[3]
 
-            -- TODO use 'ref' attributes to call this the same as other functions
-            -- TODO check var type
-            if name == '++' then
-                addVariable(args[1], 1)
-                return
-            end
-            if name == '--' then
-                addVariable(args[1], -1)
-                return
-            end
-
             local target = getEnv(name, val)
             _debug("CALL target", target)
             -- FIXME detect unresolved function on compile time
-            --
 
             -- call divert as fn -- FIXME
             if target[1] == 'divert' then

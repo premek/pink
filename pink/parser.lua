@@ -1162,11 +1162,11 @@ return function(input, source, debug)
                 elseif ahead('++') then
                     consume('++')
                     consumeWhitespaceAndNewlines()
-                    return token('call', '++', {{'ref', id}})
+                    return token('assign', id, {'call', '+', {{'ref', id}, {'int', 1}}})
                 elseif ahead('--') then
                     consume('--')
                     consumeWhitespaceAndNewlines()
-                    return token('call', '--', {{'ref', id}})
+                    return token('assign', id, {'call', '-', {{'ref', id}, {'int', 1}}})
                 elseif ahead('-=') then
                     consume('-=')
                     consumeWhitespace()
