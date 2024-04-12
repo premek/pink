@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
 DIFF="colordiff  --side-by-side --suppress-common-lines"
+DIFF="cmp -s" #no diff output
 
 while getopts vf flag
 do
@@ -26,9 +27,12 @@ PASSES=0
 PASSED=""
 
 for P in $PATTERNS; do
+  echo
+
   if [ "$P" = "lua" ]; then
-    printf 'luacheck: '
-    TESTS=$((TESTS+1)); luacheck --codes -q . && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    printf "\nluacheck: "
+    TESTS=$((TESTS+1))
+    luacheck --codes -q . && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
 
   elif [ "$P" = "luaformat" ]; then
     echo 'luaformat...'
@@ -57,12 +61,15 @@ for P in $PATTERNS; do
     for D in "./$DIR/test/runtime/"$P; do
       TESTCASE=$(basename "$D")
       TESTS=$((TESTS+1))
+      echo
       printf '%s ' "$TESTCASE" &&
          "./$DIR/pink/pink.lua" ${VERBOSE:+"$VERBOSE"} "$D/story.ink" < "$D/input.txt" 2>&1 | $DIFF "$D/transcript.txt" - &&
-         echo "OK" && PASSED="$PASSED\n$TESTCASE" && PASSES=$((PASSES+1)) || RET=1
+         printf "OK" && PASSED="$PASSED\n$TESTCASE" && PASSES=$((PASSES+1)) || RET=1
     done
   fi
 done
+
+echo
 
 mkdir -p "test/results"
 D="$(date --iso-8601=seconds)"

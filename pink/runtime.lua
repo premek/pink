@@ -1339,6 +1339,86 @@ return function (globalTree, debuggg)
         return not out:isEmpty()
     end
 
+    local nodeUpdateAssign = function(n)
+        local name = n[2]
+        local oldValue, e = getEnv(name)
+        _debug("ASSIGN", oldValue, name, n[3])
+
+        if is('ref', oldValue) then
+            local referenced = getEnv(oldValue[2])
+
+            if is('list', referenced) then
+                oldValue = referenced
+            end
+        end
+
+        local newValue = getValue(n[3])
+        if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
+            listSet(oldValue, newValue)
+        else
+            if newValue == nil then
+                err('cannot assign nil')
+            end
+            if is('ref', oldValue) then
+                local refName = oldValue[2]
+                local _, refEnv = getEnv(refName)
+                refEnv[refName] = newValue
+            else
+                e[name] = newValue
+            end
+        end
+        _debug(env)
+    end
+
+    local nodeUpdateOutValue = function(n)
+        local val = getValue(n)
+        if val ~= nil then
+            out:add(output(val))
+        end
+    end
+    local nodeUpdateOut = function(n)
+        local lineStart = n[3]
+        if not lineStart then
+            out:instr('glue')
+        end
+        nodeUpdateOutValue(n)
+    end
+
+    local nodeUpdate = {
+        var = function() end,
+        const = function() end,
+        nop = function() end,
+        knot = function() end,
+        fn = function() end,
+        listdef = function() end,
+
+        tag = function(n)
+            table.insert(tags, n[2])
+        end,
+        tempvar = function(n)
+            env[n[2]] = getValue(n[3])
+        end,
+        assign = nodeUpdateAssign,
+        ['return'] = function(n)
+            returnValue = {present=true, value=getValue(n[2])}
+            stepOut() --TODO step out of the function, not just the last block we stepped into
+        end,
+        tunnelreturn = function() stepOut(); end,
+
+        str = nodeUpdateOutValue,
+        bool = nodeUpdateOutValue,
+        int = nodeUpdateOutValue,
+        float = nodeUpdateOutValue,
+        ref = nodeUpdateOutValue,
+
+        out = nodeUpdateOut,
+
+        call = function(n) getValue(n); end, -- ~ fn() -- call but ignore the result
+        todo = function(n) log(n[2], n); end,
+        glue = function() out:instr('glue'); end,
+        nl = function() out:add('\n'); end, -- separates "a -> b" from "a\n -> b"
+
+    }
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
     update = function ()
@@ -1364,75 +1444,8 @@ return function (globalTree, debuggg)
             return
         end
 
-        if isNext('var') or isNext('const') or isNext('nop') or
-            isNext('knot') or isNext('fn') or isNext('listdef')
-        then
-            next()
-            update()
-            return
-        end
-
-        if isNext('tag') then
-            _debug("TAG")
-            table.insert(tags, tree[pointer][2])
-            next()
-            update()
-            return
-        end
-
-        if isNext('tempvar') then
-            -- TODO scope
-            env[tree[pointer][2]] = getValue(tree[pointer][3])
-            next()
-            update()
-            return
-        end
-
-        if isNext('assign') then
-            local name = tree[pointer][2]
-            local oldValue, e = getEnv(name)
-            _debug("ASSIGN", oldValue, name, tree[pointer][3])
-
-            if is('ref', oldValue) then
-                local referenced = getEnv(oldValue[2])
-
-                if is('list', referenced) then
-                    oldValue = referenced
-                end
-            end
-
-            local newValue = getValue(tree[pointer][3])
-            if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
-                listSet(oldValue, newValue)
-            else
-                if newValue == nil then
-                    err('cannot assign nil')
-                end
-                if is('ref', oldValue) then
-                    local refName = oldValue[2]
-                    local _, refEnv = getEnv(refName)
-                    refEnv[refName] = newValue
-                else
-                    e[name] = newValue
-                end
-            end
-            _debug(env)
-            next()
-            update()
-            return
-        end
-
-
-        if isNext('return') then
-            returnValue = {present=true, value=getValue(tree[pointer][2])}
-            stepOut() --TODO step out of the function, not just the last block we stepped into
-            next()
-            update()
-            return
-        end
-
-        if isNext('tunnelreturn') then
-            stepOut() --TODO step out of the tunnel, not just the last block we stepped into
+        if tree[pointer] and nodeUpdate[tree[pointer][1]] ~= nil then
+            nodeUpdate[tree[pointer][1]](tree[pointer])
             next()
             update()
             return
@@ -1514,80 +1527,28 @@ return function (globalTree, debuggg)
 
 
 
+        -- TODO tidy up
+        --local last = #out > 0 and out[#out] or lastOut -- FIXME when the whole ink starts with glue
+        --update()
+        --            local rest = s.continue()
 
-        if isNext('str')
-            or isNext('bool')
-            or isNext('int')
-            or isNext('float')
-            or isNext('ref') --?
-        then
+        --            _debug(rest)
+        --            _debug(last)
 
-            local val = getValue(tree[pointer])
-            if val ~= nil then
-                out:add(output(val))
-            end
-            next()
-            update()
-            return
-            --table.insert(out, s.continue())
+        --[[ if last output ended with a space and this one starts with one, we want just one space
+        if (rest:sub(1,1) == ' ' or rest:sub(1,1) == '\n')
+        and last
+        and (last:sub(-1) == ' ' or last:sub(-1) == '\n') then
 
-        elseif isNext('out') then
+        rest = ltrim(rest)
+        end
+        --]]
+        -- TODO whitespace when printing, not just here
+        -- https://github.com/inkle/ink/blob/
+        -- 6a512190365002f54bd501b0863ded40123cb8e5/ink-engine-runtime/StoryState.cs#L894
 
-            local lineStart = tree[pointer][3]
-            if not lineStart then
-                _debug("AAA")
-                out:instr('glue')
-            end
-            local val = getValue(tree[pointer])
-            if val ~= nil then
-                out:add(output(val))
-            end
-            next()
-            update()
-            return
-
-        elseif isNext('call') then
-            -- ~ fn()
-            -- call but ignore the result
-            getValue(tree[pointer])
-            next()
-            update()
-            return
-
-        elseif isNext('todo') then
-            log(tree[pointer][2], tree[pointer]) -- TODO
-            next()
-            update()
-            return
-
-        elseif isNext('glue') then
-            out:instr('glue')
-            next()
-            update()
-            return
-
-            -- TODO tidy up
-            --local last = #out > 0 and out[#out] or lastOut -- FIXME when the whole ink starts with glue
-            --update()
-            --            local rest = s.continue()
-
-            --            _debug(rest)
-            --            _debug(last)
-
-            --[[ if last output ended with a space and this one starts with one, we want just one space
-            if (rest:sub(1,1) == ' ' or rest:sub(1,1) == '\n')
-            and last
-            and (last:sub(-1) == ' ' or last:sub(-1) == '\n') then
-
-            rest = ltrim(rest)
-            end
-            --]]
-            -- TODO whitespace when printing, not just here
-            -- https://github.com/inkle/ink/blob/
-            -- 6a512190365002f54bd501b0863ded40123cb8e5/ink-engine-runtime/StoryState.cs#L894
-
-            --table.insert(out, rest)
-        elseif isNext('stitch') then
+        --table.insert(out, rest)
+        if isNext('stitch') then
             incrementSeenCounter(tree[pointer][2])
             next()
             update()
@@ -1669,12 +1630,7 @@ return function (globalTree, debuggg)
             return
 
 
-            -- separates "a -> b" from "a\n -> b"
-        elseif isNext('nl') then
-            out:add('\n')
-            next()
-            update()
-            return
+
 
         elseif isNext('if') then
             for _, branch in ipairs(tree[pointer][2]) do
