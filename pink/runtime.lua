@@ -24,6 +24,9 @@ local getLogMessage = function (message, token)
     elseif lastLocation then
         location = '\n\tsomewhere after ' .. getLocation(lastLocation)
     end
+    if token and type(token) == "table" and #token > 0 then
+        location = location .. ', node type: ' .. token[1]
+    end
     return message..location
 end
 local err = function(message, token)
@@ -883,15 +886,11 @@ return function (globalTree, debuggg)
         return val, e
     end
 
-    local stepInto = function(block, opts)
-        opts = opts or {}
+    local stepInto = function(block, newEnv)
         _debug("step into")
-        if opts.lineStart ~= nil and not opts.lineStart then
-            out:instr('glue')
-        end
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
         table.insert(callstack, {tree=tree, pointer=pointer})
-        local newEnv = opts.env or {}
+        newEnv = newEnv or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
         tree = block
@@ -1059,7 +1058,7 @@ return function (globalTree, debuggg)
             local params = knots[path].params
             local body = knots[path].tree
             local newEnv = getArgumentsEnv(params, args)
-            stepInto(body, {env=newEnv})
+            stepInto(body, newEnv)
 
             incrementSeenCounter(path) -- TODO not just knots
 
@@ -1303,7 +1302,7 @@ return function (globalTree, debuggg)
                 local params = target[2]
                 local body = target[3]
                 local newEnv = getArgumentsEnv(params, args)
-                stepInto(body, {env=newEnv})
+                stepInto(body, newEnv)
                 out:instr('trim')
                 update()
                 local ret = returnValue.value
@@ -1425,7 +1424,93 @@ return function (globalTree, debuggg)
         todo = function(n) log(n[2], n); end,
         glue = function() out:instr('glue'); end,
         nl = function() out:add('\n'); end, -- separates "a -> b" from "a\n -> b"
+        stitch = function(n) incrementSeenCounter(n[2]); end,
+        gather = function(n) return n[3]; end,
+        ink = function(n) return n[2]; end,
 
+        seq = function(n)
+            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+            local current = n.current or 1
+            -- TODO the lineStart parameter is on multiple places
+            -- and a bit non systematic
+
+            -- if not start of line, insert glue.
+            -- TODO not needed when continue stops on each end of line???
+            if n[3] == false then
+                out:instr('glue')
+            end
+            local ret = n[2][current]
+            n.current = math.min(#n[2], current + 1)
+            return ret
+        end,
+        shuf = function(n)
+            local shuffleType = n[2]
+            if not n.shuffled then
+                local unshuffled = {}
+                for i = 1, #n[3] do
+                    table.insert(unshuffled, n[3][i])
+                end
+
+                n.shuffled = {}
+                local shuffleUpTo = #unshuffled
+                if shuffleType == 'stopping' then
+                    -- shuffle all except the last one
+                    shuffleUpTo = #unshuffled-1
+                    n.shuffled[#unshuffled] = unshuffled[#unshuffled]
+                end
+                for i = shuffleUpTo, 1, -1 do
+                    table.insert(n.shuffled, table.remove(unshuffled, math.random(i)))
+                end
+            end
+
+            n.current = (n.current or 0) + 1 -- FIXME store somewhere else, support save/load
+
+            if shuffleType ~= 'once' then
+                n.current = math.min(#n.shuffled, n.current) -- TODO store for save/load
+            end
+            if n.shuffled[n.current] then
+                if n[4] == false then
+                    out:instr('glue')
+                end
+                return n.shuffled[n.current]
+            end
+        end,
+        cycle = function(n)
+            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+            n.current = n.current or 1
+            if n[3] == false then
+                out:instr('glue')
+            end
+            local ret = n[2][n.current]
+            n.current = n.current + 1
+            if n.current > #n[2] then
+                n.current = 1
+            end
+            return ret
+        end,
+        once = function(n)
+            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+            n.current = n.current or 1
+            if n.current <= #n[2] then
+                if n[3] == false then
+                    out:instr('glue')
+                end
+                local ret = n[2][n.current]
+                n.current = n.current + 1
+                return ret
+            end
+        end,
+        ['if'] = function(n)
+            for _, branch in ipairs(n[2]) do
+                if isTruthy(getValue(branch[1])) then
+                    if n[3] == false then
+                        out:instr('glue')
+                    end
+                    return branch[2]
+                end
+            end
+            -- no condition evaluated to true (and the else branch not present): do nothing
+        end,
     }
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
@@ -1443,18 +1528,12 @@ return function (globalTree, debuggg)
             lastLocation = tree[pointer].location
         end
 
-        local lastpointer=pointer
-        local lasttree=tree -- TODO is this needed?
+        --local lastpointer=pointer
+        --local lasttree=tree -- TODO is this needed?
+
 
         if isNext('divert') then
             goTo(tree[pointer][2], tree[pointer][3])
-            update()
-            return
-        end
-
-        if tree[pointer] and nodeUpdate[tree[pointer][1]] ~= nil then
-            nodeUpdate[tree[pointer][1]](tree[pointer])
-            next()
             update()
             return
         end
@@ -1556,108 +1635,7 @@ return function (globalTree, debuggg)
         -- 6a512190365002f54bd501b0863ded40123cb8e5/ink-engine-runtime/StoryState.cs#L894
 
         --table.insert(out, rest)
-        if isNext('stitch') then
-            incrementSeenCounter(tree[pointer][2])
-            next()
-            update()
-            return
 
-        elseif isNext('gather') then
-            stepInto(tree[pointer][3])
-            update()
-            return
-
-        elseif isNext('seq') then
-            local seq = tree[pointer]
-            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-            local current = seq.current or 1
-            -- TODO the lineStart parameter is on multiple places
-            -- and a bit non systematic
-            stepInto(seq[2][current], {lineStart=seq[3]})
-            seq.current = math.min(#seq[2], current + 1)
-            update()
-            return
-
-        elseif isNext('shuf') then
-            local shuf = tree[pointer]
-            local shuffleType = shuf[2]
-            if not shuf.shuffled then
-                local unshuffled = {}
-                for i = 1, #shuf[3] do
-                    table.insert(unshuffled, shuf[3][i])
-                end
-
-                shuf.shuffled = {}
-                local shuffleUpTo = #unshuffled
-                if shuffleType == 'stopping' then
-                    -- shuffle all except the last one
-                    shuffleUpTo = #unshuffled-1
-                    shuf.shuffled[#unshuffled] = unshuffled[#unshuffled]
-                end
-                for i = shuffleUpTo, 1, -1 do
-                    table.insert(shuf.shuffled, table.remove(unshuffled, math.random(i)))
-                end
-            end
-
-            shuf.current = (shuf.current or 0) + 1 -- FIXME store somewhere else, support save/load
-
-            if shuffleType ~= 'once' then
-                shuf.current = math.min(#shuf.shuffled, shuf.current) -- TODO store for save/load
-            end
-            if shuf.shuffled[shuf.current] then
-                stepInto(shuf.shuffled[shuf.current], {lineStart=shuf[4]})
-            else
-                next()
-            end
-            update()
-            return
-
-        elseif isNext('cycle') then
-            local cycle = tree[pointer]
-            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-            cycle.current = cycle.current or 1
-            stepInto(cycle[2][cycle.current], {lineStart=cycle[3]})
-            cycle.current = cycle.current + 1
-            if cycle.current > #cycle[2] then
-                cycle.current = 1
-            end
-            update()
-            return
-
-        elseif isNext('once') then
-            local once = tree[pointer]
-            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-            once.current = once.current or 1
-            if once.current > #once[2] then
-                next()
-            else
-                stepInto(once[2][once.current], {lineStart=once[3]})
-                once.current = once.current + 1
-            end
-            update()
-            return
-
-
-
-
-        elseif isNext('if') then
-            for _, branch in ipairs(tree[pointer][2]) do
-                if isTruthy(getValue(branch[1])) then
-                    stepInto(branch[2], {lineStart=tree[pointer][3]})
-                    update()
-                    return
-                end
-            end
-            -- no condition evaluated to true (and the else branch not present): do nothing
-            next()
-            update()
-            return
-
-        elseif isNext('ink') then
-            stepInto(tree[pointer][2])
-            update()
-            return
-        end
 
 
         if isEnd() then
@@ -1681,11 +1659,26 @@ return function (globalTree, debuggg)
             return
         end
 
-
-        if lastpointer == pointer and lasttree == tree then
-            _debug(tree, pointer)
-            err('nothing consumed in continue at pointer '..pointer)
+        local updateFn = nodeUpdate[tree[pointer][1]]
+        if not updateFn then
+            err('unexpected node', tree[pointer])
         end
+        local nextStep = updateFn(tree[pointer])
+        if nextStep then
+            stepInto(nextStep)
+        else
+            next()
+        end
+        update()
+        return
+
+
+
+        --[[if lastpointer == pointer and lasttree == tree then
+        _debug(tree, pointer)
+        err('nothing consumed in continue at pointer '..pointer)
+        end
+        ]]
 
 
     end
