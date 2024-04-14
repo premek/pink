@@ -922,9 +922,8 @@ return function(input, source, debug)
             return {condition, branch}
         end
 
-        local separatedList = function() -- TODO name
+        local seqSeparatedBranches = function()
             consumeWhitespaceAndNewlines()
-
             local result = {inkText()}
             while ahead('|') do
                 consume('|')
@@ -935,7 +934,11 @@ return function(input, source, debug)
             end
             return result
         end
-        local altBranches = function() -- TODO name
+
+        local seqBranches = function()
+            consumeWhitespaceAndNewlines()
+            consume(':')
+            consumeWhitespaceAndNewlines()
             local result = {}
             while ahead('-') and not ahead('->') do
                 consume('-')
@@ -952,82 +955,57 @@ return function(input, source, debug)
         local alternative = function()
             if not ahead('{') then return end
 
-            local lineStart = isLineStart()
+            local opts = {lineStart = isLineStart()}
 
             consume("{")
             consumeWhitespaceAndNewlines()
 
             -- Cycles are like sequences, but they loop their content.
             if ahead('&') then
+                opts.cycle=true
                 consume('&')
-                local result = separatedList()
+                local branches = seqSeparatedBranches()
                 consume("}")
-                return {'cycle', result, lineStart}
+                return token('seq', opts, branches)
             end
 
             -- Once-only alternatives are like sequences, but when they
             -- run out of new content to display, they display nothing.
             -- (as a sequence with a blank last entry.)
             if ahead('!') then
+                opts.once=true
                 consume('!')
-                local result = separatedList()
+                local branches = seqSeparatedBranches()
                 consume("}")
-                return {'once', result, lineStart}
+                return token('seq', opts, branches)
             end
 
             -- shuffle (randomised output)
             if ahead('~') then
+                opts.cycle=true
+                opts.shuffle=true
                 consume('~')
-                local result = separatedList()
+                local branches = seqSeparatedBranches()
                 consume("}")
-                return {'shuf', 'cycle', result, lineStart}
+                return token('seq', opts, branches)
             end
 
             -- Sequence: go through the alternatives, and stick on last
             if ahead('stopping') then
                 consume('stopping')
-                -- TODO extract to a function
-                consumeWhitespaceAndNewlines()
-                consume(':')
-                consumeWhitespaceAndNewlines()
-                local result = altBranches()
+                opts.stopping=true
+                local branches = seqBranches()
                 consume("}")
-                return {'seq', result, lineStart}
-            end
-
-            -- Shuffle: show one at random
-            if ahead('shuffle') then
-                consume('shuffle')
-                -- TODO extract to a function
-                consumeWhitespaceAndNewlines()
-                local shuffleType = 'cycle'
-                if ahead('once') then
-                    shuffleType = 'once'
-                    consume('once')
-                    consumeWhitespaceAndNewlines()
-                end
-                if ahead('stopping') then
-                    shuffleType = 'stopping'
-                    consume('stopping')
-                    consumeWhitespaceAndNewlines()
-                end
-                consume(':')
-                consumeWhitespaceAndNewlines()
-                local result = altBranches()
-                consume("}")
-                return {'shuf', shuffleType, result, lineStart}
+                return token('seq', opts, branches)
             end
 
             -- Cycle: show each in turn, and then cycle
             if ahead('cycle') then
                 consume('cycle')
-                -- TODO extract to a function
-                consumeWhitespaceAndNewlines()
-                consume(':')
-                consumeWhitespaceAndNewlines()
-                local result = altBranches()
+                opts.cycle=true
+                local branches = seqBranches()
                 consume("}")
-                return {'cycle', result, lineStart}
+                return token('seq', opts, branches)
             end
 
             -- Once-only alternatives are like sequences, but when they
@@ -1035,16 +1013,35 @@ return function(input, source, debug)
             -- (as a sequence with a blank last entry.)
             if ahead('once') then
                 consume('once')
-                -- TODO extract to a function
-                consumeWhitespaceAndNewlines()
-                consume(':')
-                consumeWhitespaceAndNewlines()
-                local result = altBranches()
+                opts.once = true
+                local branches = seqBranches()
                 consume("}")
-                return {'once', result, lineStart}
+                return token('seq', opts, branches)
             end
 
+            -- Shuffle: show one at random
+            if ahead('shuffle') then
+                consume('shuffle')
+                opts.shuffle=true
+                -- TODO extract to a function
+                consumeWhitespaceAndNewlines()
 
+                if ahead('once') then
+                    consume('once')
+                    opts.once=true
+                    consumeWhitespaceAndNewlines()
+                elseif ahead('stopping') then
+                    consume('stopping')
+                    opts.stopping = true
+                    consumeWhitespaceAndNewlines()
+                else
+                    opts.cycle=true
+                end
+
+                local branches = seqBranches()
+                consume("}")
+                return token('seq', opts, branches)
+            end
 
 
             if ahead('-') and not ahead('->') then
@@ -1063,7 +1060,7 @@ return function(input, source, debug)
             if firstExpressionParsed and ahead('}') then
                 -- variable printing: {expression}
                 consume("}")
-                return {"out", first, lineStart}
+                return token("out", first, opts)
             end
 
             if firstExpressionParsed and ahead(':') then
@@ -1098,7 +1095,7 @@ return function(input, source, debug)
 
                 consume("}")
                 --                consumeWhitespaceAndNewlines() -- FIXME I052
-                return token('if', branches, lineStart)
+                return token('if', branches, opts)
             end
 
             -- reset parser pointer back after the opening '{'
@@ -1112,6 +1109,7 @@ return function(input, source, debug)
                 -- how many times its been seen, and each time, shows the next element along.
                 -- When it runs out of new content it continues the show the final element.
                 -- {text|text|...}
+                opts.stopping = true
                 local result = {{first}} -- TODO too much wrapping?
                 while ahead('|') do
                     consume('|')
@@ -1121,7 +1119,7 @@ return function(input, source, debug)
                     end
                 end
                 consume("}")
-                return {'seq', result, lineStart}
+                return token('seq', opts, result)
             end
             -- TODO other types
             errorAt('invalid alternative')

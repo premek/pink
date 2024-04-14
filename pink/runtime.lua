@@ -1384,20 +1384,75 @@ return function (globalTree, debuggg)
         end
     end
     local nodeUpdateOut = function(n)
-        local lineStart = n[3]
-        if not lineStart then
+        if n[3].lineStart == false then
             out:instr('glue')
         end
         nodeUpdateOutValue(n)
     end
 
+    local seqShuffle = function(elements, len)
+        local unshuffled = {}
+        for i = 1, #elements do
+            table.insert(unshuffled, elements[i])
+        end
+
+        local shuffled = {}
+        -- shuffle the elements that needs to be shuffled, remove them from unshuffled, go from the end
+        for i = len, 1, -1 do
+            table.insert(shuffled, table.remove(unshuffled, math.random(i)))
+        end
+        -- insert the remaining unshuffled elements to the end
+        for i=1, #unshuffled do
+            table.insert(shuffled, unshuffled[i])
+        end
+        return shuffled
+    end
+
+    local nodeUpdateSeq = function(n)
+
+        if n[2].shuffle and not n.shuffled then
+            if n[2].stopping then
+                n[3] = seqShuffle(n[3], #n[3]-1) -- shuffle all except the last one
+            else
+                n[3] = seqShuffle(n[3], #n[3])
+            end
+            n.shuffled = true
+        end
+
+        -- if not start of line, insert glue.
+        -- TODO not needed when continue stops on each end of line???
+        if not n[2].lineStart then
+            out:instr('glue')
+        end
+
+        -- FIXME store somewhere else, support save/load, could be a "seen counter" too
+        n.current = n.current or 1
+
+        local ret = nil
+        if n.current <= #n[3] then
+            ret = n[3][n.current]
+        end
+
+        if n[2].stopping then
+            n.current = math.min(#n[3], n.current + 1) -- stay at the last one
+        elseif n[2].once then
+            n.current = math.min(#n[3] + 1, n.current + 1) -- stay *after* the last one
+        elseif n[2].cycle then
+            n.current = math.fmod(n.current, #n[3]) + 1
+        end
+
+        return ret
+    end
+
+    local nodeSkip = function() end
+
     local nodeUpdate = {
-        var = function() end,
-        const = function() end,
-        nop = function() end,
-        knot = function() end,
-        fn = function() end,
-        listdef = function() end,
+        var = nodeSkip,
+        const = nodeSkip,
+        nop = nodeSkip,
+        knot = nodeSkip,
+        fn = nodeSkip,
+        listdef = nodeSkip,
 
         tag = function(n)
             table.insert(tags, n[2])
@@ -1420,6 +1475,8 @@ return function (globalTree, debuggg)
 
         out = nodeUpdateOut,
 
+        seq = nodeUpdateSeq,
+
         call = function(n) getValue(n); end, -- ~ fn() -- call but ignore the result
         todo = function(n) log(n[2], n); end,
         glue = function() out:instr('glue'); end,
@@ -1428,82 +1485,11 @@ return function (globalTree, debuggg)
         gather = function(n) return n[3]; end,
         ink = function(n) return n[2]; end,
 
-        seq = function(n)
-            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-            local current = n.current or 1
-            -- TODO the lineStart parameter is on multiple places
-            -- and a bit non systematic
 
-            -- if not start of line, insert glue.
-            -- TODO not needed when continue stops on each end of line???
-            if n[3] == false then
-                out:instr('glue')
-            end
-            local ret = n[2][current]
-            n.current = math.min(#n[2], current + 1)
-            return ret
-        end,
-        shuf = function(n)
-            local shuffleType = n[2]
-            if not n.shuffled then
-                local unshuffled = {}
-                for i = 1, #n[3] do
-                    table.insert(unshuffled, n[3][i])
-                end
-
-                n.shuffled = {}
-                local shuffleUpTo = #unshuffled
-                if shuffleType == 'stopping' then
-                    -- shuffle all except the last one
-                    shuffleUpTo = #unshuffled-1
-                    n.shuffled[#unshuffled] = unshuffled[#unshuffled]
-                end
-                for i = shuffleUpTo, 1, -1 do
-                    table.insert(n.shuffled, table.remove(unshuffled, math.random(i)))
-                end
-            end
-
-            n.current = (n.current or 0) + 1 -- FIXME store somewhere else, support save/load
-
-            if shuffleType ~= 'once' then
-                n.current = math.min(#n.shuffled, n.current) -- TODO store for save/load
-            end
-            if n.shuffled[n.current] then
-                if n[4] == false then
-                    out:instr('glue')
-                end
-                return n.shuffled[n.current]
-            end
-        end,
-        cycle = function(n)
-            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-            n.current = n.current or 1
-            if n[3] == false then
-                out:instr('glue')
-            end
-            local ret = n[2][n.current]
-            n.current = n.current + 1
-            if n.current > #n[2] then
-                n.current = 1
-            end
-            return ret
-        end,
-        once = function(n)
-            -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-            n.current = n.current or 1
-            if n.current <= #n[2] then
-                if n[3] == false then
-                    out:instr('glue')
-                end
-                local ret = n[2][n.current]
-                n.current = n.current + 1
-                return ret
-            end
-        end,
         ['if'] = function(n)
             for _, branch in ipairs(n[2]) do
                 if isTruthy(getValue(branch[1])) then
-                    if n[3] == false then
+                    if n[3].lineStart == false then
                         out:instr('glue')
                     end
                     return branch[2]
