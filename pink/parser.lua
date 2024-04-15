@@ -157,47 +157,46 @@ return function(input, source, debug)
         end
 
         local nl = function()
-            if not ahead('\n') then return end
             next()
             newline()
             consumeWhitespace()
             return token('nl')
         end
 
-
+        local currentText = function(startPos)
+            local result, _ = input:sub(startPos, current-1):gsub("%s+", " ")
+            return result
+        end
 
         local singleLineComment = function()
-            if not ahead('//') then return end
             consume('//')
+            consumeWhitespace()
+            local s = current
             while not eolAhead() do
                 next()
             end
+            local text = currentText(s)
             consumeWhitespaceAndNewlines()
-            -- we have to return something so the caller does not stop here
-            return token('nop') -- TODO or a comment token??
+            return token('comment', text)
         end
 
         local multiLineComment = function()
             if not ahead('/*') then return end
             consume('/*')
+            consumeWhitespace()
+            local s = current
             while not ahead('*/') and not isAtEnd() do
                 if ahead('\n') then
                     newline()
                 end
                 next()
             end
+            local text = currentText(s)
             consume('*/')
             consumeWhitespaceAndNewlines()
             -- we have to return something so the caller does not stop here
-            return token('nop')
+            return token('comment', text)
         end
-
-
-        local currentText = function(startPos)
-            local result, _ = input:sub(startPos, current-1):gsub("%s+", " ")
-            return result
-        end
-
 
         local text
         text = function(opts)
@@ -754,14 +753,12 @@ return function(input, source, debug)
         end
 
         local tag = function()
-            if not ahead('#') then return end
             consume("#")
             consumeWhitespace()
             return token('tag', text())
         end
 
         local constant = function()
-            if not ahead('CONST') then return end
             consume("CONST")
             consumeWhitespace()
             local name = identifier()
@@ -779,7 +776,6 @@ return function(input, source, debug)
         end
 
         local variable = function()
-            if not ahead('VAR') then return end
             consume("VAR")
             consumeWhitespace()
             local name = identifier()
@@ -799,7 +795,6 @@ return function(input, source, debug)
         end
 
         local tempVariable = function()
-            if not ahead('temp') then return end
 
             consume("temp")
             consumeWhitespace()
@@ -813,7 +808,6 @@ return function(input, source, debug)
         end
 
         local list = function()
-            if not ahead('LIST') then return end
             consume("LIST")
             consumeWhitespace()
             local name = identifier()
@@ -942,7 +936,7 @@ return function(input, source, debug)
             local result = {}
             while ahead('-') and not ahead('->') do
                 consume('-')
-                consumeWhitespaceAndNewlines() -- ?
+                consumeWhitespace()
                 local element = branchInkText()
                 if element ~= nil then
                     table.insert(result, {element}) -- TODO inkText in a table?
@@ -953,8 +947,6 @@ return function(input, source, debug)
 
         --TODO name? used for sequences, variable printing, conditional text, cond. option
         local alternative = function()
-            if not ahead('{') then return end
-
             local opts = {lineStart = isLineStart()}
 
             consume("{")
@@ -1029,11 +1021,9 @@ return function(input, source, debug)
                 if ahead('once') then
                     consume('once')
                     opts.once=true
-                    consumeWhitespaceAndNewlines()
                 elseif ahead('stopping') then
                     consume('stopping')
                     opts.stopping = true
-                    consumeWhitespaceAndNewlines()
                 else
                     opts.cycle=true
                 end
@@ -1049,7 +1039,7 @@ return function(input, source, debug)
             end
             consumeWhitespaceAndNewlines()
 
-            local mark = newMark()
+            local afterOpeningBrace = newMark()
 
             -- TODO I108
             -- {a||b} is a sequence of 3 inktests, not a single expression
@@ -1065,7 +1055,7 @@ return function(input, source, debug)
 
             if firstExpressionParsed and ahead(':') then
                 consume(':')
-                local mark2 = newMark()
+                local afterColon = newMark()
                 consumeWhitespaceAndNewlines()
                 local branches = {}
                 if ahead('-') and not ahead('->') then
@@ -1077,7 +1067,7 @@ return function(input, source, debug)
                 else
                     -- Conditional block: {expr:textIfTrue}
                     -- newlines after the first ':' significant
-                    resetTo(mark2) -- jump back after the ':'
+                    resetTo(afterColon)
                     consumeWhitespace()
                     table.insert(branches, {first, {branchInkText()}}) -- TODO wrap
                     consumeWhitespaceAndNewlines()
@@ -1094,21 +1084,19 @@ return function(input, source, debug)
                 end
 
                 consume("}")
-                --                consumeWhitespaceAndNewlines() -- FIXME I052
                 return token('if', branches, opts)
             end
 
-            -- reset parser pointer back after the opening '{'
-            -- and read the first element again, this time as ink text
-            resetTo(mark)
+            -- read the first element after the '{' again, this time as ink text
+            resetTo(afterOpeningBrace)
             first = inkText()
             consumeWhitespace()
 
             if ahead('|') then
+                -- {text|text|...}
                 -- A sequence (or a "stopping block") is a set of alternatives that tracks
                 -- how many times its been seen, and each time, shows the next element along.
                 -- When it runs out of new content it continues the show the final element.
-                -- {text|text|...}
                 opts.stopping = true
                 local result = {{first}} -- TODO too much wrapping?
                 while ahead('|') do
@@ -1121,14 +1109,10 @@ return function(input, source, debug)
                 consume("}")
                 return token('seq', opts, result)
             end
-            -- TODO other types
-            errorAt('invalid alternative')
+            errorAt('failed to parse an alternative')
         end
 
-
         local glue = function()
-            if not ahead('<>') then return end
-
             consume("<>")
             return token('glue')
         end
@@ -1144,8 +1128,6 @@ return function(input, source, debug)
         end
 
         local statement = function()
-            if not ahead('~') then return end
-
             consume("~")
             consumeWhitespace()
             if ahead('return') then -- TODO only in function

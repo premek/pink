@@ -1449,7 +1449,7 @@ return function (globalTree, debuggg)
     local nodeUpdate = {
         var = nodeSkip,
         const = nodeSkip,
-        nop = nodeSkip,
+        comment = nodeSkip,
         knot = nodeSkip,
         fn = nodeSkip,
         listdef = nodeSkip,
