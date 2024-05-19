@@ -5,7 +5,7 @@ local _debug = function(...)
     if not debugOn then return end
     local args = {...}
     if #args == 0 then
-        print(nil)
+        print('(nil)')
     end
     for _, x in ipairs(args) do
         print( require('test/luaunit').prettystr(x) )
@@ -974,13 +974,8 @@ return function (globalTree, debuggg)
             return tostring(math.floor(a[2]))
 
         elseif a[1] == 'float' then
-            local intPart, fracPart = math.modf(a[2])
-            if fracPart == 0 then
-                return tostring(intPart)
-            else
-                local formatted, _ = string.format("%.7f", a[2]):gsub("%.?0+$", "")
-                return formatted
-            end
+            local formatted, _ = string.format("%.7f", a[2]):gsub("%.?0+$", "")
+            return formatted
 
         elseif a[1] == 'bool' then
             return tostring(a[2])
