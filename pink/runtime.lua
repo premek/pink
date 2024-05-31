@@ -739,7 +739,28 @@ return function (globalTree, debuggg)
         collect = function(self)
             _debug(self.buffer)
 
+            -- if {out} / if / seq is not at a line start then insert glue
             local t = {}
+            for i = 1, #self.buffer do
+                if self.buffer[i]['outBlockStart'] then
+                    for j=i-1, 0, -1 do
+                        if self.buffer[j] and self.buffer[j]['trim'] then -- FIXME eh?
+                            break
+                        end
+                        if self.buffer[j] and type(self.buffer[j])=='string' then
+                            if self.buffer[j] ~= '\n' then
+                                table.insert(t, {glue=true})
+                            end
+                            break
+                        end
+                    end
+                else
+                    table.insert(t, self.buffer[i])
+                end
+            end
+            self.buffer = t
+
+            t = {}
             local glue = false
             for _, e in ipairs(self.buffer) do
                 if e['glue'] then
@@ -1379,9 +1400,7 @@ return function (globalTree, debuggg)
         end
     end
     local nodeUpdateOut = function(n)
-        if n[3].lineStart == false then
-            out:instr('glue')
-        end
+        out:instr('outBlockStart')
         nodeUpdateOutValue(n)
     end
 
@@ -1414,11 +1433,8 @@ return function (globalTree, debuggg)
             n.shuffled = true
         end
 
-        -- if not start of line, insert glue.
         -- TODO not needed when continue stops on each end of line???
-        if not n[2].lineStart then
-            out:instr('glue')
-        end
+        out:instr('outBlockStart')
 
         -- FIXME store somewhere else, support save/load, could be a "seen counter" too
         n.current = n.current or 1
@@ -1484,9 +1500,7 @@ return function (globalTree, debuggg)
         ['if'] = function(n)
             for _, branch in ipairs(n[2]) do
                 if isTruthy(getValue(branch[1])) then
-                    if n[3].lineStart == false then
-                        out:instr('glue')
-                    end
+                    out:instr('outBlockStart') -- TODO before or after the getValue call above?
                     return branch[2]
                 end
             end

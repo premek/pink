@@ -66,6 +66,7 @@ return function(input, source, debug)
             return input:sub(pos, pos)
         end
 
+        -- TODO is this needed?
         local isLineStart = function()
             for i=current-1, 1, -1 do
                 local char = peekAt(i)
@@ -947,7 +948,7 @@ return function(input, source, debug)
 
         --TODO name? used for sequences, variable printing, conditional text, cond. option
         local alternative = function()
-            local opts = {lineStart = isLineStart()}
+            local opts = {}
 
             consume("{")
             consumeWhitespaceAndNewlines()
