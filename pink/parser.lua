@@ -40,8 +40,9 @@ return function(input, source, debug)
             column = mark.column
         end
 
+        -- true if the 'current' pointer points *after* the last character of the input
         local isAtEnd = function()
-            return current >= #input
+            return current >= #input + 1
         end
 
         local newline = function()
