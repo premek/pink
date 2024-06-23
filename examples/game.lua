@@ -16,6 +16,6 @@ while true do
     print(i .. "> " .. story.currentChoices[i].text)
   end
 
-  local answer=io.read()
+  local answer=io.read("*number")
   story.chooseChoiceIndex(tonumber(answer))
 end

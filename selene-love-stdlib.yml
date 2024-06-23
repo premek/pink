@@ -1,0 +1,5 @@
+# love2d standard library definition for selene
+base: lua52
+globals:
+  love:
+    any: true

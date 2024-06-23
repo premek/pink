@@ -442,7 +442,9 @@ return function (globalTree, debuggg)
         end
         if #els == 0 then
             -- keep the known lists
-            listIterateElements(list, function(el) list[2][el[2]] = {} end)
+            listIterateElements(list, function(el)
+                list[2][el[2]] = {}
+            end)
         else
             list[2] = getListElements(els, {}) --FIXME known lists
         end
@@ -812,11 +814,7 @@ return function (globalTree, debuggg)
 
             t = {}
             for _, e in ipairs(self.buffer) do
-                if e['trim'] then
-                    local _
-                elseif e == '' then
-                    local _
-                else
+                if not e['trim'] and e ~= '' then
                     table.insert(t, e)
                 end
             end

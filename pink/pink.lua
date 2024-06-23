@@ -19,13 +19,17 @@ local runtime = requireLocal('runtime')
 
 
 local function loveFileReader(file)
-    if not love.filesystem.getInfo(file, "file") then error('failed to open "'..file..'"') end
+    if not love.filesystem.getInfo(file, "file") then
+        error('failed to open "'..file..'"')
+    end
     return love.filesystem.read(file)
 end
 
 local function ioFileReader(file)
     local f = io.open(file, "rb")
-    if not f then error('failed to open "'..file..'"') end
+    if not f then
+        error('failed to open "'..file..'"')
+    end
     local content = f:read("*all")
     f:close()
     return content
@@ -40,8 +44,9 @@ else
 end
 end
 
-local function basedir(str)  return string.gsub(str, "(.*)(/.*)", "%1") end
-
+local function basedir(str)
+    return string.gsub(str, "(.*)(/.*)", "%1")
+end
 
 local parse;
 parse = function(file, debug)
@@ -88,7 +93,7 @@ while true do
         print(i .. ": " .. story.currentChoices[i].text)
     end
     io.write('?> ')
-    local answer = tonumber(io.read())
+    local answer = tonumber(io.read("*number"))
     if not answer then
         error('missing answer')
     end

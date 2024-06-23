@@ -869,14 +869,14 @@ return function(input, source, debug)
             consumeWhitespaceAndNewlines()
             local mark = newMark()
 
-            local condition, branch
+            local condition, body
             if ahead('else') then
                 consume('else')
                 consumeWhitespaceAndNewlines()
                 consume(':')
                 consumeWhitespaceAndNewlines()
                 condition = {'bool', true}
-                branch = {branchInkText()}
+                body = {branchInkText()}
             else
                 -- try to parse expression which would be followed by a ":"
                 -- otherwise jump back and parse branch ink text
@@ -894,9 +894,9 @@ return function(input, source, debug)
                     -- TODO would be nicer without this if
                     if ahead('-') and not ahead('->') then
                         -- empty branch body, but the condition should be evaluated
-                        branch = {}
+                        body = {}
                     else
-                        branch = {branchInkText()}
+                        body = {branchInkText()}
                     end
                 else
                     -- {expr:
@@ -905,7 +905,7 @@ return function(input, source, debug)
                     -- }
                     resetTo(mark) -- jump after the '-' of the current branch
 
-                    branch = {branchInkText()}
+                    body = {branchInkText()}
                     if isFirstBranch then
                         -- first branch (the iftrue)
                         condition = first
@@ -915,7 +915,7 @@ return function(input, source, debug)
                     end
                 end
             end
-            return {condition, branch}
+            return {condition, body}
         end
 
         local seqSeparatedBranches = function()

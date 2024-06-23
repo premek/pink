@@ -33,6 +33,12 @@ for P in $PATTERNS; do
     printf "\nluacheck: "
     TESTS=$((TESTS+1))
     luacheck --codes -q . && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    printf "\nselene: "
+    TESTS=$((TESTS+1))
+    selene --config selene-lua52.toml pink/runtime.lua pink/parser.lua examples/game.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    printf "\nselene-love: "
+    TESTS=$((TESTS+1))
+    selene --config selene-love.toml pink/pink.lua examples/love2d/ && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
 
   elif [ "$P" = "luaformat" ]; then
     echo 'luaformat...'
