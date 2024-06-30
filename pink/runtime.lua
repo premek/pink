@@ -507,6 +507,51 @@ return function (globalTree, debuggg)
         return listFromEls(els, listNames)
     end
 
+    -- TODO simplify
+    local listMax = function(a)
+        requireType(a, 'list')
+
+        local name = nil
+        local max = -1
+        for listName, els in pairs(a[2]) do
+            for elementName, _ in pairs(els) do
+                local elementValue = listDefs[listName].byName[elementName]
+                if elementValue >= max then
+                    max = elementValue
+                    name = listName
+                end
+            end
+        end
+
+        if name == nil then
+            return {'list', {}}
+        end
+
+        return listElByValue(name, max)
+    end
+
+    local listMin = function(a)
+        requireType(a, 'list')
+
+        local name = nil
+        local min = nil
+        for listName, els in pairs(a[2]) do
+            for elementName, _ in pairs(els) do
+                local elementValue = listDefs[listName].byName[elementName]
+                if min == nil or elementValue < min then
+                    min = elementValue
+                    name = listName
+                end
+            end
+        end
+
+        if name == nil then
+            return {'list', {}}
+        end
+
+        return listElByValue(name, min)
+    end
+
     local listInvert = function(list)
         local new = listAll(list)
         for listName, els in pairs(list[2]) do
@@ -698,6 +743,8 @@ return function (globalTree, debuggg)
         ['>=']={'native', gte},
         LIST_VALUE={'native', listValue},
         LIST_ALL={'native', listAll},
+        LIST_MIN={'native', listMin},
+        LIST_MAX={'native', listMax},
         LIST_INVERT={'native', listInvert},
         LIST_RANGE={'native', listRange},
         ['^']={'native', listIntersection},
