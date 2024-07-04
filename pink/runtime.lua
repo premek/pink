@@ -783,6 +783,7 @@ return function (globalTree, debuggg)
             table.insert(self.buffer, {[instr] = true})
         end,
         add = function(self, text)
+            _debug("OUT add:", text)
             table.insert(self.buffer, text)
         end,
         collect = function(self)
@@ -808,6 +809,7 @@ return function (globalTree, debuggg)
                 end
             end
             self.buffer = t
+            _debug(self.buffer)
 
             t = {}
             local glue = false
@@ -817,9 +819,9 @@ return function (globalTree, debuggg)
                     for i=#t, 1, -1 do
                         if t[i] == '\n' then
                             table.remove(t, i)
-                        elseif t[i] == ' ' then
+                        elseif type(t[i])=='string' and trim(t[i]) == '' then
                             local _ -- keep spaces, but keep glueing
-                        elseif type(t[i])=='string' then -- don't stop glueing at instructions
+                        elseif type(t[i])=='string' or t[i]['trim'] then
                             break
                         end
                     end
@@ -828,8 +830,7 @@ return function (globalTree, debuggg)
                     -- ignore newlines after glue
                 else
                     table.insert(t, e)
-                    if type(e)=='string' then -- TODO
-                        -- don't stop glueing at instructions
+                    if type(e)=='string' or e['trimEnd'] then -- TODO
                         glue = false
                     end
                 end
@@ -843,6 +844,7 @@ return function (globalTree, debuggg)
                     for j=i-1, 1, -1 do
                         if t[j] then
                             if t[j]['trim'] then
+                                table.remove(t, j)
                                 break
                             end
                             t[j] = rtrim(t[j])
@@ -856,7 +858,7 @@ return function (globalTree, debuggg)
                 end
             end
             self.buffer = t
-            _debug(t)
+            _debug("any trims left", t)
 
 
             t = {}
@@ -952,10 +954,10 @@ return function (globalTree, debuggg)
         return val, e
     end
 
-    local stepInto = function(block, newEnv)
+    local stepInto = function(block, newEnv, fn)
         _debug("step into")
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
-        table.insert(callstack, {tree=tree, pointer=pointer})
+        table.insert(callstack, {tree=tree, pointer=pointer, fn=fn})
         newEnv = newEnv or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
@@ -970,12 +972,20 @@ return function (globalTree, debuggg)
         pointer = 0
     end
 
-    local stepOut = function()
+    local stepOut
+    stepOut = function(fn)
         local frame = table.remove(callstack)
         if not frame then
             return err('failed to step out')
         end
         _debug("stepOut")
+
+        -- Step out of one (inner most) function
+        -- keep stepping out until we get the frame marked as fn.
+        if fn ~= nil and frame.fn ~= fn then
+            stepOut(fn)
+            return
+        end
 
         pointer = frame.pointer
         tree = frame.tree
@@ -1248,6 +1258,7 @@ return function (globalTree, debuggg)
 
             -- function declarations could be after function calls in source code
             if is('fn', n) then
+                table.insert(n[4], {'return'}) -- make sure every function has a return at the end
                 env[n[2]] = {'fn', n[3], n[4]}
             end
 
@@ -1363,7 +1374,7 @@ return function (globalTree, debuggg)
                 local params = target[2]
                 local body = target[3]
                 local newEnv = getArgumentsEnv(params, args)
-                stepInto(body, newEnv)
+                stepInto(body, newEnv, 'fn')
                 out:instr('trim')
                 update()
                 local ret = returnValue.value
@@ -1519,7 +1530,7 @@ return function (globalTree, debuggg)
         assign = nodeUpdateAssign,
         ['return'] = function(n)
             returnValue = {present=true, value=getValue(n[2])}
-            stepOut() --TODO step out of the function, not just the last block we stepped into
+            stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
         tunnelreturn = function() stepOut(); end,
 
@@ -1560,6 +1571,7 @@ return function (globalTree, debuggg)
 
         if returnValue.present then
             -- do not proceed when returning from a (nested?) function call
+            pointer = pointer-1 -- FIXME what's going on here
             return
         end
 
@@ -1684,11 +1696,6 @@ return function (globalTree, debuggg)
                 if #callstack > 0 then
                     stepOut()
                     _debug("step out at end")
-                    -- FIXME
-                    if isNext('call') or (isNext('out') and is('call', tree[pointer][2])) then
-                        -- we just stepped out of a function without a return statement
-                        out:instr('trimEnd')
-                    end
                     next()
                     update()
                     return
