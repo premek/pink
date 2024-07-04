@@ -1,3 +1,19 @@
+local deepcopy
+deepcopy = function(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[deepcopy(orig_key)] = deepcopy(orig_value)
+        end
+        setmetatable(copy, deepcopy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
 return function(input, source, debug)
 
         local _debug = function(x)
@@ -726,7 +742,9 @@ return function(input, source, debug)
                 end
             end
             -- TODO use named arguments or some other mechanism
-            return token('option', nesting, {t1}, {t2}, {t3}, name, sticky, conditions, body, fallback)
+            -- FIXME deepcopy used to make AST printing nicer, remove when not needed
+            return token('option', nesting, {deepcopy(t1)}, {deepcopy(t2)}, {deepcopy(t3)},
+                name, sticky, conditions, body, fallback)
         end
 
         -- choice wraps multiple options + an optional gather
