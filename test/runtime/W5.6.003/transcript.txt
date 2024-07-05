@@ -1,0 +1,3 @@
+The water in the kettle begins to heat up.
+false
+true

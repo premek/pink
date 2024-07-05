@@ -1,0 +1,2 @@
+cold, off
+on, warm
