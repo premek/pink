@@ -931,8 +931,8 @@ return function (globalTree, debuggg)
         return tbl
     end
 
-    local getEnvOptional = function(name)
-        local e = env
+    local getEnvOptional = function(name, startingEnv)
+        local e = startingEnv or env
         while e ~= nil do
             local val = e[name]
             if val ~= nil then
@@ -942,9 +942,9 @@ return function (globalTree, debuggg)
         end
     end
 
-    getEnv = function(name, token)
+    getEnv = function(name, token, startingEnv)
         local first, rest = splitName(name)
-        local val, e = getEnvOptional(first)
+        local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
             -- FIXME detect on compile time
             _debug(name, env)
@@ -994,7 +994,7 @@ return function (globalTree, debuggg)
 
     local incrementSeenCounter = function(path)
         _debug('increment seen counter: '..path)
-        local var = rootEnv[path]
+        local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var[2] = var[2] + 1
     end
@@ -1094,7 +1094,7 @@ return function (globalTree, debuggg)
                 next()
             end
 
-            incrementSeenCounter(p1) -- TODO not just knots
+            incrementSeenCounter(path)
 
             -- FIXME duplicates
             currentKnot = p1
@@ -1136,6 +1136,7 @@ return function (globalTree, debuggg)
             currentKnot = path
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
+                incrementSeenCounter(path .. '.' .. tree[pointer][2])
                 next()
             end
 
@@ -1150,7 +1151,7 @@ return function (globalTree, debuggg)
         return toBool(a)[2]
     end
 
-    local lastKnot = "//no-knot"
+    local lastKnot = "//no-knot" -- FIXME
     local lastStitch = nil
     knots[lastKnot]={} -- TODO use proper paths instead
 
@@ -1231,19 +1232,33 @@ return function (globalTree, debuggg)
                 tagsForContentAtPath[lastKnot] = {}
             end
             if is('stitch', n) then
-                -- TODO make stitches nested same as knots
                 knots[lastKnot][n[2]] = {pointer=p, tree=t}
-                env[n[2]] = {'int', 0} -- seen counter TODO full paths
+
+                if lastKnot ~= '//no-knot' then -- FIXME
+                    env[lastKnot]._children = env[lastKnot]._children or {}
+                    env[lastKnot]._children[n[2]] = {'int', 0} -- seen counter TODO proper paths
+                else
+                    env[n[2]] = {'int', 0} -- seen counter TODO proper paths
+                end                    
                 lastStitch = n[2]
             end
             if is('gather', n) and n[4] then
                 -- gather with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[4]] = {pointer=p, tree=t}
+                    env[lastKnot]._children = env[lastKnot]._children or {}
+                    env[lastKnot]._children._children = env[lastKnot]._children._children or {}
+                    env[lastKnot]._children[lastStitch]._children[n[4]] = {'int', 0} -- seen counter
                 else
                     knots[lastKnot][n[4]] = {pointer=p, tree=t}
+                    if lastKnot ~= '//no-knot' then -- FIXME
+                        env[lastKnot]._children = env[lastKnot]._children or {}
+                        env[lastKnot]._children[n[4]] = {'int', 0} -- seen counter
+                    else
+                        env[n[4]] = {'int', 0} -- seen counter
+                    end
                 end
-                env[n[4]] = {'int', 0} -- seen counter / FIXME
+
             end
             if is('option', n) and n[6] then -- option with a label
                 env[n[6]] = {'int', 0} -- seen counter
