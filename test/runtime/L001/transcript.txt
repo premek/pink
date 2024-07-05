@@ -1,0 +1,32 @@
+The camp bustles with activity.
+
+1: "What's all this bustle in the camp?"
+?> "What's all this bustle in the camp?"
+"There's something up there," cries a man eating toast smeared with some kind of delicious substance.
+
+1: "What specifically is up there?"
+2: "Tell me man, quickly, what is that wonderful goo?"
+?> "What specifically is up there?"
+"Why, it's a tomb I hear," cries the man, through a mouthful of ...something.
+The camp bustles with activity.
+
+1: Grab your binoculars and take a closer look at the hill.
+2: Make your way towards the tomb.
+?> Grab your binoculars and take a closer look at the hill.
+Why, it certainly is a tomb on the hill! Fancy that!
+The camp bustles with activity.
+
+1: Make your way towards the tomb.
+?> Make your way towards the tomb.
+As you get closer, you see the work teams, and see a great prow being exumed from its resting place.
+"My god! Dr. Murdoch was right! A ship! This far east! Astonishing!"
+The camp bustles with activity.
+
+1: "Wait this doesn't make sense, I'm sure boats were only invented a couple of years ago"
+?> "Wait this doesn't make sense, I'm sure boats were only invented a couple of years ago"
+From the looks you recieve you come to the conclusion you might need to adjust your worldview, just a little.
+The camp bustles with activity.
+
+1: "Good lord, I need to get back to the museum!"
+?> "Good lord, I need to get back to the museum!"
+"I'm going to lose my bet!"
