@@ -1239,16 +1239,20 @@ return function (globalTree, debuggg)
                     env[lastKnot]._children[n[2]] = {'int', 0} -- seen counter TODO proper paths
                 else
                     env[n[2]] = {'int', 0} -- seen counter TODO proper paths
-                end                    
+                end
                 lastStitch = n[2]
             end
             if is('gather', n) and n[4] then
                 -- gather with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n[4]] = {pointer=p, tree=t}
-                    env[lastKnot]._children = env[lastKnot]._children or {}
-                    env[lastKnot]._children._children = env[lastKnot]._children._children or {}
-                    env[lastKnot]._children[lastStitch]._children[n[4]] = {'int', 0} -- seen counter
+                    if lastKnot ~= '//no-knot' then -- FIXME
+                        env[lastKnot]._children = env[lastKnot]._children or {}
+                        env[lastKnot]._children._children = env[lastKnot]._children._children or {}
+                        env[lastKnot]._children[lastStitch]._children[n[4]] = {'int', 0} -- seen counter
+                    else
+                        env[n[4]] = {'int', 0} -- seen counter
+                    end
                 else
                     knots[lastKnot][n[4]] = {pointer=p, tree=t}
                     if lastKnot ~= '//no-knot' then -- FIXME
