@@ -8,7 +8,7 @@ local _debug = function(...)
         print('(nil)')
     end
     for _, x in ipairs(args) do
-        print( require('test/luaunit').prettystr(x) )
+        print( require('test/lib/luaunit').prettystr(x) )
     end
 end
 
@@ -762,7 +762,8 @@ return function (globalTree, debuggg)
         state = {
             visitCount = {},
         },
-        variablesState = env
+        variablesState = env,
+        canContinue = false
     }
 
     local tree = globalTree
@@ -771,6 +772,8 @@ return function (globalTree, debuggg)
     local knots = {}
     local tags = {}
     local tagsForContentAtPath = {}
+    local externalDefs = {}
+    local storyStarted = false
 
     local next = function()
         pointer = pointer + 1
@@ -1281,7 +1284,11 @@ return function (globalTree, debuggg)
                 env[n[2]] = {'fn', n[3], n[4]}
             end
 
-
+            if is('external', n) then
+                -- store the definition. All external functions must be
+                -- defined after the story is constructed but before it is played
+                externalDefs[n[2]] = n[3]
+            end
 
 
 
@@ -1381,14 +1388,13 @@ return function (globalTree, debuggg)
 
 
 
-            if target[1] == 'native' then
+            if target[1] == 'native' or target[1] == 'external' then
                 local argumentValues = {}
                 for _, arg in ipairs(args) do
                     table.insert(argumentValues, getValue(arg))
                 end
-
+                -- TODO convert arguments, return values for external
                 return target[2](table.unpack(argumentValues))
-
             elseif target[1] == 'fn' then
                 local params = target[2]
                 local body = target[3]
@@ -1427,6 +1433,16 @@ return function (globalTree, debuggg)
         else
             _debug(val)
             error('getValue: unsupported type: ' .. (type(val[1])=='string' and val[1] or type(val[1])))
+        end
+    end
+
+    local checkStoryCanStart = function()
+        for name, params in pairs(externalDefs) do
+            local _ = params -- TODO check params
+            local var = getEnvOptional(name)
+            if var == nil or var[1] ~= 'fn' then
+                error('Missing function binding for external ' .. name .. ' and no fallback ink function found')
+            end
         end
     end
 
@@ -1538,6 +1554,7 @@ return function (globalTree, debuggg)
         comment = nodeSkip,
         knot = nodeSkip,
         fn = nodeSkip,
+        external = nodeSkip,
         listdef = nodeSkip,
 
         tag = function(n)
@@ -1602,6 +1619,13 @@ return function (globalTree, debuggg)
         --local lastpointer=pointer
         --local lasttree=tree -- TODO is this needed?
 
+
+        if not storyStarted and isNext('external') then
+            -- first update call before the first continue is called
+            -- the external functions are not bound yet
+            s.canContinue = canContinue()
+            return
+        end
 
         if isNext('divert') then
             goTo(tree[pointer][2], tree[pointer][3])
@@ -1751,6 +1775,12 @@ return function (globalTree, debuggg)
 
 
     s.continue = function()
+        -- first run
+        if not storyStarted then
+            checkStoryCanStart()
+            storyStarted = true
+        end
+
         _debug("out", out.buffer)
         local res = trim(out:toString())
         s.currentTags = tags
@@ -1798,14 +1828,26 @@ return function (globalTree, debuggg)
         return tagsForContentAtPath[knotName] or {}
     end
 
+    -- TODO document
+    s.bindExternalFunction = function(name, fn)
+        local externalFunctionParams = externalDefs[name]
+        if externalFunctionParams == nil then
+            error('cannot bind ' .. name .. ', external function not defined')
+        end
+        -- TODO check params
+        externalDefs[name] = nil
+        env[name] = {'external', fn}
+    end
+
     s.currentTags = {}
 
     -- s.state.ToJson();s.state.LoadJson(savedJson);
 
     tree = preProcess(tree)
     _debug(tree)
-    _debug(listDefs)
-    _debug(s.variablesState)
+    _debug("lists:", listDefs)
+    _debug("external:", externalDefs)
+    _debug("state:", s.variablesState)
 
     update()
 

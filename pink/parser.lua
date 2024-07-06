@@ -18,7 +18,7 @@ return function(input, source, debug)
 
         local _debug = function(x)
             if not debug then return end
-            print( require('test/luaunit').prettystr(x) )
+            print( require('test/lib/luaunit').prettystr(x) )
         end
 
         _debug(input)
@@ -827,6 +827,16 @@ return function(input, source, debug)
             return token('tempvar', name, value) --TODO better name? local var? var?
         end
 
+        local external = function()
+            consume("EXTERNAL")
+            consumeWhitespace()
+            local name = identifier()
+            consumeWhitespace()
+            local params = parameters()
+            consumeWhitespaceAndNewlines()
+            return token('external', name, params)
+        end
+
         local list = function()
             consume("LIST")
             consumeWhitespace()
@@ -1227,6 +1237,8 @@ return function(input, source, debug)
                 return constant()
             elseif ahead('VAR') then
                 return variable()
+            elseif ahead('EXTERNAL') then
+                return external()
             elseif ahead('LIST') then
                 return list()
             elseif ahead('{') then

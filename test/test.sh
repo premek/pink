@@ -42,7 +42,7 @@ for P in $PATTERNS; do
 
   elif [ "$P" = "luaformat" ]; then
     echo 'luaformat...'
-    for F in pink/*.lua test/api.lua; do
+    for F in pink/*.lua test/*.lua; do
       TESTS=$((TESTS+1))
       if luaformatter -s4 "$F" | diff - "$F" > /dev/null 2>&1 ; then 
           PASSES=$((PASSES+1))

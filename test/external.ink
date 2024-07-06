@@ -1,0 +1,4 @@
+EXTERNAL ext()
+
+{ext()}
+
