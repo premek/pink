@@ -1585,8 +1585,17 @@ return function (globalTree, debuggg)
         glue = function() out:instr('glue'); end,
         nl = function() out:add('\n'); end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n) incrementSeenCounter(n[2]); end,
-        gather = function(n) return n[3]; end,
         ink = function(n) return n[2]; end,
+        gather = function(n)
+            if n[4] then
+                if currentKnot then
+                    incrementSeenCounter(currentKnot .. '.' .. n[4]) -- TODO
+                else
+                    incrementSeenCounter(n[4])
+                end
+            end
+            return n[3]
+        end,
 
 
         ['if'] = function(n)
