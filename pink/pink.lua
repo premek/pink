@@ -1,4 +1,9 @@
 #!/bin/env lua
+if not table.unpack then
+    -- selene: allow(incorrect_standard_library_use)
+    table.unpack = unpack
+end
+
 local included = debug.getinfo(3) ~= nil
 if not arg[1] and not (...) then
     error("Usage: `require` this file from a script or execute `lua pink/pink.lua game.ink`")

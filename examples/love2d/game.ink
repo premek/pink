@@ -1,4 +1,10 @@
-Hello world
+EXTERNAL quit()
+
+=== menu
++ [New game]
+  -> back_in_london
++ [Exit]
+  ~ quit()
 
 === back_in_london ===
 
@@ -28,3 +34,10 @@ He insisted that we hurried <> home to Savile Row
 
 === as_fast_as_we_could ===
 <> as fast as we could.
+
+-> end
+
+=== end
+The End.
+
+-> menu
