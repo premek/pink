@@ -11,6 +11,14 @@ function testBasic()
     luaunit.assertFalse(story.canContinue)
 end
 
+function testOutputEachLineSeparately()
+    local story = pink('test/twolines.ink')
+    luaunit.assertEquals(story.continue(), 'hello')
+    luaunit.assertEquals(story.continue(), 'world')
+    luaunit.assertFalse(story.canContinue)
+end
+
+
 function testInvalidKnot()
     local story = pink('test/branching.ink')
     luaunit.assertErrorMsgContains('unknown path: nonexistent', function()

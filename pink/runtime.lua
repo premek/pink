@@ -812,7 +812,6 @@ return function (globalTree, debuggg)
                 end
             end
             self.buffer = t
-            _debug(self.buffer)
 
             t = {}
             local glue = false
@@ -861,7 +860,6 @@ return function (globalTree, debuggg)
                 end
             end
             self.buffer = t
-            _debug("any trims left", t)
 
 
             t = {}
@@ -882,19 +880,59 @@ return function (globalTree, debuggg)
                 end
             end
 
+            t = {""}
+            for _, e in ipairs(self.buffer) do
+                if e ~= '\n' then
+                    t[#t] = t[#t] .. e
+                else
+                    t[#t], _ = t[#t]:gsub(" +", " "):gsub("\n +", "\n")
+                    table.insert(t, e)
+                    table.insert(t, "")
+                end
+            end
+            while t[#t] == '' do -- eh
+                table.remove(t, #t) -- remove the last empty placeholder
+            end
+            if t[#t] == ' ' then -- eh
+                table.remove(t, #t)
+            end
+
+            self.buffer = t
+
             _debug(t)
-            local str, _ = table.concat(t):gsub(" +", " "):gsub("\n +", "\n"):gsub(" \n", "\n") --FIXME
-            self.buffer = {str}
+            local str = table.concat(t)
+            self.buffer = {}
+            for line in string.gmatch(str, "[^\n]+") do
+                table.insert(self.buffer, line)
+                table.insert(self.buffer, '\n')
+            end
+            table.remove(self.buffer, #self.buffer) -- remove the last newline
+
+            while self.buffer[#self.buffer] == '' do -- eh
+                table.remove(self.buffer, #self.buffer) -- remove the last empty element
+            end
+
+            _debug("collect end", self.buffer)
         end,
-        toString = function(self)
+        popLine = function(self)
             self:collect()
-            return rtrim(self.buffer[1])
+            if #self.buffer < 1 then
+                _debug("no line to pop")
+                return ""
+            end
+            local result = rtrim(self.buffer[1])
+            table.remove(self.buffer, 1)
+            if self.buffer[1] == '\n' then
+                table.remove(self.buffer, 1)
+            end
+            return trim(result)
         end,
         clear = function(self)
             self.buffer = {}
         end,
         isEmpty = function(self)
-            return (#(self:toString()) == 0)
+            self:collect()
+            return #self.buffer == 0
         end
     }
 
@@ -1620,6 +1658,7 @@ return function (globalTree, debuggg)
             return
         end
 
+        -- TODO return when we can output a line? so we dont progress unnecesarilly far ahead?
 
         if tree[pointer] and tree[pointer].location then
             lastLocation = tree[pointer].location
@@ -1686,7 +1725,7 @@ return function (globalTree, debuggg)
                     update()
                     stepInto(option[4])
                     update()
-                    local text = trim(out:toString())
+                    local text = out:popLine()
                     out.buffer = oldBuf
                     callstack = oldCS
                     --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
@@ -1791,12 +1830,11 @@ return function (globalTree, debuggg)
         end
 
         _debug("out", out.buffer)
-        local res = trim(out:toString())
+        local res = trim(out:popLine())
+        _debug("OUT:", res)
         s.currentTags = tags
         tags = {}
-        out:clear()
         update()
-        _debug("OUT:"..res)
         return res;
     end
 
