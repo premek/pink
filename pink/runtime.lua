@@ -1,4 +1,5 @@
 math.randomseed(os.time())
+local unpack = table.unpack or unpack
 
 local debugOn = false
 local _debug = function(...)
@@ -917,15 +918,14 @@ return function (globalTree, debuggg)
         popLine = function(self)
             self:collect()
             if #self.buffer < 1 then
-                _debug("no line to pop")
-                return ""
+                err("no line to pop")
             end
-            local result = rtrim(self.buffer[1])
+            local result = trim(self.buffer[1])
             table.remove(self.buffer, 1)
             if self.buffer[1] == '\n' then
                 table.remove(self.buffer, 1)
             end
-            return trim(result)
+            return result
         end,
         clear = function(self)
             self.buffer = {}
@@ -1432,7 +1432,7 @@ return function (globalTree, debuggg)
                     table.insert(argumentValues, getValue(arg))
                 end
                 -- TODO convert arguments, return values for external
-                return target[2](table.unpack(argumentValues))
+                return target[2](unpack(argumentValues))
             elseif target[1] == 'fn' then
                 local params = target[2]
                 local body = target[3]
@@ -1474,14 +1474,20 @@ return function (globalTree, debuggg)
         end
     end
 
-    local checkStoryCanStart = function()
-        for name, params in pairs(externalDefs) do
-            local _ = params -- TODO check params
+    local getNotBindExternalFunctionNames = function()
+        for name in pairs(externalDefs) do
             local var = getEnvOptional(name)
-            if var == nil or var[1] ~= 'fn' then
-                error('Missing function binding for external ' .. name .. ' and no fallback ink function found')
+            if is('fn', var) then
+                -- fallback ink function used instead of the external one
+                externalDefs[name] = nil
             end
         end
+
+        local names = {}
+        for name in pairs(externalDefs) do
+            table.insert(names, name)
+        end
+        return names
     end
 
     local canContinue = function()
@@ -1668,10 +1674,9 @@ return function (globalTree, debuggg)
         --local lasttree=tree -- TODO is this needed?
 
 
-        if not storyStarted and isNext('external') then
+        if not storyStarted and #getNotBindExternalFunctionNames() > 0 then
             -- first update call before the first continue is called
             -- the external functions are not bound yet
-            s.canContinue = canContinue()
             return
         end
 
@@ -1825,7 +1830,12 @@ return function (globalTree, debuggg)
     s.continue = function()
         -- first run
         if not storyStarted then
-            checkStoryCanStart()
+            local notBindExternalFunctionNames = getNotBindExternalFunctionNames()
+            if #notBindExternalFunctionNames > 0 then
+                error('Missing function(s) binding for external '
+                    .. table.concat(notBindExternalFunctionNames, ', ')
+                    .. ' and no fallback ink function found')
+            end
             storyStarted = true
         end
 
@@ -1884,6 +1894,7 @@ return function (globalTree, debuggg)
         -- TODO check params
         externalDefs[name] = nil
         env[name] = {'external', fn}
+        update()
     end
 
     s.currentTags = {}

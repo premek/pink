@@ -1,3 +1,4 @@
+local unpack = table.unpack or unpack
 local deepcopy
 deepcopy = function(orig)
     local orig_type = type(orig)
@@ -482,10 +483,10 @@ return function(input, source, debug)
             table.insert(operandStack, term())
             consumeWhitespace()
 
-            while aheadAnyOf(table.unpack(operators)) do
+            while aheadAnyOf(unpack(operators)) do
                 if ahead('//') then break end -- '/' vs '//' -- FIXME not needed if we had tokens
                 if ahead('->') then break end -- '-' vs '->' -- FIXME not needed if we had tokens
-                local operator = consumeAnyOf(table.unpack(operators))
+                local operator = consumeAnyOf(unpack(operators))
                 consumeWhitespace()
 
                 while operatorStack[#operatorStack] ~= nil
