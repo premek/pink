@@ -1155,10 +1155,12 @@ return function (globalTree, debuggg)
             pointer = knots["//no-knot"][path].pointer
             -- TODO messy
             if isNext('option') then
-                tree[pointer].used = true --FIXME different mechanism used for labelled and anon options
-                tree=tree[pointer][9]
-                pointer = 1
-                _debug(tree)
+                local option = tree[pointer]
+                option.used = true --FIXME different mechanism used for labelled and anon options
+                -- TODO duplicated logic in chooseChoice
+                returnTo(option[9])
+                returnTo(option[5])
+                stepInto(option[3])
             end
             if isNext('gather') then
                 tree=tree[pointer][3]
@@ -1600,6 +1602,8 @@ return function (globalTree, debuggg)
         fn = nodeSkip,
         external = nodeSkip,
         listdef = nodeSkip,
+        -- skip following options after returning from an option where we jumped in by a name -- FIXME
+        option = nodeSkip,
 
         tag = function(n)
             table.insert(tags, n[2])
@@ -1866,7 +1870,9 @@ return function (globalTree, debuggg)
             returnTo(choice.gather[3])
         end
 
-        stepInto(choice.option[9])
+        returnTo(choice.option[9])
+        returnTo(choice.option[5])
+        stepInto(choice.option[3])
 
         s.currentChoices = {}
         update()

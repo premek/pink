@@ -1,19 +1,4 @@
 local unpack = table.unpack or unpack
-local deepcopy
-deepcopy = function(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else -- number, string, boolean, etc
-        copy = orig
-    end
-    return copy
-end
 
 return function(input, source, debug)
 
@@ -731,20 +716,12 @@ return function(input, source, debug)
 
             consumeWhitespace()
 
-            local insertNl = ahead('\n')
-            consumeWhitespaceAndNewlines()
+            --local insertNl = ahead('\n')
+            --consumeWhitespaceAndNewlines()
 
             local body = optionBody(nesting+1) -- the parameter will come back to this function as minNesting
-            if #t1[2] > 0 or #t3[2] > 0 then
-                table.insert(body, 1, t1) -- FIXME
-                table.insert(body, 2, t3) -- FIXME
-                if insertNl then
-                    table.insert(body, 3, {'nl'})
-                end
-            end
             -- TODO use named arguments or some other mechanism
-            -- FIXME deepcopy used to make AST printing nicer, remove when not needed
-            return token('option', nesting, {deepcopy(t1)}, {deepcopy(t2)}, {deepcopy(t3)},
+            return token('option', nesting, {t1}, {t2}, {t3},
                 name, sticky, conditions, body, fallback)
         end
 
