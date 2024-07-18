@@ -15,6 +15,7 @@ end
 
 
 local parser = requireLocal('parser')
+local formatter = requireLocal('formatter')
 local runtime = requireLocal('runtime')
 
 
@@ -77,8 +78,21 @@ if arg[1] == '-v' then
     debug = true
     table.remove(arg, 1)
 end
+
+local format = false
+if arg[1] == 'format' then
+    format = true
+    table.remove(arg, 1)
+end
+
 local filename = arg[1]
 local story = getStory(filename, debug)
+
+if format then
+    print(formatter(parse(filename, debug), debug))
+    return
+end
+
 
 while true do
     while story.canContinue do

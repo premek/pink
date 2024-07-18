@@ -180,7 +180,7 @@ return function(input, source, debug)
                 next()
             end
             local text = currentText(s)
-            consumeWhitespaceAndNewlines()
+            consumeWhitespace()
             return token('comment', text)
         end
 
