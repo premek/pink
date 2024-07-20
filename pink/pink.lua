@@ -86,7 +86,6 @@ if arg[1] == 'format' then
 end
 
 local filename = arg[1]
-local story = getStory(filename, debug)
 
 if format then
     print(formatter(parse(filename, debug), debug))
@@ -94,6 +93,7 @@ if format then
 end
 
 
+local story = getStory(filename, debug)
 while true do
     while story.canContinue do
         print(story.continue())
