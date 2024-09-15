@@ -143,12 +143,12 @@ local nodeFormatters = {
         outNewLine(0)
         outNewLine(0)
         out('=== function ', node[2])
-            out('(')
+        out('(')
         for _, parameter in ipairs(node[3]) do
             -- TODO ref
             out(parameter[1])
         end
-            out(')')
+        out(')')
         out(' ===')
         outNewLine(0)
         format(node[4], ctx:with{indent=0})
@@ -181,13 +181,13 @@ local nodeFormatters = {
         if node[4] then
             out('(', node[4], ')')
         end
-        format(node[3], ctx)       
+        format(node[3], ctx)
     end,
     divert = function(node, ctx)
         out('-> ', node[2])
         if #node[3] > 0 then
             for _, arg in ipairs(node[3]) do
-                -- TODO
+            -- TODO
             end
         end
         if node[4] then
@@ -198,7 +198,7 @@ local nodeFormatters = {
         out('<- ', node[2])
         if #node[3] > 0 then
             for _, arg in ipairs(node[3]) do
-                -- TODO
+            -- TODO
             end
         end
     end,
