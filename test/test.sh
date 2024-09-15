@@ -35,14 +35,14 @@ for P in $PATTERNS; do
     luacheck --codes -q . && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     printf "\nselene: "
     TESTS=$((TESTS+1))
-    selene --config selene-lua52.toml pink/runtime.lua pink/parser.lua examples/game.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    selene --config selene-lua52.toml pink-cli pink/runtime.lua pink/parser.lua examples/game.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     printf "\nselene-love: "
     TESTS=$((TESTS+1))
     selene --config selene-love.toml pink/pink.lua examples/love2d/ && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
 
   elif [ "$P" = "luaformat" ]; then
     echo 'luaformat...'
-    for F in pink/*.lua test/*.lua; do
+    for F in pink-cli pink/*.lua test/*.lua; do
       TESTS=$((TESTS+1))
       if luaformatter -s4 "$F" | diff - "$F" > /dev/null 2>&1 ; then 
           PASSES=$((PASSES+1))
@@ -69,7 +69,7 @@ for P in $PATTERNS; do
       TESTS=$((TESTS+1))
       echo
       printf '%s ' "$TESTCASE" &&
-         "./$DIR/pink/pink.lua" ${VERBOSE:+"$VERBOSE"} "$D/story.ink" < "$D/input.txt" 2>&1 | $DIFF "$D/transcript.txt" - &&
+         "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$D/story.ink" < "$D/input.txt" 2>&1 | $DIFF "$D/transcript.txt" - &&
          printf "OK" && PASSED="$PASSED\n$TESTCASE" && PASSES=$((PASSES+1)) || RET=1
     done
   fi

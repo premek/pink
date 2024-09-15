@@ -1,23 +1,7 @@
 #!/bin/env lua
-local included = debug.getinfo(3) ~= nil
-if not arg[1] and not (...) then
-    error("Usage: `require` this file from a script or execute `lua pink/pink.lua game.ink`")
-end
-
-local folderOfThisFile = arg[1]
-    and string.sub(..., 1, string.len(arg[1]))==arg[1]
-    and arg[0]:match("(.-)[^/\\]+$")
-    or (...):match("(.-)[^%.]+$")
-
-local function requireLocal(f)
-    return require(folderOfThisFile .. f)
-end
-
-
-local parser = requireLocal('parser')
-local formatter = requireLocal('formatter')
-local runtime = requireLocal('runtime')
-
+local base_path = (...):match("(.-)[^%.]+$")
+local parser = require(base_path .. 'parser')
+local runtime = require(base_path .. 'runtime')
 
 local function loveFileReader(file)
     if not love.filesystem.getInfo(file, "file") then
@@ -65,56 +49,6 @@ parse = function(file, debug)
     return parsed
 end
 
-local function getStory(filename, debug)
+return function(filename, debug)
     return runtime(parse(filename, debug), debug)
 end
-
-if included then
-    return getStory
-end
-
-local debug = false
-if arg[1] == '-v' then
-    debug = true
-    table.remove(arg, 1)
-end
-
-local format = false
-if arg[1] == 'format' then
-    format = true
-    table.remove(arg, 1)
-end
-
-local filename = arg[1]
-
-if format then
-    print(formatter(parse(filename, debug), debug))
-    return
-end
-
-
-local story = getStory(filename, debug)
-while true do
-    while story.canContinue do
-        print(story.continue())
-        if #story.currentTags > 0 then
-            print('# tags: ' .. table.concat(story.currentTags, ', ')) -- TODO configurable
-        end
-    end
-    if #story.currentChoices == 0 then break end
-    print()
-    for i = 1, #story.currentChoices do
-        print(i .. ": " .. story.currentChoices[i].text)
-    end
-    io.write('?> ')
-    local answer = tonumber(io.read("*number"))
-    if not answer then
-        error('missing answer')
-    end
-    if not answer or answer > #story.currentChoices then
-        error('invalid answer: '..tostring(answer))
-    end
-    story.chooseChoiceIndex(answer)
-end
-
-
