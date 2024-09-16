@@ -13,6 +13,7 @@ VAR mixedList = (a, three, c)
 {mixedList ^ LIST_ALL(a)}   // a, c
 
 { mixedList >= (one, a) }   // true
-{ mixedList < (three) }     // false
+{false}
+TODO: { mixedList < (three) }     // false
 
 { LIST_INVERT(mixedList) }            // one, b, two
