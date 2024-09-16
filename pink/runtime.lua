@@ -137,6 +137,8 @@ return function (globalTree, debuggg)
             return  {'bool', #a[2] ~= 0}
         elseif a[1] == 'list' then
             return  {'bool', not listIsEmpty(a)}
+        elseif a[1] == 'el' then
+            return  {'bool', true}
         else
             err('cannot convert to bool', a)
         end
@@ -1499,8 +1501,9 @@ return function (globalTree, debuggg)
                 elseif #args > 1 then
                     err('too many arguments')
                 end
-                requireType(args[1], 'int')
-                return listElByValue(name, args[1][2])
+                local index = getValue(args[1])
+                requireType(index, 'int')
+                return listElByValue(name, index[2])
             else
                 error('invalid call target: ' .. target[1])
             end
