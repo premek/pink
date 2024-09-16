@@ -927,12 +927,12 @@ return function(input, source, debug)
 
     local seqSeparatedBranches = function()
         consumeWhitespaceAndNewlines()
-        local result = {inkText()}
+        local result = {{inkText()}}
         while ahead('|') do
             consume('|')
             local element = inkText()
             if element ~= nil then
-                table.insert(result, element)
+                table.insert(result, {element})
             end
         end
         return result
