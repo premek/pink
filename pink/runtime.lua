@@ -86,7 +86,7 @@ return function (globalTree, debuggg)
     local env
     local getEnv
 
-    local listPlus, listMinus, listCopy, listInc, listIterateElements
+    local listPlus, listMinus, listCopy, listInc, listIterateElements, listIsEmpty
 
     local toInt = function(a)
         requirePinkType(a)
@@ -135,6 +135,8 @@ return function (globalTree, debuggg)
             return {'bool', a[2] ~= 0}
         elseif a[1] == 'str' then
             return  {'bool', #a[2] ~= 0}
+        elseif a[1] == 'list' then
+            return  {'bool', not listIsEmpty(a)}
         else
             err('cannot convert to bool', a)
         end
@@ -542,14 +544,23 @@ return function (globalTree, debuggg)
         return listElByValue(name, max)
     end
 
-    local listCount = function(a)
+    local listCountNumber = function(a)
         requireType(a, 'list')
 
         local count = 0
         listIterateElements(a, function()
             count=count+1
         end);
-        return {'int', count}
+        return count
+    end
+
+    local listCount = function(a)
+        return {'int', listCountNumber(a)}
+    end
+
+    listIsEmpty = function(a)
+        requireType(a, 'list')
+        return listCountNumber(a) == 0
     end
 
     local listRandom = function(a)
