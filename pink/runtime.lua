@@ -86,7 +86,7 @@ return function (globalTree, debuggg)
     local env
     local getEnv
 
-    local listPlus, listMinus, listCopy, listInc
+    local listPlus, listMinus, listCopy, listInc, listIterateElements
 
     local toInt = function(a)
         requirePinkType(a)
@@ -229,10 +229,18 @@ return function (globalTree, debuggg)
 
     local sub = function(a,b)
         requireType(a, 'float', 'int', 'bool', 'list')
-        requireType(b, 'float', 'int', 'bool', 'el')
+        requireType(b, 'float', 'int', 'bool', 'list', 'el')
 
-        if a[1] == 'list' and b[1] == 'el' then
-            return listMinus(a, b)
+        if a[1] == 'list' then
+            if b[1] == 'list' then
+                local list = a
+                listIterateElements(b, function(el)
+                    list = listMinus(list, el)
+                end)
+                return list
+            elseif b[1] == 'el' then
+                return listMinus(a, b)
+            end
         end
 
         if b[1] == 'bool' then
@@ -283,7 +291,7 @@ return function (globalTree, debuggg)
         return {t, math.fmod(a[2],b[2])}
     end
 
-    local listIterateElements = function(list, callback)
+    listIterateElements = function(list, callback)
         for listName, els in pairs(list[2]) do
             for elName, _ in pairs(els) do
                 callback({'el', listName, elName})
@@ -425,6 +433,9 @@ return function (globalTree, debuggg)
         return new
     end
     listMinus = function(list, el)
+        requireType(list, 'list')
+        requireType(el, 'el')
+
         local new = listCopy(list)
         listRemove(new, el)
         return new
@@ -535,7 +546,9 @@ return function (globalTree, debuggg)
         requireType(a, 'list')
 
         local count = 0
-        listIterateElements(a, function() count=count+1 end);
+        listIterateElements(a, function()
+            count=count+1
+        end);
         return {'int', count}
     end
 
