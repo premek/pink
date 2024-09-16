@@ -531,6 +531,18 @@ return function (globalTree, debuggg)
         return listElByValue(name, max)
     end
 
+    local listCount = function(a)
+        requireType(a, 'list')
+
+        local count = 0
+        for listName, els in pairs(a[2]) do
+            for _, _ in pairs(els) do
+                count = count + 1
+            end
+        end
+        return {'int', count}
+    end
+
     local listMin = function(a)
         requireType(a, 'list')
 
@@ -743,6 +755,7 @@ return function (globalTree, debuggg)
         ['>']={'native', gt},
         ['>=']={'native', gte},
         LIST_VALUE={'native', listValue},
+        LIST_COUNT={'native', listCount},
         LIST_ALL={'native', listAll},
         LIST_MIN={'native', listMin},
         LIST_MAX={'native', listMax},
