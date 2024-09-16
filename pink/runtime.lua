@@ -96,7 +96,7 @@ return function (globalTree, debuggg)
         elseif a[1] == 'bool' then
             return {'int', a[2] and 1 or 0}
         else
-            error('cannot convert: '..a[1])
+            err('cannot convert to int', a)
         end
     end
 
@@ -111,7 +111,7 @@ return function (globalTree, debuggg)
         elseif a[1] == 'bool' then
             return {'float', a[2] and 1 or 0}
         else
-            error('cannot convert: '..a[1])
+            err('cannot convert to float', a)
         end
     end
 
@@ -136,7 +136,7 @@ return function (globalTree, debuggg)
         elseif a[1] == 'str' then
             return  {'bool', #a[2] ~= 0}
         else
-            error('cannot convert: '..a[1])
+            err('cannot convert to bool', a)
         end
     end
 
@@ -763,7 +763,9 @@ return function (globalTree, debuggg)
         ['==']={'native', eq},
         ['!=']={'native', notEq},
         ['?']={'native', contains},
+        has={'native', contains},
         ['!?']={'native', notContains},
+        hasnt={'native', notContains},
         ['not']={'native', notFn},
         ['||']={'native', orFn},
         ['&&']={'native', andFn},
