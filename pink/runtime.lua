@@ -535,12 +535,18 @@ return function (globalTree, debuggg)
         requireType(a, 'list')
 
         local count = 0
-        for listName, els in pairs(a[2]) do
-            for _, _ in pairs(els) do
-                count = count + 1
-            end
-        end
+        listIterateElements(a, function() count=count+1 end);
         return {'int', count}
+    end
+
+    local listRandom = function(a)
+        requireType(a, 'list')
+
+        local els = listGetElements(a)
+        if #els == 0 then
+            return {'list', {}}
+        end
+        return els[math.random(1, #els)]
     end
 
     local listMin = function(a)
@@ -756,6 +762,7 @@ return function (globalTree, debuggg)
         ['>=']={'native', gte},
         LIST_VALUE={'native', listValue},
         LIST_COUNT={'native', listCount},
+        LIST_RANDOM={'native', listRandom},
         LIST_ALL={'native', listAll},
         LIST_MIN={'native', listMin},
         LIST_MAX={'native', listMax},
