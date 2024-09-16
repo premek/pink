@@ -1893,7 +1893,10 @@ return function (globalTree, debuggg)
         end
 
         _debug("out", out.buffer)
-        local res = trim(out:popLine())
+        local res = ""
+        if not out:isEmpty() then
+            res = out:popLine()
+        end
         _debug("OUT:", res)
         s.currentTags = tags
         tags = {}
