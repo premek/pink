@@ -822,7 +822,7 @@ return function(input, source, debug)
         local name = identifier()
         consumeWhitespace()
         consume("=")
-        consumeWhitespace()
+        consumeWhitespaceAndNewlines()
 
         local elements = {}
         local elementValue = 1
@@ -857,7 +857,7 @@ return function(input, source, debug)
             end
             if ahead(',') then
                 consume(",")
-                consumeWhitespace()
+                consumeWhitespaceAndNewlines()
             end
         end
         consumeWhitespaceAndNewlines()
