@@ -209,9 +209,9 @@ return function(input, source, debug)
         -- FIXME this is wierd
         --
         --
-        while not aheadAnyOf('#', '->', '<-', '==', '<>', '//', ']', '[', '{', '}', '|', '/*', '\n')
+        while not aheadAnyOf('#', '->', '<-', '==', '<>', '//', '{', '}', '|', '/*', '\n')
             and not isAtEnd()
-            and not (opts and opts.stopAtQuote and ahead('"')) do -- FIXME hack or not?
+            and not (opts and opts.stopAt and aheadAnyOf(unpack(opts.stopAt))) do -- FIXME hack or not?
             if not ahead('\\') then
                 next()
             else
@@ -281,7 +281,7 @@ return function(input, source, debug)
     local stringLiteral = function()
         consume('"')
         -- string defined in ink can contain ink - although it will always evaluate to a string.
-        local result = inkText{stopAtQuote=true} -- TODO more tests
+        local result = inkText{stopAt={'"'}} -- TODO more tests
         consume('"')
         return result
     end
@@ -702,12 +702,12 @@ return function(input, source, debug)
             end
         end
 
-        local t1 = optionText()
+        local t1 = optionText({stopAt={'['}})
 
         local t2 = nil
         if ahead('[') then
             consume('[')
-            t2 = optionText()
+            t2 = optionText({stopAt={']'}})
             consume(']')
         end
 

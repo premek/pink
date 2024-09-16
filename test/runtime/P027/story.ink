@@ -1,0 +1,4 @@
+~ fn()
+
+=== function fn
+[textinbrackets]
