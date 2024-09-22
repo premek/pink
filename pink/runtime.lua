@@ -1493,8 +1493,8 @@ return function (globalTree)
             table.insert(tags, n[2])
         end,
         tempvar = function(n)
-            -- TODO write to ancestor env that creates a scope
-            env[n[2]] = getValue(n[3])
+            -- FIXME what's the right env to write to?
+            rootEnv[n[2]] = getValue(n[3])
         end,
         assign = nodeUpdateAssign,
         ['return'] = function(n)
