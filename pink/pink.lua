@@ -1,7 +1,7 @@
-#!/bin/env lua
 local base_path = (...):match("(.-)[^%.]+$")
 local parser = require(base_path .. 'parser')
 local runtime = require(base_path .. 'runtime')
+
 
 local function loveFileReader(file)
     if not love.filesystem.getInfo(file, "file") then
@@ -34,10 +34,10 @@ local function basedir(str)
 end
 
 local parse;
-parse = function(file, debug)
+parse = function(file)
     local parsed = {}
     local reader = getFileReader()
-    for _,t in ipairs(parser(reader(file), file, debug)) do
+    for _,t in ipairs(parser(reader(file), file)) do
         if t[2] and t[1]=='include' then
             for _, includedNode in ipairs(parse(basedir(file)..'/'..t[2])) do
                 table.insert(parsed, includedNode)
@@ -49,6 +49,6 @@ parse = function(file, debug)
     return parsed
 end
 
-return function(filename, debug)
-    return runtime(parse(filename, debug), debug)
+return function(filename)
+    return runtime(parse(filename))
 end

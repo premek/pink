@@ -1,11 +1,9 @@
+local base_path = (...):match("(.-)[^%.]+$")
+local _debug = require(base_path .. 'debug')
+
 local unpack = table.unpack or unpack
 
-return function(input, source, debug)
-    local _debug = function(x)
-        if not debug then return end
-        print( require('test/lib/luaunit').prettystr(x) )
-    end
-
+return function(input, source)
     _debug(input)
 
     source = source or 'unknown source'

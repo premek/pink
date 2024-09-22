@@ -1,17 +1,6 @@
-local debugOn = false
-local _debug = function(...)
-    if not debugOn then return end
-    local args = {...}
-    if #args == 0 then
-        print('(nil)')
-    end
-    for _, x in ipairs(args) do
-        print( require('test/lib/luaunit').prettystr(x) )
-    end
-end
-
-
-
+local base_path = (...):match("(.-)[^%.]+$")
+local out = require(base_path .. 'out')
+local _debug = require(base_path .. 'debug')
 
 
 
@@ -359,8 +348,7 @@ local outputToString = function()
     return table.concat(o, '\n')
 end
 
-return function (globalTree, debuggg)
-    debugOn = debuggg
+return function (globalTree)
     _debug("in", globalTree)
     format(globalTree, newCtx())
     _debug("out", output)

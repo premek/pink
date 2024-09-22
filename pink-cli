@@ -6,6 +6,7 @@ end
 local parser = require('pink.parser')
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
+local _debug = require('pink.debug')
 
 local function read(file)
     local f = io.open(file, "rb")
@@ -22,9 +23,9 @@ local function basedir(str)
 end
 
 local parse;
-parse = function(file, debug)
+parse = function(file)
     local parsed = {}
-    for _,t in ipairs(parser(read(file), file, debug)) do
+    for _,t in ipairs(parser(read(file), file)) do
         if t[2] and t[1]=='include' then
             for _, includedNode in ipairs(parse(basedir(file)..'/'..t[2])) do
                 table.insert(parsed, includedNode)
@@ -36,9 +37,8 @@ parse = function(file, debug)
     return parsed
 end
 
-local debug = false
 if arg[1] == '-v' then
-    debug = true
+    _debug.enabled = true
     table.remove(arg, 1)
 end
 
@@ -51,12 +51,12 @@ end
 local filename = arg[1]
 
 if format then
-    print(formatter(parse(filename, debug), debug))
+    print(formatter(parse(filename)))
     return
 end
 
 
-local story = runtime(parse(filename, debug), debug)
+local story = runtime(parse(filename))
 while true do
     while story.canContinue do
         print(story.continue())
