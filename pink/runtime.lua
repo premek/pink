@@ -656,13 +656,13 @@ return function (globalTree)
             return {'bool', a[2]==b[2] and a[3]==b[3]}
         end
 
-        -- same type
-        if a[1]==b[1] then
+        if (a[1]==b[1]) or
+            ((a[1] == 'int' or a[1] == 'float') and (b[1] == 'int' or b[1] == 'float')) then
             return {"bool", a[2]==b[2]}
                 -- TODO resolve path when comparing diverts?
         end
 
-        err('not yet implemented')
+        err('eq not yet implemented for: '..a[1]..', '..b[1])
     end
 
     local notEq = function(a,b)
