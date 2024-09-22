@@ -705,6 +705,16 @@ return function (globalTree)
         end
         return {'bool', toFloat(a)[2] <= toFloat(b)[2]}
     end
+    local min = function(a,b)
+        requireType(a, 'bool', 'int', 'float')
+        requireType(b, 'bool', 'int', 'float')
+        return {'float', math.min(toFloat(a)[2], toFloat(b)[2])}
+    end
+    local max = function(a,b)
+        requireType(a, 'bool', 'int', 'float')
+        requireType(b, 'bool', 'int', 'float')
+        return {'float', math.max(toFloat(a)[2], toFloat(b)[2])}
+    end
 
     local contains = function(a,b)
         if is('str', a) and is('str', b) then
@@ -767,6 +777,8 @@ return function (globalTree)
         ['<=']={'native', lte},
         ['>']={'native', gt},
         ['>=']={'native', gte},
+        MIN={'native', min},
+        MAX={'native', max},
         LIST_VALUE={'native', listValue},
         LIST_COUNT={'native', listCount},
         LIST_RANDOM={'native', listRandom},
