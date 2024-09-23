@@ -6,7 +6,7 @@ end
 local parser = require('pink.parser')
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
-local _debug = require('pink.debug')
+local logging = require('pink.logging')
 
 local function read(file)
     local f = io.open(file, "rb")
@@ -38,7 +38,7 @@ parse = function(file)
 end
 
 if arg[1] == '-v' then
-    _debug.enabled = true
+    logging.debugEnabled = true
     table.remove(arg, 1)
 end
 

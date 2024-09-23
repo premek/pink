@@ -1,5 +1,6 @@
 local base_path = (...):match("(.-)[^%.]+$")
-local _debug = require(base_path .. 'debug')
+local logging = require(base_path .. 'logging')
+local _debug = logging.debug
 
 local rtrim = function(s)
     return s:match("(.-)%s*$")

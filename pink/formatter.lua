@@ -1,29 +1,8 @@
 local base_path = (...):match("(.-)[^%.]+$")
 local out = require(base_path .. 'out')
-local _debug = require(base_path .. 'debug')
-
-
-
-local lastLocation = nil
-local getLocation = function(location)
-    return location[1] .. ', line ' .. location[2] .. ', column ' .. location[3]
-end
-
-local getLogMessage = function (message, token)
-    local location = ''
-    if token and token.location then
-        location = '\n\tsomewhere around ' .. getLocation(token.location)
-    elseif lastLocation then
-        location = '\n\tsomewhere after ' .. getLocation(lastLocation)
-    end
-    if token and type(token) == "table" and #token > 0 then
-        location = location .. ', node type: ' .. token[1]
-    end
-    return message..location
-end
-local err = function(message, token)
-    error(getLogMessage(message, token))
-end
+local logging = require(base_path .. 'logging')
+local _debug = logging.debug
+local err = logging.error
 
 local is = function (node, what)
     return node ~= nil

@@ -1,5 +1,5 @@
 local base_path = (...):match("(.-)[^%.]+$")
-local _debug = require(base_path .. 'debug')
+local _debug = require(base_path .. 'logging').debug
 
 local unpack = table.unpack or unpack
 
