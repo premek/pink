@@ -55,6 +55,10 @@ local readCount = function(a)
     return var
 end
 
+local choiceCount = function()
+    return {'int', #builtins.currentChoices} -- FIXME get the value from runtime
+end
+
 local add = function(a,b)
     requireType(a, 'bool', 'str', 'float', 'int', 'list')
     requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
@@ -274,6 +278,7 @@ builtins.FLOAT={'native', float}
 builtins.SEED_RANDOM={'native', seedRandom}
 builtins.RANDOM={'native', random}
 builtins.READ_COUNT={'native', readCount}
+builtins.CHOICE_COUNT={'native', choiceCount}
 builtins['+']={'native', add}
 builtins['-']={'native', sub}
 builtins['*']={'native', mul}

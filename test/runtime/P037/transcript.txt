@@ -1,0 +1,14 @@
+Money: 120
+
+1: choice count: 0
+2: Bet 50
+3: choice count: 2
+4: Bet 100
+5: choice count: 4
+?> Money: 70
+
+1: choice count: 0
+2: Bet 50
+3: choice count: 2
+4: choice count: 3
+?> 

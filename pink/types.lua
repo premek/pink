@@ -2,6 +2,7 @@ local base_path = (...):match("(.-)[^%.]+$")
 local list = function() return require(base_path .. 'list') end -- avoid cyclic dependency -- FIXME
 local logging = require(base_path .. 'logging')
 local err = logging.error
+local _debug = logging.debug
 
 
 local types={}
@@ -17,7 +18,8 @@ types.requirePinkType = function(a)
         err('null not allowed')
     end
     if type(a) ~= 'table' then
-        err('table expected')
+        _debug(a)
+        err('table expected, got '..type(a))
     end
     if #a < 1 or type(a[1]) ~= 'string' then
         error('pink type expected')

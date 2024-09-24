@@ -765,6 +765,7 @@ return function (globalTree)
             local fallbackOption = nil
 
             s.currentChoices = {}
+            builtins.currentChoices = s.currentChoices --FIXME how to pass the value
 
             for _, option in ipairs(options) do
                 local sticky = option[7] == "sticky" -- TODO
