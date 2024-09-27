@@ -1,4 +1,5 @@
 local base_path = (...):match("(.-)[^%.]+$")
+local Story = require(base_path .. 'story')
 local out = require(base_path .. 'out')
 local list = require(base_path .. 'list')
 local types = require(base_path .. 'types')
@@ -24,14 +25,7 @@ return function (globalTree)
     local returnValue = {present = false, value = nil}
 
     -- story - this table will be passed to client code
-    local s = {
-        globalTags = {},
-        state = {
-            visitCount = {},
-        },
-        variablesState = env,
-        canContinue = false
-    }
+    local s = Story.new(rootEnv)
 
     local tree = globalTree
     local pointer = 1
@@ -393,24 +387,6 @@ return function (globalTree)
 
 
 
-            --  if is('tag', n) then
-            --if n[2] == 'above' then
-            --      if lastKnotName then table.insert(tagsForContentAtPath[lastKnotName], n[3]) end
-            --      table.insert(aboveTags, n[3])
-            --    end
-            --if n[2] == 'end' then
-            --    if tags[lastPara] then
-            --         table.insert(tags[lastPara], n[2])
-            --    end
-            --    end
-            --  end
-
-            --if is('para', n) then
-            --    tags[p] = aboveTags
-            --    aboveTags = {}
-            --    -- lastPara = p
-            --end
-
         end
 
 
@@ -762,10 +738,20 @@ return function (globalTree)
 
             local options = tree[pointer][2]
             local gather = tree[pointer][3]
-            local fallbackOption = nil
+            local fallbacks = {}
 
             s.currentChoices = {}
             builtins.currentChoices = s.currentChoices --FIXME how to pass the value
+
+            -- TODO move
+            local getOptionConditionsResult = function(option)
+                for _, condition in ipairs(option[8]) do
+                    if not types.isTruthy(getValue(condition)) then
+                        return false
+                    end
+                end
+                return true
+            end
 
             for _, option in ipairs(options) do
                 local sticky = option[7] == "sticky" -- TODO
@@ -773,17 +759,12 @@ return function (globalTree)
                 local displayOption = sticky or not option.used -- TODO seen counter
 
                 if fallback then
-                    fallbackOption = option
+                    table.insert(fallbacks, option)
                     displayOption = false
                 end
 
-                if displayOption then
-                    for _, condition in ipairs(option[8]) do
-                        if not types.isTruthy(getValue(condition)) then
-                            displayOption = false
-                            break
-                        end
-                    end
+                if displayOption and not getOptionConditionsResult(option) then
+                    displayOption = false
                 end
 
                 if displayOption then
@@ -809,16 +790,22 @@ return function (globalTree)
             s.canContinue = canContinue()
 
             if #s.currentChoices == 0 then
+                local doUpdate = false
                 if gather then
                     stepInto(gather[3])
+                    doUpdate = true
                 end
-                if fallbackOption then
-                    if gather then
-                        returnTo(gather[3])
+                for _, fallback in ipairs(fallbacks) do
+                    if getOptionConditionsResult(fallback) then
+                        if gather then
+                            returnTo(gather[3])
+                        end
+                        stepInto(fallback[9])
+                        doUpdate = true
+                        break
                     end
-                    stepInto(fallbackOption[9])
                 end
-                if fallbackOption or gather then
+                if doUpdate then
                     update()
                     return
                 end

@@ -1,5 +1,4 @@
 local base_path = (...):match("(.-)[^%.]+$")
-local out = require(base_path .. 'out')
 local list = require(base_path .. 'list')
 local types = require(base_path .. 'types')
 local logging = require(base_path .. 'logging')
