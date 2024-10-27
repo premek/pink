@@ -14,7 +14,7 @@ done
 shift $((OPTIND-1))
 
 PATTERNS="$*"
-test -z "$PATTERNS" && PATTERNS="I* W* P* api luaformat lua sh"
+test -z "$PATTERNS" && PATTERNS="I* W* P* api lua sh"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
@@ -35,23 +35,22 @@ for P in $PATTERNS; do
     luacheck --codes -q . && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     printf "\nselene: "
     TESTS=$((TESTS+1))
-    selene --config selene-lua52.toml pink-cli pink/runtime.lua pink/parser.lua examples/game.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    find pink/ -mindepth 1 -name '*.lua' -not -name pink.lua -exec selene --config selene-lua52.toml '{}' \; && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    TESTS=$((TESTS+1))
+    selene --config selene-lua52.toml pink-cli examples/game.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     printf "\nselene-love: "
     TESTS=$((TESTS+1))
     selene --config selene-love.toml pink/pink.lua examples/love2d/ && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
 
-  elif [ "$P" = "luaformat" ]; then
-    echo 'luaformat...'
-    for F in pink-cli pink/*.lua test/*.lua; do
-      TESTS=$((TESTS+1))
-      if luaformatter -s4 "$F" | diff - "$F" > /dev/null 2>&1 ; then 
-          PASSES=$((PASSES+1))
-          PASSED="$PASSED\n$P:$F"
-      else
-          echo "$F not formatted"
-          RET=1
-      fi
-    done
+    echo 'stylua...'
+    TESTS=$((TESTS+1))
+    if stylua --check pink-cli pink/*.lua test/*.lua; then 
+        PASSES=$((PASSES+1))
+        PASSED="$PASSED\n$P:$F"
+    else
+        echo "run 'stylua pink-cli pink/*.lua test/*.lua'" 
+        RET=1
+    fi
 
   elif [ "$P" = "sh" ]; then
     for F in test/*.sh; do

@@ -1,0 +1,10 @@
+[*.lua]
+indent_style = space
+indent_size = 4
+quote_type = single
+
+[pink-cli]
+indent_style = space
+indent_size = 4
+quote_type = single
+

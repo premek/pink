@@ -1,6 +1,6 @@
 #!/bin/env lua
 if not arg[1] then
-    error("\nUsage: "..arg[0].." [-v] [format] game.ink\n")
+    error('\nUsage: ' .. arg[0] .. ' [-v] [format] game.ink\n')
 end
 
 local parser = require('pink.parser')
@@ -9,25 +9,25 @@ local runtime = require('pink.runtime')
 local logging = require('pink.logging')
 
 local function read(file)
-    local f = io.open(file, "rb")
+    local f = io.open(file, 'rb')
     if not f then
-        error('failed to open "'..file..'"')
+        error('failed to open "' .. file .. '"')
     end
-    local content = f:read("*all")
+    local content = f:read('*all')
     f:close()
     return content
 end
 
 local function basedir(str)
-    return string.gsub(str, "(.*)(/.*)", "%1")
+    return string.gsub(str, '(.*)(/.*)', '%1')
 end
 
-local parse;
+local parse
 parse = function(file)
     local parsed = {}
-    for _,t in ipairs(parser(read(file), file)) do
-        if t[2] and t[1]=='include' then
-            for _, includedNode in ipairs(parse(basedir(file)..'/'..t[2])) do
+    for _, t in ipairs(parser(read(file), file)) do
+        if t[2] and t[1] == 'include' then
+            for _, includedNode in ipairs(parse(basedir(file) .. '/' .. t[2])) do
                 table.insert(parsed, includedNode)
             end
         else
@@ -55,7 +55,6 @@ if format then
     return
 end
 
-
 local story = runtime(parse(filename))
 while true do
     while story.canContinue do
@@ -64,20 +63,20 @@ while true do
             print('# tags: ' .. table.concat(story.currentTags, ', ')) -- TODO configurable
         end
     end
-    if #story.currentChoices == 0 then break end
+    if #story.currentChoices == 0 then
+        break
+    end
     print()
     for i = 1, #story.currentChoices do
-        print(i .. ": " .. story.currentChoices[i].text)
+        print(i .. ': ' .. story.currentChoices[i].text)
     end
     io.write('?> ')
-    local answer = tonumber(io.read("*number"))
+    local answer = tonumber(io.read('*number'))
     if not answer then
         error('missing answer')
     end
     if not answer or answer > #story.currentChoices then
-        error('invalid answer: '..tostring(answer))
+        error('invalid answer: ' .. tostring(answer))
     end
     story.chooseChoiceIndex(answer)
 end
-
-

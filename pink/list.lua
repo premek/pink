@@ -1,4 +1,4 @@
-local base_path = (...):match("(.-)[^%.]+$")
+local base_path = (...):match('(.-)[^%.]+$')
 local types = require(base_path .. 'types')
 local logging = require(base_path .. 'logging')
 local err = logging.error
@@ -7,13 +7,13 @@ local requireType = types.requireType
 local is = types.is
 
 local list = {
-    defs = {} -- FIXME support multiple instances!
+    defs = {}, -- FIXME support multiple instances!
 }
 
-local  iterateElements = function(lst, callback)
+local iterateElements = function(lst, callback)
     for listName, els in pairs(lst[2]) do
         for elName, _ in pairs(els) do
-            callback({'el', listName, elName})
+            callback({ 'el', listName, elName })
         end
     end
 end
@@ -24,10 +24,9 @@ local listValueInt = function(a)
     if is('el', a) then
         local listName, elementName = a[2], a[3]
         if not listName then
-            err('ambiguous list element: '..elementName)
+            err('ambiguous list element: ' .. elementName)
         end
         return list.defs[listName].byName[elementName]
-
     elseif is('list', a) then
         local result = 0
         for listName, els in pairs(a[2]) do
@@ -41,7 +40,7 @@ local listValueInt = function(a)
 end
 
 list.value = function(a)
-    return {'int', listValueInt(a)}
+    return { 'int', listValueInt(a) }
 end
 
 list.contains = function(lst, el)
@@ -65,7 +64,7 @@ list.containsAll = function(hay, needles)
 end
 
 list.elByValue = function(listName, elementValue)
-    return {'el', listName, list.defs[listName].byValue[elementValue]}
+    return { 'el', listName, list.defs[listName].byValue[elementValue] }
 end
 
 local listGetElements = function(lst)
@@ -96,11 +95,11 @@ local getListElements = function(els, knownListNames)
 end
 
 list.el = function(listName, elName)
-    return {'el', listName, elName}
+    return { 'el', listName, elName }
 end
 
 list.fromEls = function(els, knownListNames)
-    return {'list', getListElements(els, knownListNames)}
+    return { 'list', getListElements(els, knownListNames) }
 end
 
 list.fromLit = function(listLiteral, getEnv) -- FIXME env
@@ -113,19 +112,18 @@ list.fromLit = function(listLiteral, getEnv) -- FIXME env
     return list.fromEls(els, {})
 end
 list.empty = function()
-    return {'list', {}}
+    return { 'list', {} }
 end
 
 local listCopy = function(lst)
     local res = {}
     for listName, els in pairs(lst[2]) do
-
         res[listName] = res[listName] or {}
         for elName, _ in pairs(els) do
             res[listName][elName] = 1
         end
     end
-    return {'list', res}
+    return { 'list', res }
 end
 
 local listSetInternal = function(lst, el, internalValue)
@@ -152,7 +150,7 @@ list.plus = function(a, b)
     else
         for listName, els in pairs(b[2]) do
             for elName, _ in pairs(els) do
-                listAdd(new, {'el', listName, elName}) -- FIXME not nice?
+                listAdd(new, { 'el', listName, elName }) -- FIXME not nice?
             end
         end
     end
@@ -167,7 +165,6 @@ local minusEl = function(lst, el)
     listRemove(new, el)
     return new
 end
-
 
 list.minus = function(a, b)
     requireType(a, 'list')
@@ -190,7 +187,7 @@ list.set = function(lst, new)
 
     local els
     if is('el', new) then
-        els = {new}
+        els = { new }
     else
         -- TODO -- rename functions
         els = listGetElements(new)
@@ -210,16 +207,16 @@ local listSetValue = function(lst, value)
     for listName, _ in pairs(lst[2]) do
         local elName = list.defs[listName].byValue[value]
         if elName then
-            list.set(lst, {'el', listName, elName}) --FIXME
+            list.set(lst, { 'el', listName, elName }) --FIXME
         end
     end
 end
 
 list.output = function(lst)
     local outEls = listGetElements(lst)
-    table.sort(outEls, function(a,b)
+    table.sort(outEls, function(a, b)
         local val = listValueInt(a) - listValueInt(b)
-        return val == 0 and a[2]<b[2] or val<0
+        return val == 0 and a[2] < b[2] or val < 0
     end)
 
     local names = {}
@@ -229,13 +226,12 @@ list.output = function(lst)
     return table.concat(names, ', ')
 end
 
-
 -- sets the present value of the list 'a' times to the next element
 -- empty list stays empty
 -- list with elements from different list.defs: undefined??? --TODO
 list.inc = function(lst, a)
     local new = listCopy(lst)
-    local value=listValueInt(new) + a
+    local value = listValueInt(new) + a
     listSetValue(new, value)
     return new
 end
@@ -255,7 +251,7 @@ list.all = function(a)
 
     for _, listName in ipairs(listNames) do
         for elName, _ in pairs(list.defs[listName].byName) do
-            table.insert(els, {'el', listName, elName})
+            table.insert(els, { 'el', listName, elName })
         end
     end
 
@@ -279,7 +275,7 @@ list.max = function(a)
     end
 
     if name == nil then
-        return {'list', {}}
+        return { 'list', {} }
     end
 
     return list.elByValue(name, max)
@@ -290,13 +286,13 @@ local listCountNumber = function(a)
 
     local count = 0
     iterateElements(a, function()
-        count=count+1
-    end);
+        count = count + 1
+    end)
     return count
 end
 
 list.count = function(a)
-    return {'int', listCountNumber(a)}
+    return { 'int', listCountNumber(a) }
 end
 
 list.isEmpty = function(a)
@@ -309,7 +305,7 @@ list.random = function(a)
 
     local els = listGetElements(a)
     if #els == 0 then
-        return {'list', {}}
+        return { 'list', {} }
     end
     return els[math.random(1, #els)]
 end
@@ -330,7 +326,7 @@ list.min = function(a)
     end
 
     if name == nil then
-        return {'list', {}}
+        return { 'list', {} }
     end
 
     return list.elByValue(name, min)
@@ -340,7 +336,7 @@ list.invert = function(lst)
     local new = list.all(lst)
     for listName, els in pairs(lst[2]) do
         for elName, _ in pairs(els) do
-            listRemove(new, {'el', listName, elName})
+            listRemove(new, { 'el', listName, elName })
         end
     end
     return new
@@ -382,7 +378,7 @@ end
 
 list.listDef = function(listName, elDefs, env)
     local elements = {}
-    list.defs[listName] = {byName={}, byValue={}}
+    list.defs[listName] = { byName = {}, byValue = {} }
     for _, elDef in pairs(elDefs) do
         local elName, elSet, elValue = elDef[1], elDef[2], elDef[3]
         local el = list.el(listName, elName)
@@ -400,9 +396,7 @@ list.listDef = function(listName, elDefs, env)
             table.insert(elements, el)
         end
     end
-    env[listName] = list.fromEls(elements, {listName})
-
+    env[listName] = list.fromEls(elements, { listName })
 end
-
 
 return list

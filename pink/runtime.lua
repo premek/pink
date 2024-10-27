@@ -1,4 +1,4 @@
-local base_path = (...):match("(.-)[^%.]+$")
+local base_path = (...):match('(.-)[^%.]+$')
 local Story = require(base_path .. 'story')
 local out = require(base_path .. 'out')
 local list = require(base_path .. 'list')
@@ -13,16 +13,13 @@ local is = types.is
 math.randomseed(os.time())
 local unpack = table.unpack or unpack
 
-
-
-
-return function (globalTree)
+return function(globalTree)
     local rootEnv = builtins
     local env = rootEnv -- TODO should env be part of the callstack?
 
     -- set when interpreting a 'return' statement, read after stepping 'Out'
     -- TODO does it have to be a stack?
-    local returnValue = {present = false, value = nil}
+    local returnValue = { present = false, value = nil }
 
     -- story - this table will be passed to client code
     local s = Story.new(rootEnv)
@@ -42,19 +39,17 @@ return function (globalTree)
 
     -- TODO state should contain tree/pointer to be able to save / load
 
-
     local isEnd = function()
         return tree[pointer] == nil
     end
-    local isNext = function (what)
+    local isNext = function(what)
         return is(what, tree[pointer])
     end
-
 
     local splitName = function(name)
         local first
         local rest = {}
-        for token in name:gmatch("[^.]+") do
+        for token in name:gmatch('[^.]+') do
             if first == nil then
                 first = token
             else
@@ -83,7 +78,7 @@ return function (globalTree)
             if val ~= nil then
                 return val, e
             end
-            e=e._parent
+            e = e._parent
         end
     end
 
@@ -101,9 +96,9 @@ return function (globalTree)
     builtins.getEnv = getEnv -- FIXME!!!
 
     local stepInto = function(block, newEnv, fn)
-        _debug("step into")
+        _debug('step into')
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
-        table.insert(callstack, {tree=tree, pointer=pointer, fn=fn})
+        table.insert(callstack, { tree = tree, pointer = pointer, fn = fn })
         newEnv = newEnv or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
@@ -124,7 +119,7 @@ return function (globalTree)
         if not frame then
             return err('failed to step out')
         end
-        _debug("stepOut")
+        _debug('stepOut')
 
         -- Step out of one (inner most) function
         -- keep stepping out until we get the frame marked as fn.
@@ -139,7 +134,7 @@ return function (globalTree)
     end
 
     local incrementSeenCounter = function(path)
-        _debug('increment seen counter: '..path)
+        _debug('increment seen counter: ' .. path)
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var[2] = var[2] + 1
@@ -147,13 +142,12 @@ return function (globalTree)
 
     local update, getValue
 
-
     -- params: placeholders defined in the function/knot definition.
     -- args: the actual values or expressions passed to the function/knot when calling it
     -- returns a new env with names of params set to argument values
     local getArgumentsEnv = function(params, args)
-        _debug("getArguments", "params", params, "args", args)
-        args=args or {}
+        _debug('getArguments', 'params', params, 'args', args)
+        args = args or {}
         local newEnv = {}
         for i = 1, #params do
             local paramName = params[i][1]
@@ -167,7 +161,7 @@ return function (globalTree)
                     -- (the parameter has a different name than what's used when calling the fn)
                     -- we will point to the same value
                     -- but when assigning to it we cannot just replace it in the local env
-                    newEnv[paramName] = {'ref', refName}
+                    newEnv[paramName] = { 'ref', refName }
                 end
                 -- if the name is the same in and out-side the function:
                 -- do not create a local variable that would reference to itself and create a loop
@@ -180,10 +174,7 @@ return function (globalTree)
             end
         end
         return newEnv
-
     end
-
-
 
     local currentKnot = nil
     local goTo
@@ -191,8 +182,8 @@ return function (globalTree)
         _debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
-            pointer = #tree+1
-            callstack={} -- ? do not step out anywhere
+            pointer = #tree + 1
+            callstack = {} -- ? do not step out anywhere
             return
         end
 
@@ -204,7 +195,7 @@ return function (globalTree)
 
         if path:find('%.') ~= nil then
             -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
-            local _, _, p1, p2 = path:find("(.+)%.(.+)")
+            local _, _, p1, p2 = path:find('(.+)%.(.+)')
 
             pointer = knots[p1][p2].pointer
             tree = knots[p1][p2].tree
@@ -222,16 +213,15 @@ return function (globalTree)
             if isNext('stitch') then
                 next()
             end
-
         elseif knots[currentKnot] and knots[currentKnot][path] then
-            tree=globalTree --TODO store with knots?
+            tree = globalTree --TODO store with knots?
             pointer = knots[currentKnot][path].pointer
             next()
 
             -- FIXME hack
-        elseif knots["//no-knot"] and knots["//no-knot"][path] then
-            tree=knots["//no-knot"][path].tree -- TODO this is not stepInto, we dont want to step back, right?
-            pointer = knots["//no-knot"][path].pointer
+        elseif knots['//no-knot'] and knots['//no-knot'][path] then
+            tree = knots['//no-knot'][path].tree -- TODO this is not stepInto, we dont want to step back, right?
+            pointer = knots['//no-knot'][path].pointer
             -- TODO messy
             if isNext('option') then
                 local option = tree[pointer]
@@ -242,11 +232,10 @@ return function (globalTree)
                 stepInto(option[3])
             end
             if isNext('gather') then
-                tree=tree[pointer][3]
+                tree = tree[pointer][3]
                 pointer = 1
             end
             incrementSeenCounter(path) -- TODO full paths
-
         elseif knots[path] then
             local params = knots[path].params
             local body = knots[path].tree
@@ -261,30 +250,26 @@ return function (globalTree)
                 incrementSeenCounter(path .. '.' .. tree[pointer][2])
                 next()
             end
-
         else
-            error("unknown path: " .. path) -- TODO check at compile time?
+            error('unknown path: ' .. path) -- TODO check at compile time?
         end
 
         -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
     end
 
-    local lastKnot = "//no-knot" -- FIXME
+    local lastKnot = '//no-knot' -- FIXME
     local lastStitch = nil
-    knots[lastKnot]={} -- TODO use proper paths instead
+    knots[lastKnot] = {} -- TODO use proper paths instead
 
     local preProcess
-    preProcess = function (t)
-
+    preProcess = function(t)
         while isNext('tag') do
             table.insert(s.globalTags, t[pointer][2])
             next()
         end
 
-
         -- 1st pass, top level const/var can reference each other in any order
         for _, n in ipairs(t) do
-
             -- TODO check if name already taken
             -- Errors:
             -- VAR/CONST already defined
@@ -301,7 +286,6 @@ return function (globalTree)
         end
 
         for p, n in ipairs(t) do
-
             if is('ink', n) then
                 n[2] = preProcess(n[2])
             end
@@ -311,72 +295,66 @@ return function (globalTree)
             if is('choice', n) then
                 n[2] = preProcess(n[2]) --options
                 if n[3] then
-                    n[3] = preProcess({n[3]})[1] --gather -- FIXME hack
+                    n[3] = preProcess({ n[3] })[1] --gather -- FIXME hack
                 end
             end
 
-
-
-
             if is('knot', n) then
-                knots[n[2]] = {tree=n[4], params=n[3]}
+                knots[n[2]] = { tree = n[4], params = n[3] }
 
-                env[n[2]] = {'int', 0} -- seen counter
+                env[n[2]] = { 'int', 0 } -- seen counter
                 lastKnot = n[2]
                 lastStitch = nil
                 n[4] = preProcess(n[4]) --FIXME - mess in knots[]
 
-
                 tagsForContentAtPath[lastKnot] = {}
             end
             if is('stitch', n) then
-                knots[lastKnot][n[2]] = {pointer=p, tree=t}
+                knots[lastKnot][n[2]] = { pointer = p, tree = t }
 
                 if lastKnot ~= '//no-knot' then -- FIXME
                     env[lastKnot]._children = env[lastKnot]._children or {}
-                    env[lastKnot]._children[n[2]] = {'int', 0} -- seen counter TODO proper paths
+                    env[lastKnot]._children[n[2]] = { 'int', 0 } -- seen counter TODO proper paths
                 else
-                    env[n[2]] = {'int', 0} -- seen counter TODO proper paths
+                    env[n[2]] = { 'int', 0 } -- seen counter TODO proper paths
                 end
                 lastStitch = n[2]
             end
             if is('gather', n) and n[4] then
                 -- gather with a label
                 if lastStitch then
-                    knots[lastKnot][lastStitch][n[4]] = {pointer=p, tree=t}
+                    knots[lastKnot][lastStitch][n[4]] = { pointer = p, tree = t }
                     if lastKnot ~= '//no-knot' then -- FIXME
                         env[lastKnot]._children = env[lastKnot]._children or {}
                         env[lastKnot]._children._children = env[lastKnot]._children._children or {}
-                        env[lastKnot]._children[lastStitch]._children[n[4]] = {'int', 0} -- seen counter
+                        env[lastKnot]._children[lastStitch]._children[n[4]] = { 'int', 0 } -- seen counter
                     else
-                        env[n[4]] = {'int', 0} -- seen counter
+                        env[n[4]] = { 'int', 0 } -- seen counter
                     end
                 else
-                    knots[lastKnot][n[4]] = {pointer=p, tree=t}
+                    knots[lastKnot][n[4]] = { pointer = p, tree = t }
                     if lastKnot ~= '//no-knot' then -- FIXME
                         env[lastKnot]._children = env[lastKnot]._children or {}
-                        env[lastKnot]._children[n[4]] = {'int', 0} -- seen counter
+                        env[lastKnot]._children[n[4]] = { 'int', 0 } -- seen counter
                     else
-                        env[n[4]] = {'int', 0} -- seen counter
+                        env[n[4]] = { 'int', 0 } -- seen counter
                     end
                 end
-
             end
             if is('option', n) and n[6] then -- option with a label
-                env[n[6]] = {'int', 0} -- seen counter
+                env[n[6]] = { 'int', 0 } -- seen counter
 
                 if lastStitch then
-                    knots[lastKnot][lastStitch][n[6]] = {pointer=p, tree=t}
+                    knots[lastKnot][lastStitch][n[6]] = { pointer = p, tree = t }
                 else
-                    knots[lastKnot][n[6]] = {pointer=p, tree=t}
+                    knots[lastKnot][n[6]] = { pointer = p, tree = t }
                 end
             end
-
 
             -- function declarations could be after function calls in source code
             if is('fn', n) then
-                table.insert(n[4], {'return'}) -- make sure every function has a return at the end
-                env[n[2]] = {'fn', n[3], n[4]}
+                table.insert(n[4], { 'return' }) -- make sure every function has a return at the end
+                env[n[2]] = { 'fn', n[3], n[4] }
             end
 
             if is('external', n) then
@@ -384,12 +362,7 @@ return function (globalTree)
                 -- defined after the story is constructed but before it is played
                 externalDefs[n[2]] = n[3]
             end
-
-
-
         end
-
-
 
         -- 2nd pass for const/var - resolve values
         for _, n in ipairs(t) do
@@ -398,7 +371,7 @@ return function (globalTree)
 
                 if is('el', val) then
                     -- TODO in getValue??? list.lua??
-                    env[n[2]] = list.fromLit({'listlit', {val[3]}}, getEnv)
+                    env[n[2]] = list.fromLit({ 'listlit', { val[3] } }, getEnv)
                 elseif is('listlit', val) then
                     env[n[2]] = list.fromLit(val, getEnv)
                 else
@@ -410,48 +383,47 @@ return function (globalTree)
             end
         end
 
-
         return t
     end
-
 
     -- "run" the node and return the return value
     -- may return "nothing" (nil)
     getValue = function(val)
-        _debug("getValue", val)
+        _debug('getValue', val)
 
         if val == nil then
             return nil --FIXME ???
-                --err('nil value')
-                --print('get nil')
-                --val = tree[pointer] --FIXME 111
-                --_debug(val)
-                --update()
+            --err('nil value')
+            --print('get nil')
+            --val = tree[pointer] --FIXME 111
+            --_debug(val)
+            --update()
         end
 
-
-        if is('str', val) or is('int', val) or is('float', val) or is('bool', val)
-            or is('divert', val) or is('list', val) or is('el', val)
+        if
+            is('str', val)
+            or is('int', val)
+            or is('float', val)
+            or is('bool', val)
+            or is('divert', val)
+            or is('list', val)
+            or is('el', val)
         then
             return val
-
         elseif is('out', val) then
             return getValue(val[2])
-
         elseif is('ref', val) then
             local name = val[2]
             local var = getEnv(name, val)
             return getValue(var)
-
         elseif is('listlit', val) then
             return getValue(list.fromLit(val, getEnv))
-
         elseif is('call', val) then
             local name = val[2]
             local args = val[3]
 
             local target = getEnv(name, val)
-            _debug("CALL target", target)
+            _debug('CALL target', target)
             -- FIXME detect unresolved function on compile time
 
             -- call divert as fn -- FIXME
@@ -462,8 +434,6 @@ return function (globalTree)
                     target = divertTarget
                 end
             end
-
-
 
             if target[1] == 'native' or target[1] == 'external' then
                 local argumentValues = {}
@@ -482,7 +452,7 @@ return function (globalTree)
                 local ret = returnValue.value
                 out:instr('trimEnd')
                 _debug('RET', ret)
-                returnValue = {present = false, value = nil}
+                returnValue = { present = false, value = nil }
                 return ret
             elseif target[1] == 'list' then
                 if #args == 0 then
@@ -496,21 +466,19 @@ return function (globalTree)
             else
                 error('invalid call target: ' .. target[1])
             end
-
         elseif is('ink', val) then
             -- FIXME
-            local result = ""
-            for i=1, #val[2] do
+            local result = ''
+            for i = 1, #val[2] do
                 local value = getValue(val[2][i])
                 if value ~= nil then
                     result = result .. types.output(value)
                 end
             end
-            return {'str', result}
-
+            return { 'str', result }
         else
             _debug(val)
-            error('getValue: unsupported type: ' .. (type(val[1])=='string' and val[1] or type(val[1])))
+            error('getValue: unsupported type: ' .. (type(val[1]) == 'string' and val[1] or type(val[1])))
         end
     end
 
@@ -540,7 +508,7 @@ return function (globalTree)
     local nodeUpdateAssign = function(n)
         local name = n[2]
         local oldValue, e = getEnv(name)
-        _debug("ASSIGN", oldValue, name, n[3])
+        _debug('ASSIGN', oldValue, name, n[3])
 
         if is('ref', oldValue) then
             local referenced = getEnv(oldValue[2])
@@ -591,17 +559,16 @@ return function (globalTree)
             table.insert(shuffled, table.remove(unshuffled, math.random(i)))
         end
         -- insert the remaining unshuffled elements to the end
-        for i=1, #unshuffled do
+        for i = 1, #unshuffled do
             table.insert(shuffled, unshuffled[i])
         end
         return shuffled
     end
 
     local nodeUpdateSeq = function(n)
-
         if n[2].shuffle and not n.shuffled then
             if n[2].stopping then
-                n[3] = seqShuffle(n[3], #n[3]-1) -- shuffle all except the last one
+                n[3] = seqShuffle(n[3], #n[3] - 1) -- shuffle all except the last one
             else
                 n[3] = seqShuffle(n[3], #n[3])
             end
@@ -652,10 +619,12 @@ return function (globalTree)
         end,
         assign = nodeUpdateAssign,
         ['return'] = function(n)
-            returnValue = {present=true, value=getValue(n[2])}
+            returnValue = { present = true, value = getValue(n[2]) }
             stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
-        tunnelreturn = function() stepOut(); end,
+        tunnelreturn = function()
+            stepOut()
+        end,
 
         str = nodeUpdateOutValue,
         bool = nodeUpdateOutValue,
@@ -667,12 +636,24 @@ return function (globalTree)
 
         seq = nodeUpdateSeq,
 
-        call = function(n) getValue(n); end, -- ~ fn() -- call but ignore the result
-        todo = function(n) logging.warn(n[2], n); end,
-        glue = function() out:instr('glue'); end,
-        nl = function() out:add('\n'); end, -- separates "a -> b" from "a\n -> b"
-        stitch = function(n) incrementSeenCounter(n[2]); end,
-        ink = function(n) return n[2]; end,
+        call = function(n)
+            getValue(n)
+        end, -- ~ fn() -- call but ignore the result
+        todo = function(n)
+            logging.warn(n[2], n)
+        end,
+        glue = function()
+            out:instr('glue')
+        end,
+        nl = function()
+            out:add('\n')
+        end, -- separates "a -> b" from "a\n -> b"
+        stitch = function(n)
+            incrementSeenCounter(n[2])
+        end,
+        ink = function(n)
+            return n[2]
+        end,
         gather = function(n)
             if n[4] then
                 if currentKnot then
@@ -683,7 +664,6 @@ return function (globalTree)
             end
             return n[3]
         end,
-
 
         ['if'] = function(n)
             for _, branch in ipairs(n[2]) do
@@ -697,13 +677,12 @@ return function (globalTree)
     }
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
-    update = function ()
-
+    update = function()
         _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer][1] or 'END'))
 
         if returnValue.present then
             -- do not proceed when returning from a (nested?) function call
-            pointer = pointer-1 -- FIXME what's going on here
+            pointer = pointer - 1 -- FIXME what's going on here
             return
         end
 
@@ -715,7 +694,6 @@ return function (globalTree)
 
         --local lastpointer=pointer
         --local lasttree=tree -- TODO is this needed?
-
 
         if not storyStarted and #getNotBindExternalFunctionNames() > 0 then
             -- first update call before the first continue is called
@@ -754,8 +732,8 @@ return function (globalTree)
             end
 
             for _, option in ipairs(options) do
-                local sticky = option[7] == "sticky" -- TODO
-                local fallback = option[10] == "fallback"
+                local sticky = option[7] == 'sticky' -- TODO
+                local fallback = option[10] == 'fallback'
                 local displayOption = sticky or not option.used -- TODO seen counter
 
                 if fallback then
@@ -783,7 +761,7 @@ return function (globalTree)
                     out.buffer = oldBuf
                     callstack = oldCS
                     --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
-                    table.insert(s.currentChoices, {text = text, option=option, gather=gather})
+                    table.insert(s.currentChoices, { text = text, option = option, gather = gather })
                 end
             end
 
@@ -815,8 +793,6 @@ return function (globalTree)
             return
         end
 
-
-
         -- TODO tidy up
         --local last = #out > 0 and out[#out] or lastOut -- FIXME when the whole ink starts with glue
         --update()
@@ -839,14 +815,12 @@ return function (globalTree)
 
         --table.insert(out, rest)
 
-
-
         if isEnd() then
             --FIXME refactor so we don't need this if
             if #s.currentChoices == 0 then
                 if #callstack > 0 then
                     stepOut()
-                    _debug("step out at end")
+                    _debug('step out at end')
                     next()
                     update()
                     return
@@ -870,40 +844,37 @@ return function (globalTree)
         update()
         return
 
-
-
         --[[if lastpointer == pointer and lasttree == tree then
         _debug(tree, pointer)
         err('nothing consumed in continue at pointer '..pointer)
         end
         ]]
-
-
     end
-
 
     s.continue = function()
         -- first run
         if not storyStarted then
             local notBindExternalFunctionNames = getNotBindExternalFunctionNames()
             if #notBindExternalFunctionNames > 0 then
-                error('Missing function(s) binding for external '
-                    .. table.concat(notBindExternalFunctionNames, ', ')
-                    .. ' and no fallback ink function found')
+                error(
+                    'Missing function(s) binding for external '
+                        .. table.concat(notBindExternalFunctionNames, ', ')
+                        .. ' and no fallback ink function found'
+                )
             end
             storyStarted = true
         end
 
-        _debug("out", out.buffer)
-        local res = ""
+        _debug('out', out.buffer)
+        local res = ''
         if not out:isEmpty() then
             res = out:popLine()
         end
-        _debug("OUT:", res)
+        _debug('OUT:', res)
         s.currentTags = tags
         tags = {}
         update()
-        return res;
+        return res
     end
 
     s.currentChoices = {}
@@ -953,7 +924,7 @@ return function (globalTree)
         end
         -- TODO check params
         externalDefs[name] = nil
-        env[name] = {'external', fn}
+        env[name] = { 'external', fn }
         update()
     end
 
@@ -963,9 +934,9 @@ return function (globalTree)
 
     tree = preProcess(tree)
     _debug(tree)
-    _debug("lists:", list.defs)
-    _debug("external:", externalDefs)
-    _debug("state:", s.variablesState)
+    _debug('lists:', list.defs)
+    _debug('external:', externalDefs)
+    _debug('state:', s.variablesState)
 
     update()
 
