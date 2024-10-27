@@ -260,7 +260,8 @@ return function(input, source)
     charsRange(identifierChars, '0', '9')
 
     local identifierCharAhead = function()
-        return identifierChars[peek(1)]
+        local char = peek(1)
+        return identifierChars[char] or string.byte(char) > 127
     end
 
     local identifier = function()

@@ -3,6 +3,8 @@
 DIFF="colordiff  --side-by-side --suppress-common-lines"
 DIFF="cmp -s" #no diff output
 
+start=$(date +%s.%N)
+
 while getopts vf flag
 do
     case "${flag}" in
@@ -78,7 +80,9 @@ echo
 
 mkdir -p "test/results"
 D="$(date --iso-8601=seconds)"
-echo "$D - $PASSES/$TESTS passed" >> "test/results/$PATTERNS.txt" # watch out * in filenames?
+end=$(date +%s.%N)
+
+echo "$D - $PASSES/$TESTS passed in $( echo "$end - $start" | bc -l ) s" >> "test/results/$PATTERNS.txt" # watch out * in filenames?
 echo "$PASSED" >> "test/results/$PATTERNS-passed-$D.txt"
 
 tail "test/results/$PATTERNS.txt"
