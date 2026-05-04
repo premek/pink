@@ -13,6 +13,8 @@ local is = node.is
 math.randomseed(os.time())
 local unpack = table.unpack or unpack
 
+local noKnot = {} -- sentinel key for top-level content not inside any knot
+
 return function(globalTree)
     local getEnv, s -- forward declarations needed by createBuiltins closures
 
@@ -227,9 +229,9 @@ return function(globalTree)
             next()
 
             -- FIXME hack
-        elseif knots['//no-knot'] and knots['//no-knot'][path] then
-            tree = knots['//no-knot'][path].tree -- TODO this is not stepInto, we dont want to step back, right?
-            pointer = knots['//no-knot'][path].pointer
+        elseif knots[noKnot] and knots[noKnot][path] then
+            tree = knots[noKnot][path].tree -- TODO this is not stepInto, we dont want to step back, right?
+            pointer = knots[noKnot][path].pointer
             -- TODO messy
             if isNext('option') then
                 local option = tree[pointer]
@@ -265,7 +267,7 @@ return function(globalTree)
         -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
     end
 
-    local lastKnot = '//no-knot' -- FIXME
+    local lastKnot = noKnot
     local lastStitch = nil
     knots[lastKnot] = {} -- TODO use proper paths instead
 
@@ -320,7 +322,7 @@ return function(globalTree)
             if is('stitch', n) then
                 knots[lastKnot][n.name] = { pointer = p, tree = t }
 
-                if lastKnot ~= '//no-knot' then -- FIXME
+                if lastKnot ~= noKnot then
                     env[lastKnot]._children = env[lastKnot]._children or {}
                     env[lastKnot]._children[n.name] = node.int(0) -- seen counter TODO proper paths
                 else
@@ -332,7 +334,7 @@ return function(globalTree)
                 -- gather with a label
                 if lastStitch then
                     knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
-                    if lastKnot ~= '//no-knot' then -- FIXME
+                    if lastKnot ~= noKnot then
                         env[lastKnot]._children = env[lastKnot]._children or {}
                         env[lastKnot]._children._children = env[lastKnot]._children._children or {}
                         env[lastKnot]._children[lastStitch]._children[n.label] = node.int(0) -- seen counter
@@ -341,7 +343,7 @@ return function(globalTree)
                     end
                 else
                     knots[lastKnot][n.label] = { pointer = p, tree = t }
-                    if lastKnot ~= '//no-knot' then -- FIXME
+                    if lastKnot ~= noKnot then
                         env[lastKnot]._children = env[lastKnot]._children or {}
                         env[lastKnot]._children[n.label] = node.int(0) -- seen counter
                     else
