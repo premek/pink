@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The code should be a joy to read: minimalistic, with minimal abstractions and layers of indirection. Prefer direct, obvious code over clever patterns. Avoid unnecessary wrappers, helper functions, or intermediate layers unless they genuinely reduce complexity.
 
+Short functions with meaningful names that call other functions with parameters are encouraged — this is not indirection, it's clarity. The issue is redundant wrappers that add no meaning (e.g. a function that just delegates to another with the same name and no added semantics).
+
 ## Project Overview
 
 **Pink** is a Lua implementation of the [Ink scripting language](https://github.com/inkle/ink) — a language for writing interactive branching narratives. It can be used standalone or with the LÖVE 2D game framework.
