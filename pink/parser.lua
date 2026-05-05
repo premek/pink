@@ -596,7 +596,7 @@ return function(input, source)
         newline()
         consumeWhitespaceAndNewlines()
         local body = functionBody()
-        return token(node.fn_node(name, params, body))
+        return token(node.fndef(name, params, body))
     end
 
     local knotOrFunction = function()

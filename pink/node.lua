@@ -50,8 +50,8 @@ end
 node.stitch = function(name, args)
     return { type = 'stitch', name = name, args = args }
 end
-node.fn_node = function(name, params, body)
-    return { type = 'fn', name = name, params = params, body = body }
+node.fndef = function(name, params, body)
+    return { type = 'fndef', name = name, params = params, body = body }
 end
 node.external = function(name, params)
     return { type = 'external', name = name, params = params }
