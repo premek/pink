@@ -22,8 +22,8 @@ local getLogMessage = function(message, token)
     elseif logging.lastLocation then
         location = '\n\tsomewhere after ' .. getLocation(logging.lastLocation)
     end
-    if token and type(token) == 'table' and #token > 0 then
-        location = location .. ', node type: ' .. token[1]
+    if token and type(token) == 'table' and token.type then
+        location = location .. ', node type: ' .. token.type
     end
     return message .. location
 end

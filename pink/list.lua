@@ -1,19 +1,19 @@
 local base_path = (...):match('(.-)[^%.]+$')
-local types = require(base_path .. 'types')
+local node = require(base_path .. 'node')
 local logging = require(base_path .. 'logging')
 local err = logging.error
 local _debug = logging.debug
-local requireType = types.requireType
-local is = types.is
+local requireType = node.requireType
+local is = node.is
 
 local list = {
     defs = {}, -- FIXME support multiple instances!
 }
 
 local iterateElements = function(lst, callback)
-    for listName, els in pairs(lst[2]) do
+    for listName, els in pairs(lst.elements) do
         for elName, _ in pairs(els) do
-            callback({ 'el', listName, elName })
+            callback(node.el(listName, elName))
         end
     end
 end
@@ -22,14 +22,14 @@ local listValueInt = function(a)
     requireType(a, 'el', 'list')
 
     if is('el', a) then
-        local listName, elementName = a[2], a[3]
+        local listName, elementName = a.listName, a.elName
         if not listName then
             err('ambiguous list element: ' .. elementName)
         end
         return list.defs[listName].byName[elementName]
     elseif is('list', a) then
         local result = 0
-        for listName, els in pairs(a[2]) do
+        for listName, els in pairs(a.elements) do
             for elementName, _ in pairs(els) do
                 result = list.defs[listName].byName[elementName]
                 -- do not break, use the last one that is set to true
@@ -40,15 +40,15 @@ local listValueInt = function(a)
 end
 
 list.value = function(a)
-    return { 'int', listValueInt(a) }
+    return node.int(listValueInt(a))
 end
 
 list.contains = function(lst, el)
     requireType(lst, 'list')
     requireType(el, 'el')
 
-    local listName, elName = el[2], el[3]
-    return lst[2][listName] ~= nil and lst[2][listName][elName] ~= nil
+    local listName, elName = el.listName, el.elName
+    return lst.elements[listName] ~= nil and lst.elements[listName][elName] ~= nil
 end
 list.containsAll = function(hay, needles)
     requireType(hay, 'list')
@@ -64,7 +64,7 @@ list.containsAll = function(hay, needles)
 end
 
 list.elByValue = function(listName, elementValue)
-    return { 'el', listName, list.defs[listName].byValue[elementValue] }
+    return node.el(listName, list.defs[listName].byValue[elementValue])
 end
 
 local listGetElements = function(lst)
@@ -82,7 +82,7 @@ local getListElements = function(els, knownListNames)
     end
     for _, el in ipairs(els) do
         requireType(el, 'el')
-        local listName, elName = el[2], el[3]
+        local listName, elName = el.listName, el.elName
         if listName == nil then
             err('ambiguous list element: ' .. elName)
         end
@@ -95,42 +95,42 @@ local getListElements = function(els, knownListNames)
 end
 
 list.el = function(listName, elName)
-    return { 'el', listName, elName }
+    return node.el(listName, elName)
 end
 
 list.fromEls = function(els, knownListNames)
-    return { 'list', getListElements(els, knownListNames) }
+    return node.list(getListElements(els, knownListNames))
 end
 
 list.fromLit = function(listLiteral, getEnv) -- FIXME env
     requireType(listLiteral, 'listlit')
     local els = {}
-    for _, elName in ipairs(listLiteral[2]) do
+    for _, elName in ipairs(listLiteral.elements) do
         local el = getEnv(elName)
         table.insert(els, el)
     end
     return list.fromEls(els, {})
 end
 list.empty = function()
-    return { 'list', {} }
+    return node.list({})
 end
 
 local listCopy = function(lst)
     local res = {}
-    for listName, els in pairs(lst[2]) do
+    for listName, els in pairs(lst.elements) do
         res[listName] = res[listName] or {}
         for elName, _ in pairs(els) do
             res[listName][elName] = 1
         end
     end
-    return { 'list', res }
+    return node.list(res)
 end
 
 local listSetInternal = function(lst, el, internalValue)
     requireType(lst, 'list')
     requireType(el, 'el')
-    lst[2][el[2]] = lst[2][el[2]] or {}
-    lst[2][el[2]][el[3]] = internalValue -- just a placeholder value, we're using keys, nil to unset
+    lst.elements[el.listName] = lst.elements[el.listName] or {}
+    lst.elements[el.listName][el.elName] = internalValue -- just a placeholder value, we're using keys, nil to unset
 end
 local listAdd = function(lst, el)
     listSetInternal(lst, el, 1)
@@ -148,9 +148,9 @@ list.plus = function(a, b)
     if is('el', b) then
         listAdd(new, b)
     else
-        for listName, els in pairs(b[2]) do
+        for listName, els in pairs(b.elements) do
             for elName, _ in pairs(els) do
-                listAdd(new, { 'el', listName, elName }) -- FIXME not nice?
+                listAdd(new, node.el(listName, elName))
             end
         end
     end
@@ -195,19 +195,19 @@ list.set = function(lst, new)
     if #els == 0 then
         -- keep the known lists
         iterateElements(lst, function(el)
-            lst[2][el[2]] = {}
+            lst.elements[el.listName] = {}
         end)
     else
-        lst[2] = getListElements(els, {}) --FIXME known lists
+        lst.elements = getListElements(els, {}) --FIXME known lists
     end
 end
 
--- set all to false,except the element (element does not have to be from the same list)
+-- set all to false, except the element (element does not have to be from the same list)
 local listSetValue = function(lst, value)
-    for listName, _ in pairs(lst[2]) do
+    for listName, _ in pairs(lst.elements) do
         local elName = list.defs[listName].byValue[value]
         if elName then
-            list.set(lst, { 'el', listName, elName }) --FIXME
+            list.set(lst, node.el(listName, elName)) --FIXME
         end
     end
 end
@@ -216,12 +216,12 @@ list.output = function(lst)
     local outEls = listGetElements(lst)
     table.sort(outEls, function(a, b)
         local val = listValueInt(a) - listValueInt(b)
-        return val == 0 and a[2] < b[2] or val < 0
+        return val == 0 and a.listName < b.listName or val < 0
     end)
 
     local names = {}
     for _, el in ipairs(outEls) do
-        table.insert(names, el[3])
+        table.insert(names, el.elName)
     end
     return table.concat(names, ', ')
 end
@@ -239,11 +239,11 @@ end
 list.all = function(a)
     requireType(a, 'el', 'list') -- TODO is 'el' just a 'list' with one element?
     local listNames = {}
-    if a[1] == 'el' then
-        table.insert(listNames, a[2])
+    if a.type == 'el' then
+        table.insert(listNames, a.listName)
     else
         -- collect "known" lists
-        for listName, _ in pairs(a[2]) do
+        for listName, _ in pairs(a.elements) do
             table.insert(listNames, listName)
         end
     end
@@ -251,7 +251,7 @@ list.all = function(a)
 
     for _, listName in ipairs(listNames) do
         for elName, _ in pairs(list.defs[listName].byName) do
-            table.insert(els, { 'el', listName, elName })
+            table.insert(els, node.el(listName, elName))
         end
     end
 
@@ -264,7 +264,7 @@ list.max = function(a)
 
     local name = nil
     local max = -1
-    for listName, els in pairs(a[2]) do
+    for listName, els in pairs(a.elements) do
         for elementName, _ in pairs(els) do
             local elementValue = list.defs[listName].byName[elementName]
             if elementValue >= max then
@@ -275,7 +275,7 @@ list.max = function(a)
     end
 
     if name == nil then
-        return { 'list', {} }
+        return node.list({})
     end
 
     return list.elByValue(name, max)
@@ -292,7 +292,7 @@ local listCountNumber = function(a)
 end
 
 list.count = function(a)
-    return { 'int', listCountNumber(a) }
+    return node.int(listCountNumber(a))
 end
 
 list.isEmpty = function(a)
@@ -305,7 +305,7 @@ list.random = function(a)
 
     local els = listGetElements(a)
     if #els == 0 then
-        return { 'list', {} }
+        return node.list({})
     end
     return els[math.random(1, #els)]
 end
@@ -315,7 +315,7 @@ list.min = function(a)
 
     local name = nil
     local min = nil
-    for listName, els in pairs(a[2]) do
+    for listName, els in pairs(a.elements) do
         for elementName, _ in pairs(els) do
             local elementValue = list.defs[listName].byName[elementName]
             if min == nil or elementValue < min then
@@ -326,7 +326,7 @@ list.min = function(a)
     end
 
     if name == nil then
-        return { 'list', {} }
+        return node.list({})
     end
 
     return list.elByValue(name, min)
@@ -334,9 +334,9 @@ end
 
 list.invert = function(lst)
     local new = list.all(lst)
-    for listName, els in pairs(lst[2]) do
+    for listName, els in pairs(lst.elements) do
         for elName, _ in pairs(els) do
-            listRemove(new, { 'el', listName, elName })
+            listRemove(new, node.el(listName, elName))
         end
     end
     return new
@@ -355,9 +355,9 @@ list.range = function(lst, minIncl, maxIncl)
     local els = {}
     local listNames = {}
     iterateElements(lst, function(el)
-        table.insert(listNames, el[2])
+        table.insert(listNames, el.listName)
         local val = listValueInt(el)
-        if minIncl[2] <= val and val <= maxIncl[2] then
+        if minIncl.value <= val and val <= maxIncl.value then
             table.insert(els, el)
         end
     end)
@@ -380,13 +380,13 @@ list.listDef = function(listName, elDefs, env)
     local elements = {}
     list.defs[listName] = { byName = {}, byValue = {} }
     for _, elDef in pairs(elDefs) do
-        local elName, elSet, elValue = elDef[1], elDef[2], elDef[3]
+        local elName, elSet, elValue = elDef.name, elDef.set, elDef.value
         local el = list.el(listName, elName)
         if env[elName] == nil then
             env[elName] = el
         else
             -- multiple lists has an element with the same name
-            env[elName][2] = nil
+            env[elName].listName = nil
         end
         -- TODO do we need both
         list.defs[listName].byName[elName] = elValue
