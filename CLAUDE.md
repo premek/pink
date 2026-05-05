@@ -100,12 +100,13 @@ Full docs:
 The system follows a compiler/interpreter pipeline:
 
 ```
-.ink file → Parser → AST → Runtime → Story API
+.ink file → Parser → AST → Compiler → Runtime → Story API
 ```
 
 ### Core Modules (`pink/`)
 
 - **parser.lua** — Lexical and syntactic analysis; converts Ink text to AST
+- **compiler.lua** — Static analysis phase; builds knot map, registers vars/consts/lists/functions, resolves initial values; called once before runtime starts
 - **runtime.lua** — Execution engine; interprets AST, manages story state and control flow
 - **builtins.lua** — Built-in functions (`floor`, `ceil`, `random`, `CHOICE_COUNT`, `READ_COUNT`, etc.)
 - **list.lua** — List data type and operations

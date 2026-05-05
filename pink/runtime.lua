@@ -4,6 +4,7 @@ local out = require(base_path .. 'out')
 local list = require(base_path .. 'list')
 local node = require(base_path .. 'node')
 local createBuiltins = require(base_path .. 'builtins')
+local compile = require(base_path .. 'compiler')
 local logging = require(base_path .. 'logging')
 local err = logging.error
 local _debug = logging.debug
@@ -37,18 +38,18 @@ return function(globalTree)
 
     local tree = globalTree
     local pointer = 1
+    -- TODO(save/load): callstack holds direct table refs; convert to path strings for serialization
     local callstack = {}
-    local knots = {}
+    local knots
     local tags = {}
-    local tagsForContentAtPath = {}
-    local externalDefs = {}
+    local externalDefs
     local storyStarted = false
 
     local next = function()
         pointer = pointer + 1
     end
 
-    -- TODO state should contain tree/pointer to be able to save / load
+    -- TODO(save/load): serialize tree+pointer+callstack+env+storyStarted
 
     local isEnd = function()
         return tree[pointer] == nil
@@ -265,136 +266,6 @@ return function(globalTree)
         end
 
         -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
-    end
-
-    local lastKnot = noKnot
-    local lastStitch = nil
-    knots[lastKnot] = {} -- TODO use proper paths instead
-
-    local preProcess
-    preProcess = function(t)
-        while isNext('tag') do
-            table.insert(s.globalTags, t[pointer].text)
-            next()
-        end
-
-        -- 1st pass, top level const/var can reference each other in any order
-        for _, n in ipairs(t) do
-            -- TODO check if name already taken
-            -- Errors:
-            -- VAR/CONST already defined
-            -- VAR/CONST name already used for a function
-            if is('var', n) then
-                env[n.name] = n.value
-            end
-            if is('const', n) then
-                env[n.name] = n.value -- TODO make it constant
-            end
-            if is('listdef', n) then
-                list.listDef(n.name, n.elements, env)
-            end
-        end
-
-        for p, n in ipairs(t) do
-            if is('ink', n) then
-                n.nodes = preProcess(n.nodes)
-            end
-            if is('gather', n) then
-                n.body = preProcess(n.body)
-            end
-            if is('choice', n) then
-                n.options = preProcess(n.options)
-                if n.gather then
-                    n.gather = preProcess({ n.gather })[1] --FIXME hack
-                end
-            end
-
-            if is('knot', n) then
-                knots[n.name] = { tree = n.body, params = n.params }
-
-                env[n.name] = node.int(0) -- seen counter
-                lastKnot = n.name
-                lastStitch = nil
-                n.body = preProcess(n.body) --FIXME - mess in knots[]
-
-                tagsForContentAtPath[lastKnot] = {}
-            end
-            if is('stitch', n) then
-                knots[lastKnot][n.name] = { pointer = p, tree = t }
-
-                if lastKnot ~= noKnot then
-                    env[lastKnot]._children = env[lastKnot]._children or {}
-                    env[lastKnot]._children[n.name] = node.int(0) -- seen counter TODO proper paths
-                else
-                    env[n.name] = node.int(0) -- seen counter TODO proper paths
-                end
-                lastStitch = n.name
-            end
-            if is('gather', n) and n.label then
-                -- gather with a label
-                if lastStitch then
-                    knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
-                    if lastKnot ~= noKnot then
-                        env[lastKnot]._children = env[lastKnot]._children or {}
-                        env[lastKnot]._children._children = env[lastKnot]._children._children or {}
-                        env[lastKnot]._children[lastStitch]._children[n.label] = node.int(0) -- seen counter
-                    else
-                        env[n.label] = node.int(0) -- seen counter
-                    end
-                else
-                    knots[lastKnot][n.label] = { pointer = p, tree = t }
-                    if lastKnot ~= noKnot then
-                        env[lastKnot]._children = env[lastKnot]._children or {}
-                        env[lastKnot]._children[n.label] = node.int(0) -- seen counter
-                    else
-                        env[n.label] = node.int(0) -- seen counter
-                    end
-                end
-            end
-            if is('option', n) and n.label then -- option with a label
-                env[n.label] = node.int(0) -- seen counter
-
-                if lastStitch then
-                    knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
-                else
-                    knots[lastKnot][n.label] = { pointer = p, tree = t }
-                end
-            end
-
-            -- function declarations could be after function calls in source code
-            if is('fndef', n) then
-                -- make sure every function has a return at the end
-                table.insert(n.body, node.ret(nil))
-                env[n.name] = node.fn(n.params, n.body)
-            end
-
-            if is('external', n) then
-                -- store the definition. All external functions must be
-                -- defined after the story is constructed but before it is played
-                externalDefs[n.name] = n.params
-            end
-        end
-
-        -- 2nd pass for const/var - resolve values
-        for _, n in ipairs(t) do
-            if is('var', n) then
-                local val = getValue(n.value)
-
-                if is('el', val) then
-                    -- TODO in getValue??? list.lua??
-                    env[n.name] = list.fromLit(node.listlit({ val.elName }), getEnv)
-                elseif is('listlit', val) then
-                    env[n.name] = list.fromLit(val, getEnv)
-                else
-                    env[n.name] = val
-                end
-            end
-            if is('const', n) then
-                env[n.name] = getValue(n.value) -- TODO make it constant
-            end
-        end
-
-        return t
     end
 
     -- "run" the node and return the return value
@@ -922,10 +793,6 @@ return function(globalTree)
         return s.state.visitCount[knotName] or 0
     end
 
-    s.tagsForContentAtPath = function(knotName)
-        return tagsForContentAtPath[knotName] or {}
-    end
-
     -- TODO document
     s.bindExternalFunction = function(name, fn)
         local externalFunctionParams = externalDefs[name]
@@ -942,7 +809,14 @@ return function(globalTree)
 
     -- s.state.ToJson();s.state.LoadJson(savedJson);
 
-    tree = preProcess(tree)
+    local compiled = compile(tree, env, noKnot)
+    knots = compiled.knots
+    externalDefs = compiled.externalDefs
+    s.globalTags = compiled.globalTags
+    -- skip leading tags already collected into globalTags by compiler
+    while is('tag', tree[pointer]) do
+        pointer = pointer + 1
+    end
     _debug(tree)
     _debug('lists:', list.defs)
     _debug('external:', externalDefs)
