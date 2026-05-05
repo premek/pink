@@ -3,6 +3,10 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 
+## Code Style
+
+The code should be a joy to read: minimalistic, with minimal abstractions and layers of indirection. Prefer direct, obvious code over clever patterns. Avoid unnecessary wrappers, helper functions, or intermediate layers unless they genuinely reduce complexity.
+
 ## Project Overview
 
 **Pink** is a Lua implementation of the [Ink scripting language](https://github.com/inkle/ink) — a language for writing interactive branching narratives. It can be used standalone or with the LÖVE 2D game framework.
@@ -31,8 +35,8 @@ Before commit, look at the uncommited changes, check in the rest of the project 
 
 To check for regressions, always compare against the baseline before your change:
 ```bash
-git stash && ./test/test.sh 2>&1 | grep passed | tail -1
-git stash pop && ./test/test.sh 2>&1 | grep passed | tail -1
+git stash && ./test/test.sh 2>&1 | tail -1
+git stash pop && ./test/test.sh 2>&1 | tail -1
 ```
 
 To find which tests newly regressed:
@@ -44,6 +48,13 @@ diff /tmp/baseline_fails.txt /tmp/current_fails.txt
 Lines added (`>`) are newly failing tests.
 
 
+
+## Naming Conventions
+
+- `camelCase` for all Lua variables, locals, and functions
+- `UPPER_SNAKE_CASE` only for Ink built-in function names (`FLOOR`, `RANDOM`, `LIST_ALL`, etc.) — because they are uppercase in the Ink language spec
+- `_prefix` for intentionally unused variables (`_debug`, `_ctx`, `_node`)
+- Single-letter locals are fine for short-lived values (`n`, `s`, `e`, `p`)
 
 ## Ink Language Overview
 
