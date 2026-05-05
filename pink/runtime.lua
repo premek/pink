@@ -3,7 +3,7 @@ local Story = require(base_path .. 'story')
 local out = require(base_path .. 'out')
 local list = require(base_path .. 'list')
 local node = require(base_path .. 'node')
-local builtins = require(base_path .. 'builtins')
+local createBuiltins = require(base_path .. 'builtins')
 local logging = require(base_path .. 'logging')
 local err = logging.error
 local _debug = logging.debug
@@ -14,7 +14,16 @@ math.randomseed(os.time())
 local unpack = table.unpack or unpack
 
 return function(globalTree)
-    local rootEnv = builtins
+    local getEnv, s -- forward declarations needed by createBuiltins closures
+
+    local rootEnv = createBuiltins({
+        getEnv = function(...)
+            return getEnv(...)
+        end,
+        getChoices = function()
+            return s.currentChoices
+        end,
+    })
     local env = rootEnv -- TODO should env be part of the callstack?
 
     -- set when interpreting a 'return' statement, read after stepping 'Out'
@@ -22,7 +31,7 @@ return function(globalTree)
     local returnValue = { present = false, value = nil }
 
     -- story - this table will be passed to client code
-    local s = Story.new(rootEnv)
+    s = Story.new(rootEnv)
 
     local tree = globalTree
     local pointer = 1
@@ -82,7 +91,7 @@ return function(globalTree)
         end
     end
 
-    local getEnv = function(name, token, startingEnv)
+    getEnv = function(name, token, startingEnv)
         local first, rest = splitName(name)
         local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
@@ -93,7 +102,6 @@ return function(globalTree)
         val = getChildren(first, rest, val, token)
         return val, e
     end
-    builtins.getEnv = getEnv -- FIXME!!!
 
     local stepInto = function(block, newEnv, fn)
         _debug('step into')
@@ -720,7 +728,6 @@ return function(globalTree)
             local fallbacks = {}
 
             s.currentChoices = {}
-            builtins.currentChoices = s.currentChoices --FIXME how to pass the value
 
             -- TODO move
             local getOptionConditionsResult = function(option)
