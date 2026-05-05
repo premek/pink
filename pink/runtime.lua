@@ -2,13 +2,13 @@ local base_path = (...):match('(.-)[^%.]+$')
 local Story = require(base_path .. 'story')
 local out = require(base_path .. 'out')
 local list = require(base_path .. 'list')
-local types = require(base_path .. 'types')
+local node = require(base_path .. 'node')
 local builtins = require(base_path .. 'builtins')
 local logging = require(base_path .. 'logging')
 local err = logging.error
 local _debug = logging.debug
-local requireType = types.requireType
-local is = types.is
+local requireType = node.requireType
+local is = node.is
 
 math.randomseed(os.time())
 local unpack = table.unpack or unpack
@@ -137,7 +137,7 @@ return function(globalTree)
         _debug('increment seen counter: ' .. path)
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
-        var[2] = var[2] + 1
+        var.value = var.value + 1
     end
 
     local update, getValue
@@ -150,18 +150,18 @@ return function(globalTree)
         args = args or {}
         local newEnv = {}
         for i = 1, #params do
-            local paramName = params[i][1]
-            local paramType = params[i][2]
+            local paramName = params[i].name
+            local paramType = params[i].ref
             local arg = args[i]
             if paramType == 'ref' then -- TODO supported for knots?
                 requireType(arg, 'ref')
-                local refName = arg[2]
+                local refName = arg.name
                 if paramName ~= refName then
                     -- the referenced variable has different name inside the function
                     -- (the parameter has a different name than what's used when calling the fn)
                     -- we will point to the same value
                     -- but when assigning to it we cannot just replace it in the local env
-                    newEnv[paramName] = { 'ref', refName }
+                    newEnv[paramName] = node.ref(refName)
                 end
                 -- if the name is the same in and out-side the function:
                 -- do not create a local variable that would reference to itself and create a loop
@@ -189,7 +189,7 @@ return function(globalTree)
 
         local val = getEnvOptional(path)
         if is('divert', val) then
-            goTo(val[2], args)
+            goTo(val.target, args)
             return
         end
 
@@ -227,12 +227,12 @@ return function(globalTree)
                 local option = tree[pointer]
                 option.used = true --FIXME different mechanism used for labelled and anon options
                 -- TODO duplicated logic in chooseChoice
-                returnTo(option[9])
-                returnTo(option[5])
-                stepInto(option[3])
+                returnTo(option.body)
+                returnTo(option.t3)
+                stepInto(option.t1)
             end
             if isNext('gather') then
-                tree = tree[pointer][3]
+                tree = tree[pointer].body
                 pointer = 1
             end
             incrementSeenCounter(path) -- TODO full paths
@@ -247,7 +247,7 @@ return function(globalTree)
             currentKnot = path
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
-                incrementSeenCounter(path .. '.' .. tree[pointer][2])
+                incrementSeenCounter(path .. '.' .. tree[pointer].name)
                 next()
             end
         else
@@ -264,7 +264,7 @@ return function(globalTree)
     local preProcess
     preProcess = function(t)
         while isNext('tag') do
-            table.insert(s.globalTags, t[pointer][2])
+            table.insert(s.globalTags, t[pointer].text)
             next()
         end
 
@@ -275,111 +275,112 @@ return function(globalTree)
             -- VAR/CONST already defined
             -- VAR/CONST name already used for a function
             if is('var', n) then
-                env[n[2]] = n[3]
+                env[n.name] = n.value
             end
             if is('const', n) then
-                env[n[2]] = n[3] -- TODO make it constant
+                env[n.name] = n.value -- TODO make it constant
             end
             if is('listdef', n) then
-                list.listDef(n[2], n[3], env)
+                list.listDef(n.name, n.elements, env)
             end
         end
 
         for p, n in ipairs(t) do
             if is('ink', n) then
-                n[2] = preProcess(n[2])
+                n.nodes = preProcess(n.nodes)
             end
             if is('gather', n) then
-                n[3] = preProcess(n[3])
+                n.body = preProcess(n.body)
             end
             if is('choice', n) then
-                n[2] = preProcess(n[2]) --options
-                if n[3] then
-                    n[3] = preProcess({ n[3] })[1] --gather -- FIXME hack
+                n.options = preProcess(n.options)
+                if n.gather then
+                    n.gather = preProcess({ n.gather })[1] --FIXME hack
                 end
             end
 
             if is('knot', n) then
-                knots[n[2]] = { tree = n[4], params = n[3] }
+                knots[n.name] = { tree = n.body, params = n.params }
 
-                env[n[2]] = { 'int', 0 } -- seen counter
-                lastKnot = n[2]
+                env[n.name] = node.int(0) -- seen counter
+                lastKnot = n.name
                 lastStitch = nil
-                n[4] = preProcess(n[4]) --FIXME - mess in knots[]
+                n.body = preProcess(n.body) --FIXME - mess in knots[]
 
                 tagsForContentAtPath[lastKnot] = {}
             end
             if is('stitch', n) then
-                knots[lastKnot][n[2]] = { pointer = p, tree = t }
+                knots[lastKnot][n.name] = { pointer = p, tree = t }
 
                 if lastKnot ~= '//no-knot' then -- FIXME
                     env[lastKnot]._children = env[lastKnot]._children or {}
-                    env[lastKnot]._children[n[2]] = { 'int', 0 } -- seen counter TODO proper paths
+                    env[lastKnot]._children[n.name] = node.int(0) -- seen counter TODO proper paths
                 else
-                    env[n[2]] = { 'int', 0 } -- seen counter TODO proper paths
+                    env[n.name] = node.int(0) -- seen counter TODO proper paths
                 end
-                lastStitch = n[2]
+                lastStitch = n.name
             end
-            if is('gather', n) and n[4] then
+            if is('gather', n) and n.label then
                 -- gather with a label
                 if lastStitch then
-                    knots[lastKnot][lastStitch][n[4]] = { pointer = p, tree = t }
+                    knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
                     if lastKnot ~= '//no-knot' then -- FIXME
                         env[lastKnot]._children = env[lastKnot]._children or {}
                         env[lastKnot]._children._children = env[lastKnot]._children._children or {}
-                        env[lastKnot]._children[lastStitch]._children[n[4]] = { 'int', 0 } -- seen counter
+                        env[lastKnot]._children[lastStitch]._children[n.label] = node.int(0) -- seen counter
                     else
-                        env[n[4]] = { 'int', 0 } -- seen counter
+                        env[n.label] = node.int(0) -- seen counter
                     end
                 else
-                    knots[lastKnot][n[4]] = { pointer = p, tree = t }
+                    knots[lastKnot][n.label] = { pointer = p, tree = t }
                     if lastKnot ~= '//no-knot' then -- FIXME
                         env[lastKnot]._children = env[lastKnot]._children or {}
-                        env[lastKnot]._children[n[4]] = { 'int', 0 } -- seen counter
+                        env[lastKnot]._children[n.label] = node.int(0) -- seen counter
                     else
-                        env[n[4]] = { 'int', 0 } -- seen counter
+                        env[n.label] = node.int(0) -- seen counter
                     end
                 end
             end
-            if is('option', n) and n[6] then -- option with a label
-                env[n[6]] = { 'int', 0 } -- seen counter
+            if is('option', n) and n.label then -- option with a label
+                env[n.label] = node.int(0) -- seen counter
 
                 if lastStitch then
-                    knots[lastKnot][lastStitch][n[6]] = { pointer = p, tree = t }
+                    knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
                 else
-                    knots[lastKnot][n[6]] = { pointer = p, tree = t }
+                    knots[lastKnot][n.label] = { pointer = p, tree = t }
                 end
             end
 
             -- function declarations could be after function calls in source code
             if is('fn', n) then
-                table.insert(n[4], { 'return' }) -- make sure every function has a return at the end
-                env[n[2]] = { 'fn', n[3], n[4] }
+                -- make sure every function has a return at the end
+                table.insert(n.body, { type = 'return', value = nil })
+                env[n.name] = node.fn(n.params, n.body)
             end
 
             if is('external', n) then
                 -- store the definition. All external functions must be
                 -- defined after the story is constructed but before it is played
-                externalDefs[n[2]] = n[3]
+                externalDefs[n.name] = n.params
             end
         end
 
         -- 2nd pass for const/var - resolve values
         for _, n in ipairs(t) do
             if is('var', n) then
-                local val = getValue(n[3])
+                local val = getValue(n.value)
 
                 if is('el', val) then
                     -- TODO in getValue??? list.lua??
-                    env[n[2]] = list.fromLit({ 'listlit', { val[3] } }, getEnv)
+                    env[n.name] = list.fromLit(node.listlit({ val.elName }), getEnv)
                 elseif is('listlit', val) then
-                    env[n[2]] = list.fromLit(val, getEnv)
+                    env[n.name] = list.fromLit(val, getEnv)
                 else
-                    env[n[2]] = val
+                    env[n.name] = val
                 end
             end
             if is('const', n) then
-                env[n[2]] = getValue(n[3]) -- TODO make it constant
+                env[n.name] = getValue(n.value) -- TODO make it constant
             end
         end
 
@@ -411,40 +412,40 @@ return function(globalTree)
         then
             return val
         elseif is('out', val) then
-            return getValue(val[2])
+            return getValue(val.content)
         elseif is('ref', val) then
-            local name = val[2]
+            local name = val.name
             local var = getEnv(name, val)
             return getValue(var)
         elseif is('listlit', val) then
             return getValue(list.fromLit(val, getEnv))
         elseif is('call', val) then
-            local name = val[2]
-            local args = val[3]
+            local name = val.name
+            local args = val.args
 
             local target = getEnv(name, val)
             _debug('CALL target', target)
             -- FIXME detect unresolved function on compile time
 
             -- call divert as fn -- FIXME
-            if target[1] == 'divert' then
-                local path = target[2]
+            if target.type == 'divert' then
+                local path = target.target
                 local divertTarget = getEnv(path)
-                if divertTarget[1] == 'fn' then
+                if divertTarget.type == 'fn' then
                     target = divertTarget
                 end
             end
 
-            if target[1] == 'native' or target[1] == 'external' then
+            if target.type == 'native' or target.type == 'external' then
                 local argumentValues = {}
                 for _, arg in ipairs(args) do
                     table.insert(argumentValues, getValue(arg))
                 end
                 -- TODO convert arguments, return values for external
-                return target[2](unpack(argumentValues))
-            elseif target[1] == 'fn' then
-                local params = target[2]
-                local body = target[3]
+                return target.fn(unpack(argumentValues))
+            elseif target.type == 'fn' then
+                local params = target.params
+                local body = target.body
                 local newEnv = getArgumentsEnv(params, args)
                 stepInto(body, newEnv, 'fn')
                 out:instr('trim')
@@ -454,7 +455,7 @@ return function(globalTree)
                 _debug('RET', ret)
                 returnValue = { present = false, value = nil }
                 return ret
-            elseif target[1] == 'list' then
+            elseif target.type == 'list' then
                 if #args == 0 then
                     return list.empty()
                 elseif #args > 1 then
@@ -462,23 +463,23 @@ return function(globalTree)
                 end
                 local index = getValue(args[1])
                 requireType(index, 'int')
-                return list.elByValue(name, index[2])
+                return list.elByValue(name, index.value)
             else
-                error('invalid call target: ' .. target[1])
+                error('invalid call target: ' .. target.type)
             end
         elseif is('ink', val) then
             -- FIXME
             local result = ''
-            for i = 1, #val[2] do
-                local value = getValue(val[2][i])
+            for i = 1, #val.nodes do
+                local value = getValue(val.nodes[i])
                 if value ~= nil then
-                    result = result .. types.output(value)
+                    result = result .. node.output(value)
                 end
             end
-            return { 'str', result }
+            return node.str(result)
         else
             _debug(val)
-            error('getValue: unsupported type: ' .. (type(val[1]) == 'string' and val[1] or type(val[1])))
+            error('getValue: unsupported type: ' .. tostring(val.type))
         end
     end
 
@@ -506,19 +507,19 @@ return function(globalTree)
     end
 
     local nodeUpdateAssign = function(n)
-        local name = n[2]
+        local name = n.name
         local oldValue, e = getEnv(name)
-        _debug('ASSIGN', oldValue, name, n[3])
+        _debug('ASSIGN', oldValue, name, n.expr)
 
         if is('ref', oldValue) then
-            local referenced = getEnv(oldValue[2])
+            local referenced = getEnv(oldValue.name)
 
             if is('list', referenced) then
                 oldValue = referenced
             end
         end
 
-        local newValue = getValue(n[3])
+        local newValue = getValue(n.expr)
         if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
             list.set(oldValue, newValue)
         else
@@ -526,7 +527,7 @@ return function(globalTree)
                 err('cannot assign nil')
             end
             if is('ref', oldValue) then
-                local refName = oldValue[2]
+                local refName = oldValue.name
                 local _, refEnv = getEnv(refName)
                 refEnv[refName] = newValue
             else
@@ -539,7 +540,7 @@ return function(globalTree)
     local nodeUpdateOutValue = function(n)
         local val = getValue(n)
         if val ~= nil then
-            out:add(types.output(val))
+            out:add(node.output(val))
         end
     end
     local nodeUpdateOut = function(n)
@@ -566,11 +567,11 @@ return function(globalTree)
     end
 
     local nodeUpdateSeq = function(n)
-        if n[2].shuffle and not n.shuffled then
-            if n[2].stopping then
-                n[3] = seqShuffle(n[3], #n[3] - 1) -- shuffle all except the last one
+        if n.opts.shuffle and not n.shuffled then
+            if n.opts.stopping then
+                n.branches = seqShuffle(n.branches, #n.branches - 1) -- shuffle all except the last one
             else
-                n[3] = seqShuffle(n[3], #n[3])
+                n.branches = seqShuffle(n.branches, #n.branches)
             end
             n.shuffled = true
         end
@@ -582,16 +583,16 @@ return function(globalTree)
         n.current = n.current or 1
 
         local ret = nil
-        if n.current <= #n[3] then
-            ret = n[3][n.current]
+        if n.current <= #n.branches then
+            ret = n.branches[n.current]
         end
 
-        if n[2].stopping then
-            n.current = math.min(#n[3], n.current + 1) -- stay at the last one
-        elseif n[2].once then
-            n.current = math.min(#n[3] + 1, n.current + 1) -- stay *after* the last one
-        elseif n[2].cycle then
-            n.current = math.fmod(n.current, #n[3]) + 1
+        if n.opts.stopping then
+            n.current = math.min(#n.branches, n.current + 1) -- stay at the last one
+        elseif n.opts.once then
+            n.current = math.min(#n.branches + 1, n.current + 1) -- stay *after* the last one
+        elseif n.opts.cycle then
+            n.current = math.fmod(n.current, #n.branches) + 1
         end
 
         return ret
@@ -611,15 +612,15 @@ return function(globalTree)
         option = nodeSkip,
 
         tag = function(n)
-            table.insert(tags, n[2])
+            table.insert(tags, n.text)
         end,
         tempvar = function(n)
             -- FIXME what's the right env to write to?
-            rootEnv[n[2]] = getValue(n[3])
+            rootEnv[n.name] = getValue(n.value)
         end,
         assign = nodeUpdateAssign,
         ['return'] = function(n)
-            returnValue = { present = true, value = getValue(n[2]) }
+            returnValue = { present = true, value = getValue(n.value) }
             stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
         tunnelreturn = function()
@@ -640,7 +641,7 @@ return function(globalTree)
             getValue(n)
         end, -- ~ fn() -- call but ignore the result
         todo = function(n)
-            logging.warn(n[2], n)
+            logging.warn(n.text, n)
         end,
         glue = function()
             out:instr('glue')
@@ -649,27 +650,27 @@ return function(globalTree)
             out:add('\n')
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
-            incrementSeenCounter(n[2])
+            incrementSeenCounter(n.name)
         end,
         ink = function(n)
-            return n[2]
+            return n.nodes
         end,
         gather = function(n)
-            if n[4] then
+            if n.label then
                 if currentKnot then
-                    incrementSeenCounter(currentKnot .. '.' .. n[4]) -- TODO
+                    incrementSeenCounter(currentKnot .. '.' .. n.label) -- TODO
                 else
-                    incrementSeenCounter(n[4])
+                    incrementSeenCounter(n.label)
                 end
             end
-            return n[3]
+            return n.body
         end,
 
         ['if'] = function(n)
-            for _, branch in ipairs(n[2]) do
-                if types.isTruthy(getValue(branch[1])) then
+            for _, branch in ipairs(n.branches) do
+                if node.isTruthy(getValue(branch.cond)) then
                     out:instr('outBlockStart') -- TODO before or after the getValue call above?
-                    return branch[2]
+                    return branch.body
                 end
             end
             -- no condition evaluated to true (and the else branch not present): do nothing
@@ -678,7 +679,7 @@ return function(globalTree)
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
     update = function()
-        _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer][1] or 'END'))
+        _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer].type or 'END'))
 
         if returnValue.present then
             -- do not proceed when returning from a (nested?) function call
@@ -702,7 +703,7 @@ return function(globalTree)
         end
 
         if isNext('divert') then
-            goTo(tree[pointer][2], tree[pointer][3])
+            goTo(tree[pointer].target, tree[pointer].args)
             update()
             return
         end
@@ -714,8 +715,8 @@ return function(globalTree)
                 return
             end
 
-            local options = tree[pointer][2]
-            local gather = tree[pointer][3]
+            local options = tree[pointer].options
+            local gather = tree[pointer].gather
             local fallbacks = {}
 
             s.currentChoices = {}
@@ -723,8 +724,8 @@ return function(globalTree)
 
             -- TODO move
             local getOptionConditionsResult = function(option)
-                for _, condition in ipairs(option[8]) do
-                    if not types.isTruthy(getValue(condition)) then
+                for _, condition in ipairs(option.conditions) do
+                    if not node.isTruthy(getValue(condition)) then
                         return false
                     end
                 end
@@ -732,8 +733,8 @@ return function(globalTree)
             end
 
             for _, option in ipairs(options) do
-                local sticky = option[7] == 'sticky' -- TODO
-                local fallback = option[10] == 'fallback'
+                local sticky = option.sticky == 'sticky' -- TODO
+                local fallback = option.fallback == 'fallback'
                 local displayOption = sticky or not option.used -- TODO seen counter
 
                 if fallback then
@@ -753,9 +754,9 @@ return function(globalTree)
                     callstack = {}
                     --TODO
                     out:clear()
-                    stepInto(option[3])
+                    stepInto(option.t1)
                     update()
-                    stepInto(option[4])
+                    stepInto(option.t2)
                     update()
                     local text = out:popLine()
                     out.buffer = oldBuf
@@ -770,15 +771,15 @@ return function(globalTree)
             if #s.currentChoices == 0 then
                 local doUpdate = false
                 if gather then
-                    stepInto(gather[3])
+                    stepInto(gather.body)
                     doUpdate = true
                 end
                 for _, fallback in ipairs(fallbacks) do
                     if getOptionConditionsResult(fallback) then
                         if gather then
-                            returnTo(gather[3])
+                            returnTo(gather.body)
                         end
-                        stepInto(fallback[9])
+                        stepInto(fallback.body)
                         doUpdate = true
                         break
                     end
@@ -831,7 +832,7 @@ return function(globalTree)
             return
         end
 
-        local updateFn = nodeUpdate[tree[pointer][1]]
+        local updateFn = nodeUpdate[tree[pointer].type]
         if not updateFn then
             err('unexpected node', tree[pointer])
         end
@@ -886,18 +887,18 @@ return function(globalTree)
 
         local choice = s.currentChoices[index]
 
-        if choice.option[6] then -- the option has a label
-            incrementSeenCounter(choice.option[6]) -- TODO full path??
+        if choice.option.label then -- the option has a label
+            incrementSeenCounter(choice.option.label) -- TODO full path??
         end
         choice.option.used = true -- FIXME store somewhere else, support save/load
 
         if choice.gather then
-            returnTo(choice.gather[3])
+            returnTo(choice.gather.body)
         end
 
-        returnTo(choice.option[9])
-        returnTo(choice.option[5])
-        stepInto(choice.option[3])
+        returnTo(choice.option.body)
+        returnTo(choice.option.t3)
+        stepInto(choice.option.t1)
 
         s.currentChoices = {}
         update()
@@ -924,7 +925,7 @@ return function(globalTree)
         end
         -- TODO check params
         externalDefs[name] = nil
-        env[name] = { 'external', fn }
+        env[name] = { type = 'external', fn = fn }
         update()
     end
 

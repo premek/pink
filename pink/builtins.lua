@@ -1,123 +1,123 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local list = require(base_path .. 'list')
-local types = require(base_path .. 'types')
+local node = require(base_path .. 'node')
 local logging = require(base_path .. 'logging')
 local err = logging.error
 local _debug = logging.debug
-local requireType = types.requireType
-local is = types.is
+local requireType = node.requireType
+local is = node.is
 
 local builtins = {}
 
 local floor = function(a)
     requireType(a, 'float', 'int')
-    return { 'int', math.floor(a[2]) }
+    return node.int(math.floor(a.value))
 end
 
 local ceil = function(a)
     requireType(a, 'float', 'int')
     -- int -> int, float -> float
-    return { a[1], math.ceil(a[2]) }
+    return node[a.type](math.ceil(a.value))
 end
 
 local int = function(a)
     requireType(a, 'float', 'int')
 
-    if a[2] > 0 then
-        return { 'int', math.floor(a[2]) }
+    if a.value > 0 then
+        return node.int(math.floor(a.value))
     else
-        return { 'int', math.ceil(a[2]) }
+        return node.int(math.ceil(a.value))
     end
 end
 
 local float = function(a)
     requireType(a, 'float', 'int')
-    return { 'float', a[2] }
+    return node.float(a.value)
 end
 
 local seedRandom = function(a)
     requireType(a, 'float', 'int')
-    math.randomseed(a[2])
+    math.randomseed(a.value)
 end
 local random = function(minInclusive, maxInclusive)
     requireType(minInclusive, 'int')
     requireType(maxInclusive, 'int')
-    return { 'int', math.random(minInclusive[2], maxInclusive[2]) }
+    return node.int(math.random(minInclusive.value, maxInclusive.value))
 end
 
 local readCount = function(a)
     requireType(a, 'divert')
-    local var = builtins.getEnv(a[2]) -- FIXME
+    local var = builtins.getEnv(a.target) -- FIXME
     requireType(var, 'int')
     return var
 end
 
 local choiceCount = function()
-    return { 'int', #builtins.currentChoices } -- FIXME get the value from runtime
+    return node.int(#builtins.currentChoices) -- FIXME get the value from runtime
 end
 
 local add = function(a, b)
     requireType(a, 'bool', 'str', 'float', 'int', 'list')
     requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
 
-    if a[1] == 'str' or b[1] == 'str' then
-        return { 'str', types.toStr(a)[2] .. types.toStr(b)[2] }
+    if a.type == 'str' or b.type == 'str' then
+        return node.str(node.toStr(a).value .. node.toStr(b).value)
     end
 
-    if a[1] == 'list' and (b[1] == 'list' or b[1] == 'el') then -- FIXME
+    if a.type == 'list' and (b.type == 'list' or b.type == 'el') then -- FIXME
         return list.plus(a, b)
     end
-    if a[1] == 'list' and b[1] == 'int' then
-        return list.inc(a, b[2])
+    if a.type == 'list' and b.type == 'int' then
+        return list.inc(a, b.value)
     end
 
-    if a[1] == 'bool' then
-        a = types.toInt(a)
+    if a.type == 'bool' then
+        a = node.toInt(a)
     end
-    if b[1] == 'bool' then
-        b = types.toInt(b)
-    end
-
-    if a[1] == 'float' or b[1] == 'float' then
-        return { 'float', types.toFloat(a)[2] + types.toFloat(b)[2] }
+    if b.type == 'bool' then
+        b = node.toInt(b)
     end
 
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
-    return { t, a[2] + b[2] }
+    if a.type == 'float' or b.type == 'float' then
+        return node.float(node.toFloat(a).value + node.toFloat(b).value)
+    end
+
+    local t = a.type == 'int' and b.type == 'int' and 'int' or 'float'
+    return node[t](a.value + b.value)
 end
 
 local sub = function(a, b)
     requireType(a, 'float', 'int', 'bool', 'list')
     requireType(b, 'float', 'int', 'bool', 'list', 'el')
 
-    if a[1] == 'list' then
+    if a.type == 'list' then
         return list.minus(a, b)
     end
 
-    if b[1] == 'bool' then
-        b = types.toInt(b)
+    if b.type == 'bool' then
+        b = node.toInt(b)
     end
 
-    return add(a, { b[1], -b[2] })
+    return add(a, node[b.type](-b.value))
 end
 
 local mul = function(a, b)
     requireType(a, 'float', 'int')
     requireType(b, 'float', 'int')
 
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+    local t = a.type == 'int' and b.type == 'int' and 'int' or 'float'
 
-    return { t, a[2] * b[2] }
+    return node[t](a.value * b.value)
 end
 
 local div = function(a, b)
     requireType(a, 'float', 'int')
     requireType(b, 'float', 'int')
 
-    if a[1] == 'float' or b[1] == 'float' then
-        return { 'float', a[2] / b[2] }
+    if a.type == 'float' or b.type == 'float' then
+        return node.float(a.value / b.value)
     else
-        return { 'int', math.floor(a[2] / b[2]) }
+        return node.int(math.floor(a.value / b.value))
     end
 end
 
@@ -125,10 +125,10 @@ local pow = function(a, b)
     requireType(a, 'float', 'int')
     requireType(b, 'float', 'int')
 
-    if a[1] == 'float' or b[1] == 'float' then
-        return { 'float', a[2] ^ b[2] }
+    if a.type == 'float' or b.type == 'float' then
+        return node.float(a.value ^ b.value)
     else
-        return { 'int', math.floor(a[2] ^ b[2]) }
+        return node.int(math.floor(a.value ^ b.value))
     end
 end
 
@@ -136,15 +136,15 @@ local mod = function(a, b)
     requireType(a, 'float', 'int')
     requireType(b, 'float', 'int')
 
-    local t = a[1] == 'int' and b[1] == 'int' and 'int' or 'float'
+    local t = a.type == 'int' and b.type == 'int' and 'int' or 'float'
 
-    return { t, math.fmod(a[2], b[2]) }
+    return node[t](math.fmod(a.value, b.value))
 end
 
 local notFn = function(a)
     requireType(a, 'bool', 'int', 'float') -- str not allowed
 
-    return { 'bool', not types.toBool(a)[2] }
+    return node.bool(not node.toBool(a).value)
 end
 
 local eq = function(a, b)
@@ -153,35 +153,38 @@ local eq = function(a, b)
     requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
 
     -- str and bool/num
-    if a[1] == 'str' or b[1] == 'str' then
-        return { 'bool', types.toStr(a)[2] == types.toStr(b)[2] }
+    if a.type == 'str' or b.type == 'str' then
+        return node.bool(node.toStr(a).value == node.toStr(b).value)
     end
 
     -- bool and str/num
-    if a[1] == 'bool' or b[1] == 'bool' then
+    if a.type == 'bool' or b.type == 'bool' then
         -- bool and number -> only '1' evaluates to true
-        if types.isNum(a) then
-            return { 'bool', (a[2] == 1) == b[2] }
-        elseif types.isNum(b) then
-            return { 'bool', (b[2] == 1) == a[2] }
+        if node.isNum(a) then
+            return node.bool((a.value == 1) == b.value)
+        elseif node.isNum(b) then
+            return node.bool((b.value == 1) == a.value)
         end
     end
 
     -- TODO all combinations
-    if a[1] == 'list' and b[1] == 'el' then
-        return { 'bool', list.contains(a, b) }
-    elseif a[1] == 'el' and b[1] == 'list' then
-        return { 'bool', list.contains(b, a) }
-    elseif a[1] == 'el' and b[1] == 'el' then
-        return { 'bool', a[2] == b[2] and a[3] == b[3] }
+    if a.type == 'list' and b.type == 'el' then
+        return node.bool(list.contains(a, b))
+    elseif a.type == 'el' and b.type == 'list' then
+        return node.bool(list.contains(b, a))
+    elseif a.type == 'el' and b.type == 'el' then
+        return node.bool(a.listName == b.listName and a.elName == b.elName)
     end
 
-    if (a[1] == b[1]) or ((a[1] == 'int' or a[1] == 'float') and (b[1] == 'int' or b[1] == 'float')) then
-        return { 'bool', a[2] == b[2] }
-        -- TODO resolve path when comparing diverts?
+    if a.type == 'divert' and b.type == 'divert' then
+        return node.bool(a.target == b.target) -- TODO resolve path when comparing diverts?
     end
 
-    err('eq not yet implemented for: ' .. a[1] .. ', ' .. b[1])
+    if (a.type == b.type) or ((a.type == 'int' or a.type == 'float') and (b.type == 'int' or b.type == 'float')) then
+        return node.bool(a.value == b.value)
+    end
+
+    err('eq not yet implemented for: ' .. a.type .. ', ' .. b.type)
 end
 
 local notEq = function(a, b)
@@ -192,119 +195,119 @@ local gt
 gt = function(a, b)
     requireType(a, 'bool', 'int', 'float', 'el', 'list')
     requireType(b, 'bool', 'int', 'float', 'el', 'list')
-    if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+    if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
         return gt(list.value(a), list.value(b))
     end
-    return { 'bool', types.toFloat(a)[2] > types.toFloat(b)[2] }
+    return node.bool(node.toFloat(a).value > node.toFloat(b).value)
 end
 local gte
 gte = function(a, b)
     requireType(a, 'bool', 'int', 'float', 'el', 'list')
     requireType(b, 'bool', 'int', 'float', 'el', 'list')
-    if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+    if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
         return gte(list.value(a), list.value(b))
     end
-    return { 'bool', types.toFloat(a)[2] >= types.toFloat(b)[2] }
+    return node.bool(node.toFloat(a).value >= node.toFloat(b).value)
 end
 local lt
 lt = function(a, b)
     requireType(a, 'bool', 'int', 'float', 'el', 'list')
     requireType(b, 'bool', 'int', 'float', 'el', 'list')
-    if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+    if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
         return lt(list.value(a), list.value(b))
     end
-    return { 'bool', types.toFloat(a)[2] < types.toFloat(b)[2] }
+    return node.bool(node.toFloat(a).value < node.toFloat(b).value)
 end
 local lte
 lte = function(a, b)
     requireType(a, 'bool', 'int', 'float', 'el', 'list')
     requireType(b, 'bool', 'int', 'float', 'el', 'list')
-    if (a[1] == 'el' or a[1] == 'list') and (b[1] == 'el' or b[1] == 'list') then
+    if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
         return lte(list.value(a), list.value(b))
     end
-    return { 'bool', types.toFloat(a)[2] <= types.toFloat(b)[2] }
+    return node.bool(node.toFloat(a).value <= node.toFloat(b).value)
 end
 local min = function(a, b)
     requireType(a, 'bool', 'int', 'float')
     requireType(b, 'bool', 'int', 'float')
-    return { 'float', math.min(types.toFloat(a)[2], types.toFloat(b)[2]) }
+    return node.float(math.min(node.toFloat(a).value, node.toFloat(b).value))
 end
 local max = function(a, b)
     requireType(a, 'bool', 'int', 'float')
     requireType(b, 'bool', 'int', 'float')
-    return { 'float', math.max(types.toFloat(a)[2], types.toFloat(b)[2]) }
+    return node.float(math.max(node.toFloat(a).value, node.toFloat(b).value))
 end
 
 local contains = function(a, b)
     if is('str', a) and is('str', b) then
-        return { 'bool', string.find(a[2], b[2]) }
+        return node.bool(string.find(a.value, b.value))
     elseif is('el', a) and is('el', b) then
         return eq(a, b)
     elseif is('list', a) and is('el', b) then
-        return { 'bool', list.contains(a, b) }
+        return node.bool(list.contains(a, b))
     elseif is('list', a) and is('list', b) then
-        return { 'bool', list.containsAll(a, b) }
+        return node.bool(list.containsAll(a, b))
     end
     _debug(a, b)
     err('unexpected type')
 end
 
 local notContains = function(a, b)
-    return { 'bool', not contains(a, b)[2] }
+    return node.bool(not contains(a, b).value)
 end
 
 local orFn = function(a, b)
     requireType(a, 'bool', 'int', 'float') -- str not allowed
     requireType(b, 'bool', 'int', 'float') -- str not allowed
-    return { 'bool', types.toBool(a)[2] or types.toBool(b)[2] }
+    return node.bool(node.toBool(a).value or node.toBool(b).value)
 end
 
 local andFn = function(a, b)
     requireType(a, 'bool', 'int', 'float') -- str not allowed
     requireType(b, 'bool', 'int', 'float') -- str not allowed
-    return { 'bool', types.toBool(a)[2] and types.toBool(b)[2] }
+    return node.bool(node.toBool(a).value and node.toBool(b).value)
 end
 
-builtins.FLOOR = { 'native', floor }
-builtins.CEILING = { 'native', ceil }
-builtins.INT = { 'native', int }
-builtins.FLOAT = { 'native', float }
-builtins.SEED_RANDOM = { 'native', seedRandom }
-builtins.RANDOM = { 'native', random }
-builtins.READ_COUNT = { 'native', readCount }
-builtins.CHOICE_COUNT = { 'native', choiceCount }
-builtins['+'] = { 'native', add }
-builtins['-'] = { 'native', sub }
-builtins['*'] = { 'native', mul }
-builtins['/'] = { 'native', div }
-builtins.POW = { 'native', pow }
-builtins['%'] = { 'native', mod }
-builtins['mod'] = { 'native', mod }
-builtins['=='] = { 'native', eq }
-builtins['!='] = { 'native', notEq }
-builtins['?'] = { 'native', contains }
-builtins.has = { 'native', contains }
-builtins['!?'] = { 'native', notContains }
-builtins.hasnt = { 'native', notContains }
-builtins['not'] = { 'native', notFn }
-builtins['||'] = { 'native', orFn }
-builtins['&&'] = { 'native', andFn }
-builtins['or'] = { 'native', orFn }
-builtins['and'] = { 'native', andFn }
-builtins['<'] = { 'native', lt }
-builtins['<='] = { 'native', lte }
-builtins['>'] = { 'native', gt }
-builtins['>='] = { 'native', gte }
-builtins.MIN = { 'native', min }
-builtins.MAX = { 'native', max }
-builtins.LIST_VALUE = { 'native', list.value }
-builtins.LIST_COUNT = { 'native', list.count }
-builtins.LIST_RANDOM = { 'native', list.random }
-builtins.LIST_ALL = { 'native', list.all }
-builtins.LIST_MIN = { 'native', list.min }
-builtins.LIST_MAX = { 'native', list.max }
-builtins.LIST_INVERT = { 'native', list.invert }
-builtins.LIST_RANGE = { 'native', list.range }
-builtins['^'] = { 'native', list.intersection }
+builtins.FLOOR = node.native(floor)
+builtins.CEILING = node.native(ceil)
+builtins.INT = node.native(int)
+builtins.FLOAT = node.native(float)
+builtins.SEED_RANDOM = node.native(seedRandom)
+builtins.RANDOM = node.native(random)
+builtins.READ_COUNT = node.native(readCount)
+builtins.CHOICE_COUNT = node.native(choiceCount)
+builtins['+'] = node.native(add)
+builtins['-'] = node.native(sub)
+builtins['*'] = node.native(mul)
+builtins['/'] = node.native(div)
+builtins.POW = node.native(pow)
+builtins['%'] = node.native(mod)
+builtins['mod'] = node.native(mod)
+builtins['=='] = node.native(eq)
+builtins['!='] = node.native(notEq)
+builtins['?'] = node.native(contains)
+builtins.has = node.native(contains)
+builtins['!?'] = node.native(notContains)
+builtins.hasnt = node.native(notContains)
+builtins['not'] = node.native(notFn)
+builtins['||'] = node.native(orFn)
+builtins['&&'] = node.native(andFn)
+builtins['or'] = node.native(orFn)
+builtins['and'] = node.native(andFn)
+builtins['<'] = node.native(lt)
+builtins['<='] = node.native(lte)
+builtins['>'] = node.native(gt)
+builtins['>='] = node.native(gte)
+builtins.MIN = node.native(min)
+builtins.MAX = node.native(max)
+builtins.LIST_VALUE = node.native(list.value)
+builtins.LIST_COUNT = node.native(list.count)
+builtins.LIST_RANDOM = node.native(list.random)
+builtins.LIST_ALL = node.native(list.all)
+builtins.LIST_MIN = node.native(list.min)
+builtins.LIST_MAX = node.native(list.max)
+builtins.LIST_INVERT = node.native(list.invert)
+builtins.LIST_RANGE = node.native(list.range)
+builtins['^'] = node.native(list.intersection)
 
 return builtins
