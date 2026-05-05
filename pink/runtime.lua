@@ -360,7 +360,7 @@ return function(globalTree)
             end
 
             -- function declarations could be after function calls in source code
-            if is('fn', n) then
+            if is('fndef', n) then
                 -- make sure every function has a return at the end
                 table.insert(n.body, { type = 'return', value = nil })
                 env[n.name] = node.fn(n.params, n.body)
@@ -613,7 +613,7 @@ return function(globalTree)
         const = nodeSkip,
         comment = nodeSkip,
         knot = nodeSkip,
-        fn = nodeSkip,
+        fndef = nodeSkip,
         external = nodeSkip,
         listdef = nodeSkip,
         -- skip following options after returning from an option where we jumped in by a name -- FIXME

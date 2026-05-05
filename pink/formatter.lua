@@ -92,7 +92,7 @@ local nodeFormatters = {
         outNewLine(0)
         format(node.args, ctx:with({ indent = 0 }))
     end,
-    fn = function(node, ctx)
+    fndef = function(node, ctx)
         resetIndent(0)
         outNewLine(0)
         outNewLine(0)
