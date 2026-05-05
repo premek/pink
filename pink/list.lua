@@ -94,10 +94,6 @@ local getListElements = function(els, knownListNames)
     return elements
 end
 
-list.el = function(listName, elName)
-    return node.el(listName, elName)
-end
-
 list.fromEls = function(els, knownListNames)
     return node.list(getListElements(els, knownListNames))
 end
@@ -381,7 +377,7 @@ list.listDef = function(listName, elDefs, env)
     list.defs[listName] = { byName = {}, byValue = {} }
     for _, elDef in pairs(elDefs) do
         local elName, elSet, elValue = elDef.name, elDef.set, elDef.value
-        local el = list.el(listName, elName)
+        local el = node.el(listName, elName)
         if env[elName] == nil then
             env[elName] = el
         else
