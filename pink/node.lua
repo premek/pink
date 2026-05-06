@@ -17,6 +17,9 @@ node.float = function(n)
     return { type = 'float', value = n }
 end
 node.bool = function(b)
+    if type(b) ~= 'boolean' then
+        err('node.bool requires a boolean, got ' .. type(b))
+    end
     return { type = 'bool', value = b }
 end
 node.str = function(s)
