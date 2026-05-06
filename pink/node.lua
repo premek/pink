@@ -40,6 +40,9 @@ end
 node.native = function(fn)
     return { type = 'native', fn = fn }
 end
+node.externalFn = function(fn)
+    return { type = 'external', fn = fn }
+end
 
 -- ── AST node constructors ─────────────────────────────────────────────────────
 -- No location — parser attaches it via token() after calling these.
@@ -68,7 +71,7 @@ end
 node.assign = function(name, expr)
     return { type = 'assign', name = name, expr = expr }
 end
-node.return_ = function(value)
+node.ret = function(value)
     return { type = 'return', value = value }
 end
 node.tag = function(text)

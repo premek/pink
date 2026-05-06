@@ -364,7 +364,7 @@ return function(globalTree)
             -- function declarations could be after function calls in source code
             if is('fndef', n) then
                 -- make sure every function has a return at the end
-                table.insert(n.body, { type = 'return', value = nil })
+                table.insert(n.body, node.ret(nil))
                 env[n.name] = node.fn(n.params, n.body)
             end
 
@@ -934,7 +934,7 @@ return function(globalTree)
         end
         -- TODO check params
         externalDefs[name] = nil
-        env[name] = { type = 'external', fn = fn }
+        env[name] = node.externalFn(fn)
         update()
     end
 

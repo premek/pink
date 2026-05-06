@@ -1146,9 +1146,9 @@ return function(input, source)
         consume('return')
         consumeWhitespace()
         if eolAhead() then
-            return token(node.return_(nil))
+            return token(node.ret(nil))
         else
-            return token(node.return_(expression()))
+            return token(node.ret(expression()))
         end
     end
 
