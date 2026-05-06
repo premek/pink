@@ -232,7 +232,8 @@ return function(deps)
 
     local contains = function(a, b)
         if is('str', a) and is('str', b) then
-            return node.bool(string.find(a.value, b.value))
+            local pos = string.find(a.value, b.value, 1, true)
+            return node.bool(pos ~= nil)
         elseif is('el', a) and is('el', b) then
             return eq(a, b)
         elseif is('list', a) and is('el', b) then
