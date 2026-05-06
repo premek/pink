@@ -245,6 +245,10 @@ return function(globalTree)
             if isNext('gather') then
                 tree = tree[pointer].body
                 pointer = 1
+                -- discard orphaned returnTo frames for this gather body left by fallback setup
+                while #callstack > 0 and callstack[#callstack].tree == tree do
+                    table.remove(callstack)
+                end
             end
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[path] then
