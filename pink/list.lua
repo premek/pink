@@ -381,9 +381,10 @@ list.listDef = function(listName, elDefs, env)
         if env[elName] == nil then
             env[elName] = el
         else
-            -- multiple lists has an element with the same name
+            -- multiple lists have an element with the same name: unqualified name is ambiguous
             env[elName].listName = nil
         end
+        env[listName .. '.' .. elName] = node.el(listName, elName) -- always available as qualified name
         -- TODO do we need both
         list.defs[listName].byName[elName] = elValue
         list.defs[listName].byValue[elValue] = elName
