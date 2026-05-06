@@ -17,9 +17,7 @@ return function(globalTree, env, noKnot)
             val = env[val.name]
         end
         if is('el', val) then
-            return list.fromLit(node.listlit({ val.elName }), function(name)
-                return env[name]
-            end)
+            return list.fromEls({ val }, {})
         elseif is('listlit', val) then
             return list.fromLit(val, function(name)
                 return env[name]
