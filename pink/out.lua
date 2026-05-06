@@ -16,6 +16,7 @@ end
 -- TODO refactor
 return {
     buffer = {},
+    hadTrailingGlue = false,
     instr = function(self, instr)
         table.insert(self.buffer, { [instr] = true })
     end,
@@ -156,12 +157,25 @@ return {
         if self.buffer[1] == '\n' then
             table.remove(self.buffer, 1)
         end
-        return result
+        local trailingGlue = self.hadTrailingGlue
+        self.hadTrailingGlue = false
+        return result, trailingGlue
     end,
     clear = function(self)
         self.buffer = {}
     end,
     isEmpty = function(self)
+        -- scan raw buffer for trailing glue before collect() consumes the instruction;
+        -- skip trailing '\n's since glue absorbs them
+        for i = #self.buffer, 1, -1 do
+            local e = self.buffer[i]
+            if type(e) == 'string' and e ~= '\n' then
+                break -- real content before any glue: no trailing glue
+            elseif e['glue'] then
+                self.hadTrailingGlue = true
+                break
+            end
+        end
         self:collect()
         return #self.buffer == 0
     end,

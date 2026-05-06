@@ -1,0 +1,4 @@
+Some text.
+1: Choice A
+2: Choice B
+?> Done.

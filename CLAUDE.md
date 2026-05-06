@@ -23,6 +23,10 @@ stylua pink-cli pink/*.lua test/*.lua
 luacheck --codes -q .
 ```
 
+### Code Navigation
+
+Use LSP (via the `LSP` tool) for symbol lookup, go-to-definition, and finding references. Prefer it over `grep` or `sed` for navigating Lua code. `lua-language-server` is installed and configured.
+
 ### Review
 Before commit, look at the uncommitted changes and check if anything was missed elsewhere in the project.
 
