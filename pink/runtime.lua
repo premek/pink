@@ -748,8 +748,9 @@ return function(globalTree)
 
         _debug('out', out.buffer)
         local res = ''
+        s.outputEndsWithGlue = false
         if not out:isEmpty() then
-            res = out:popLine()
+            res, s.outputEndsWithGlue = out:popLine()
         end
         _debug('OUT:', res)
         s.currentTags = tags
