@@ -188,6 +188,7 @@ return function(globalTree)
     end
 
     local currentKnot = nil
+    local currentStitch = nil
     local goTo
     goTo = function(path, args)
         _debug('go to', path, args)
@@ -230,9 +231,23 @@ return function(globalTree)
             next()
 
             -- FIXME hack
+        elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
+            tree = knots[noKnot][currentStitch][path].tree
+            pointer = knots[noKnot][currentStitch][path].pointer
+            if isNext('gather') then
+                tree = tree[pointer].body
+                pointer = 1
+                while #callstack > 0 and callstack[#callstack].tree == tree do
+                    table.remove(callstack)
+                end
+            end
+            incrementSeenCounter(path) -- TODO full paths
         elseif knots[noKnot] and knots[noKnot][path] then
             tree = knots[noKnot][path].tree -- TODO this is not stepInto, we dont want to step back, right?
             pointer = knots[noKnot][path].pointer
+            if is('stitch', tree[pointer]) then
+                currentStitch = path
+            end
             -- TODO messy
             if isNext('option') then
                 local option = tree[pointer]
@@ -752,8 +767,9 @@ return function(globalTree)
 
         _debug('out', out.buffer)
         local res = ''
-        s.outputEndsWithGlue = false
-        if not out:isEmpty() then
+        if out:isEmpty() then
+            s.outputEndsWithGlue = true
+        else
             res, s.outputEndsWithGlue = out:popLine()
         end
         _debug('OUT:', res)
@@ -787,6 +803,9 @@ return function(globalTree)
 
         s.currentChoices = {}
         update()
+        if out:isEmpty() then
+            s.outputEndsWithGlue = true
+        end
     end
 
     s.choosePathString = function(knotName)
