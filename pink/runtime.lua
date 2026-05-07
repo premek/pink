@@ -532,7 +532,7 @@ return function(globalTree)
             out:instr('glue')
         end,
         nl = function()
-            out:add('\n')
+            out:nl()
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
             incrementSeenCounter(n.name)
@@ -634,6 +634,7 @@ return function(globalTree)
                     -- all possible choices printed like this before selecting
                     -- FIXME
                     local oldBuf = out.buffer
+                    local oldLineHasContent = out.lineHasContent
                     local oldCS = callstack
                     callstack = {}
                     --TODO
@@ -644,6 +645,7 @@ return function(globalTree)
                     update()
                     local text = out:popLine()
                     out.buffer = oldBuf
+                    out.lineHasContent = oldLineHasContent
                     callstack = oldCS
                     --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
                     table.insert(s.currentChoices, { text = text, option = option, gather = gather })

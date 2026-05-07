@@ -17,12 +17,37 @@ end
 return {
     buffer = {},
     hadTrailingGlue = false,
+    lineHasContent = false,
+    trimStack = {}, -- tracks function call output: [{savedLineHasContent, hadOutput}]
     instr = function(self, instr)
         table.insert(self.buffer, { [instr] = true })
+        if instr == 'trim' then
+            table.insert(self.trimStack, { saved = self.lineHasContent, hadOutput = false })
+        elseif instr == 'trimEnd' then
+            local frame = table.remove(self.trimStack)
+            if frame.hadOutput then
+                self.lineHasContent = true
+                if #self.trimStack > 0 then
+                    self.trimStack[#self.trimStack].hadOutput = true
+                end
+            else
+                self.lineHasContent = frame.saved
+            end
+        end
     end,
     add = function(self, text)
         _debug('OUT add:', text)
         table.insert(self.buffer, text)
+        self.lineHasContent = true
+        if #self.trimStack > 0 and trim(text) ~= '' then
+            self.trimStack[#self.trimStack].hadOutput = true
+        end
+    end,
+    nl = function(self)
+        if self.lineHasContent then
+            table.insert(self.buffer, '\n')
+            self.lineHasContent = false
+        end
     end,
     collect = function(self)
         _debug(self.buffer)
@@ -112,6 +137,7 @@ return {
                 table.insert(t, e)
             end
         end
+        self.buffer = t
 
         t = { '' }
         for _, e in ipairs(self.buffer) do
@@ -135,14 +161,20 @@ return {
         _debug(t)
         local str = table.concat(t)
         self.buffer = {}
-        for line in string.gmatch(str, '[^\n]+') do
-            table.insert(self.buffer, line)
-            table.insert(self.buffer, '\n')
+        local s = str
+        while #s > 0 do
+            local nl = s:find('\n', 1, true)
+            if nl then
+                table.insert(self.buffer, s:sub(1, nl - 1))
+                table.insert(self.buffer, '\n')
+                s = s:sub(nl + 1)
+            else
+                table.insert(self.buffer, s)
+                s = ''
+            end
         end
-        table.remove(self.buffer, #self.buffer) -- remove the last newline
-
-        while self.buffer[#self.buffer] == '' do -- eh
-            table.remove(self.buffer, #self.buffer) -- remove the last empty element
+        if self.buffer[#self.buffer] == '\n' then
+            table.remove(self.buffer, #self.buffer)
         end
 
         _debug('collect end', self.buffer)
@@ -163,6 +195,8 @@ return {
     end,
     clear = function(self)
         self.buffer = {}
+        self.lineHasContent = false
+        self.trimStack = {}
     end,
     isEmpty = function(self)
         -- scan raw buffer for trailing glue before collect() consumes the instruction;
