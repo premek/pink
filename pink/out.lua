@@ -17,43 +17,65 @@ end
 return {
     buffer = {},
     hadTrailingGlue = false,
-    lineHasContent = false,
-    trimStack = {}, -- tracks function call output: [{savedLineHasContent, hadOutput}]
     instr = function(self, instr)
         table.insert(self.buffer, { [instr] = true })
-        if instr == 'trim' then
-            table.insert(self.trimStack, { saved = self.lineHasContent, hadOutput = false })
-        elseif instr == 'trimEnd' then
-            local frame = table.remove(self.trimStack)
-            if frame.hadOutput then
-                self.lineHasContent = true
-                if #self.trimStack > 0 then
-                    self.trimStack[#self.trimStack].hadOutput = true
-                end
-            else
-                self.lineHasContent = frame.saved
-            end
-        end
     end,
     add = function(self, text)
         _debug('OUT add:', text)
         table.insert(self.buffer, text)
-        self.lineHasContent = true
-        if #self.trimStack > 0 and trim(text) ~= '' then
-            self.trimStack[#self.trimStack].hadOutput = true
-        end
     end,
     nl = function(self)
-        if self.lineHasContent then
-            table.insert(self.buffer, '\n')
-            self.lineHasContent = false
-        end
+        table.insert(self.buffer, { nl = true })
     end,
     collect = function(self)
         _debug(self.buffer)
 
-        -- if {out} / if / seq is not at a line start then insert glue
+        -- resolve {nl}: emit '\n' only when the current logical line has non-whitespace content.
+        -- trim/trimEnd pairs bracket inline function calls; we save lineHasContent on entry and
+        -- restore it on exit unless the function produced non-whitespace output (hadOutput).
+        -- this ensures outer-level whitespace counts for lineHasContent but function-body-only
+        -- whitespace does not propagate out to affect the surrounding line's nl decisions.
         local t = {}
+        local lineHasContent = false
+        local trimStack = {} -- {savedLineHasContent, hadOutput}
+        for _, e in ipairs(self.buffer) do
+            if e == '\n' then
+                table.insert(t, e)
+                lineHasContent = false
+            elseif e['nl'] then
+                if lineHasContent then
+                    table.insert(t, '\n')
+                    lineHasContent = false
+                end
+            elseif e['trim'] then
+                table.insert(trimStack, { saved = lineHasContent, hadOutput = false })
+                lineHasContent = false
+                table.insert(t, e)
+            elseif e['trimEnd'] then
+                local frame = table.remove(trimStack)
+                if frame.hadOutput then
+                    lineHasContent = true
+                    if #trimStack > 0 then
+                        trimStack[#trimStack].hadOutput = true
+                    end
+                else
+                    lineHasContent = frame.saved
+                end
+                table.insert(t, e)
+            elseif type(e) == 'string' then
+                lineHasContent = true
+                if trim(e) ~= '' and #trimStack > 0 then
+                    trimStack[#trimStack].hadOutput = true
+                end
+                table.insert(t, e)
+            else
+                table.insert(t, e)
+            end
+        end
+        self.buffer = t
+
+        -- if {out} / if / seq is not at a line start then insert glue
+        t = {}
         for i = 1, #self.buffer do
             if self.buffer[i]['outBlockStart'] then
                 for j = i - 1, 0, -1 do
@@ -195,8 +217,6 @@ return {
     end,
     clear = function(self)
         self.buffer = {}
-        self.lineHasContent = false
-        self.trimStack = {}
     end,
     isEmpty = function(self)
         -- scan raw buffer for trailing glue before collect() consumes the instruction;
