@@ -16,6 +16,25 @@ See [`docs/ink-api.md`](docs/ink-api.md) for the API.
 
 ## Workflow
 
+### Code Navigation
+
+Always prefer using LSP (via the `LSP` tool) over `grep` or `sed` for navigating Lua code. `lua-language-server` is installed and configured.
+
+Prefer LSP over Grep/Glob/Read for code navigation:
+- `goToDefinition` / `goToImplementation` to jump to source
+- `findReferences` to see all usages across the codebase
+- `workspaceSymbol` to find where something is defined
+- `documentSymbol` to list all symbols in a file
+- `hover` for type info without reading the file
+- `incomingCalls` / `outgoingCalls` for call hierarchy
+- etc.
+
+Before renaming or changing a function signature, use `findReferences` to find all call sites first.
+
+Use Grep/Glob only for text/pattern searches (comments, strings, config values) where LSP doesn't help.
+
+After writing or editing code, check LSP diagnostics before moving on. Fix any type errors or missing imports immediately.
+
 ### Formatting, Linting
 
 After each change:
@@ -24,10 +43,6 @@ stylua pink-cli pink/*.lua test/*.lua
 luacheck --codes -q .
 ```
 
-### Code Navigation
-
-Use LSP (via the `LSP` tool) for symbol lookup, go-to-definition, and finding references. 
-Prefer it over `grep` or `sed` for navigating Lua code. `lua-language-server` is installed and configured.
 
 ### Review
 Before commit, look at the uncommitted changes and check if anything was missed.

@@ -614,6 +614,29 @@ return function(globalTree)
     }
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
+    local clear = function()
+        local snapshot = { outSnapshot = out:clear(), callstack = callstack }
+        callstack = {}
+        return snapshot
+    end
+
+    local reset = function(snapshot)
+        out:reset(snapshot.outSnapshot)
+        callstack = snapshot.callstack
+    end
+
+    local evaluateOptionText = function(option)
+        -- FIXME?
+        local snapshot = clear()
+        stepInto(option.t1)
+        update()
+        stepInto(option.t2)
+        update()
+        local text = out:popLine()
+        reset(snapshot)
+        return text
+    end
+
     update = function()
         _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer].type or 'END'))
 
@@ -682,23 +705,7 @@ return function(globalTree)
                 end
 
                 if displayOption then
-                    -- all possible choices printed like this before selecting
-                    -- FIXME
-                    local oldBuf = out.buffer
-                    local oldDirty = out.needsCollect
-                    local oldCS = callstack
-                    callstack = {}
-                    --TODO
-                    out:clear()
-                    stepInto(option.t1)
-                    update()
-                    stepInto(option.t2)
-                    update()
-                    local text = out:popLine()
-                    out.buffer = oldBuf
-                    out.needsCollect = oldDirty
-                    callstack = oldCS
-                    --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
+                    local text = evaluateOptionText(option)
                     table.insert(s.currentChoices, { text = text, option = option, gather = gather })
                 end
             end

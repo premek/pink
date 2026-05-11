@@ -240,10 +240,16 @@ return {
         return result, trailingGlue, hadNl
     end,
     clear = function(self)
+        local snapshot = { buffer = self.buffer, needsCollect = self.needsCollect }
         self.buffer = {}
         self.hadTrailingNl = false
         self.midExpressionEnd = false
         self.needsCollect = false
+        return snapshot
+    end,
+    reset = function(self, snapshot)
+        self.buffer = snapshot.buffer
+        self.needsCollect = snapshot.needsCollect
     end,
     isEmpty = function(self)
         -- scan raw buffer for trailing glue before collect() consumes the instruction;
