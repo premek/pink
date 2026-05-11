@@ -160,7 +160,7 @@ return function(globalTree)
         turnAtVisit[path] = turns
     end
 
-    local update, getValue
+    local update, getValue, seqPickBranch
 
     -- params: placeholders defined in the function/knot definition.
     -- args: the actual values or expressions passed to the function/knot when calling it
@@ -399,6 +399,19 @@ return function(globalTree)
                 end
             end
             return node.str(result)
+        elseif is('seq', val) then
+            local branch = seqPickBranch(val)
+            if branch == nil then
+                return node.str('')
+            end
+            local result = ''
+            for i = 1, #branch do
+                local value = getValue(branch[i])
+                if value ~= nil then
+                    result = result .. node.output(value)
+                end
+            end
+            return node.str(result)
         else
             _debug(val)
             error('getValue: unsupported type: ' .. tostring(val.type))
@@ -488,7 +501,7 @@ return function(globalTree)
         return shuffled
     end
 
-    local nodeUpdateSeq = function(n)
+    seqPickBranch = function(n)
         if n.opts.shuffle and not n.shuffled then
             if n.opts.stopping then
                 n.branches = seqShuffle(n.branches, #n.branches - 1) -- shuffle all except the last one
@@ -497,9 +510,6 @@ return function(globalTree)
             end
             n.shuffled = true
         end
-
-        -- TODO not needed when continue stops on each end of line???
-        out:instr('outBlockStart')
 
         -- FIXME store somewhere else, support save/load, could be a "seen counter" too
         n.current = n.current or 1
@@ -557,7 +567,11 @@ return function(globalTree)
 
         out = nodeUpdateOut,
 
-        seq = nodeUpdateSeq,
+        seq = function(n)
+            -- TODO not needed when continue stops on each end of line???
+            out:instr('outBlockStart')
+            return seqPickBranch(n)
+        end,
 
         call = function(n)
             getValue(n)

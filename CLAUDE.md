@@ -64,6 +64,13 @@ To add a test, create a directory and run `./test/test.sh {Name}` (See [`docs/te
 
 Never edit expected output. Those must match the inklecate output and are generated using inklecate (installed in the system).
 
+To regenerate transcripts after changing a story: `test/runtime/regenerate.sh` (regenerates all W* tests).
+
+Tests using any random output must use `~SEED_RANDOM(n)`.
+1. Find a seed where both inklecate and Lua produce identical output, search seeds 1–50, running both and comparing.
+2. Update `story.ink` to use that seed.
+3. Regenerate the transcript from inklecate with that seed.
+
 API tests in `test/api.lua`.
 
 ## Naming Conventions

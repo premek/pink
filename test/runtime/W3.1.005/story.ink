@@ -1,4 +1,4 @@
-~SEED_RANDOM(3)
+~SEED_RANDOM(5)
 
 VAR a_colour = ""
 
