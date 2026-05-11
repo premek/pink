@@ -7,14 +7,14 @@ require('test.external')
 
 function testBasic()
     local story = pink('test/hello.ink')
-    luaunit.assertEquals(story.continue(), 'hello world')
+    luaunit.assertEquals(story.continue(), 'hello world\n')
     luaunit.assertFalse(story.canContinue)
 end
 
 function testOutputEachLineSeparately()
     local story = pink('test/twolines.ink')
-    luaunit.assertEquals(story.continue(), 'hello')
-    luaunit.assertEquals(story.continue(), 'world')
+    luaunit.assertEquals(story.continue(), 'hello\n')
+    luaunit.assertEquals(story.continue(), 'world\n')
     luaunit.assertFalse(story.canContinue)
 end
 

@@ -763,20 +763,38 @@ return function(globalTree)
                 )
             end
             storyStarted = true
+            update() -- first call: process story before popping
         end
 
         _debug('out', out.buffer)
         local res = ''
-        if out:isEmpty() then
-            s.outputEndsWithGlue = true
-        else
-            res, s.outputEndsWithGlue = out:popLine()
+        local trailingGlue = false
+        local rawHadContent = #out.buffer > 0
+        local bufferWasEmpty = out:isEmpty()
+        if not bufferWasEmpty then
+            res, trailingGlue = out:popLine()
         end
         _debug('OUT:', res)
         s.currentTags = tags
         tags = {}
-        update()
-        return res
+        if #s.currentChoices == 0 then
+            update() -- advance to next output; skip if choices already populated
+        end
+        if res == '' then
+            if not bufferWasEmpty then
+                return '\n' -- whitespace-only line → blank line
+            elseif #s.currentChoices > 0 then
+                return '\n' -- blank separator before choices
+            elseif rawHadContent then
+                return '\n' -- buffer had nl-only content (e.g. loop ended at gather)
+            else
+                return '' -- story ended with no output
+            end
+        elseif trailingGlue or s.canContinue or #s.currentChoices == 0 then
+            return res .. '\n'
+        else
+            return res .. '\n\n'
+        end
     end
 
     s.currentChoices = {}
@@ -803,9 +821,6 @@ return function(globalTree)
 
         s.currentChoices = {}
         update()
-        if out:isEmpty() then
-            s.outputEndsWithGlue = true
-        end
     end
 
     s.choosePathString = function(knotName)
@@ -845,8 +860,6 @@ return function(globalTree)
     _debug('lists:', list.defs)
     _debug('external:', externalDefs)
     _debug('state:', s.variablesState)
-
-    update()
 
     return s
 end

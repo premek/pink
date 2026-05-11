@@ -10,9 +10,8 @@ local story = pink('game.ink')
 
 -- drive the story
 while story.canContinue do
-    local line = story.continue()
+    io.write(story.continue())  -- continue() returns text with trailing \n
     -- story.currentTags contains tags for this line
-    print(line)
 end
 
 -- present choices
@@ -31,7 +30,7 @@ story.chooseChoiceIndex(1)  -- 1-based
 | Member | Type | Description |
 |--------|------|-------------|
 | `story.canContinue` | bool | true when there is more content to output |
-| `story.continue()` | `→ string` | output next line; advances story |
+| `story.continue()` | `→ string` | output next line; advances story; returned string includes trailing `\n` (use `io.write`, not `print`) |
 | `story.currentChoices` | `[{text, option, gather}]` | choices waiting for input; non-empty when canContinue is false |
 | `story.chooseChoiceIndex(n)` | | select choice by 1-based index |
 | `story.choosePathString(knotName)` | | jump to a knot by name |

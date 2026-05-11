@@ -58,16 +58,13 @@ end
 local story = runtime(parse(filename))
 while true do
     while story.canContinue do
-        print(story.continue())
+        io.write(story.continue())
         if #story.currentTags > 0 then
             print('# tags: ' .. table.concat(story.currentTags, ', ')) -- TODO configurable
         end
     end
     if #story.currentChoices == 0 then
         break
-    end
-    if not story.outputEndsWithGlue then
-        print()
     end
     for i = 1, #story.currentChoices do
         print(i .. ': ' .. story.currentChoices[i].text)

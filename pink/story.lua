@@ -7,7 +7,7 @@ Story.new = function(env)
             visitCount = {},
         },
         variablesState = env,
-        canContinue = false,
+        canContinue = true,
     }
 end
 
