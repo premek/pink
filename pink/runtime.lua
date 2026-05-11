@@ -6,6 +6,7 @@ local node = require(base_path .. 'node')
 local createBuiltins = require(base_path .. 'builtins')
 local compile = require(base_path .. 'compiler')
 local logging = require(base_path .. 'logging')
+local newStack = require(base_path .. 'stack')
 local err = logging.error
 local _debug = logging.debug
 local requireType = node.requireType
@@ -47,7 +48,7 @@ return function(globalTree)
     local tree = globalTree
     local pointer = 1
     -- TODO(save/load): callstack holds direct table refs; convert to path strings for serialization
-    local callstack = {}
+    local callstack = newStack()
     local knots
     local tags = {}
     local externalDefs
@@ -117,7 +118,7 @@ return function(globalTree)
     local stepInto = function(block, newEnv, fn)
         _debug('step into')
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
-        table.insert(callstack, { tree = tree, pointer = pointer, fn = fn, env = env })
+        callstack.push({ tree = tree, pointer = pointer, fn = fn, env = env })
         newEnv = newEnv or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
@@ -134,7 +135,7 @@ return function(globalTree)
 
     local stepOut
     stepOut = function(fn)
-        local frame = table.remove(callstack)
+        local frame = callstack.pop()
         if not frame then
             return err('failed to step out')
         end
@@ -198,6 +199,11 @@ return function(globalTree)
 
     local currentKnot = nil
     local currentStitch = nil
+    local discardFramesFor = function(t)
+        while not callstack.isEmpty() and callstack.peek().tree == t do
+            callstack.pop()
+        end
+    end
     local goTo
     goTo = function(path, args)
         _debug('go to', path, args)
@@ -207,18 +213,18 @@ return function(globalTree)
             -- remaining sibling nodes (including nl) were never reached.
             -- scan callstack for an 'inline' frame between us and the nearest function boundary.
             if #out.buffer > 0 then
-                for i = #callstack, 1, -1 do
-                    if callstack[i].fn == 'fn' then
+                for i = callstack.size(), 1, -1 do
+                    if callstack.get(i).fn == 'fn' then
                         break
                     end
-                    if callstack[i].fn == 'inline' then
+                    if callstack.get(i).fn == 'inline' then
                         out.midExpressionEnd = true
                         break
                     end
                 end
             end
             pointer = #tree + 1
-            callstack = {} -- ? do not step out anywhere
+            callstack.clear() -- ? do not step out anywhere
             return
         end
 
@@ -259,9 +265,7 @@ return function(globalTree)
             if isNext('gather') then
                 tree = tree[pointer].body
                 pointer = 1
-                while #callstack > 0 and callstack[#callstack].tree == tree do
-                    table.remove(callstack)
-                end
+                discardFramesFor(tree)
             end
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[noKnot] and knots[noKnot][path] then
@@ -283,9 +287,7 @@ return function(globalTree)
                 tree = tree[pointer].body
                 pointer = 1
                 -- discard orphaned returnTo frames for this gather body left by fallback setup
-                while #callstack > 0 and callstack[#callstack].tree == tree do
-                    table.remove(callstack)
-                end
+                discardFramesFor(tree)
             end
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[path] then
@@ -615,14 +617,12 @@ return function(globalTree)
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
     local clear = function()
-        local snapshot = { outSnapshot = out:clear(), callstack = callstack }
-        callstack = {}
-        return snapshot
+        return { outSnapshot = out:clear(), frames = callstack.clear() }
     end
 
     local reset = function(snapshot)
         out:reset(snapshot.outSnapshot)
-        callstack = snapshot.callstack
+        callstack = newStack(snapshot.frames)
     end
 
     local evaluateOptionText = function(option)
@@ -763,7 +763,7 @@ return function(globalTree)
         if isEnd() then
             --FIXME refactor so we don't need this if
             if #s.currentChoices == 0 then
-                if #callstack > 0 then
+                if not callstack.isEmpty() then
                     stepOut()
                     _debug('step out at end')
                     next()
@@ -790,8 +790,6 @@ return function(globalTree)
             next()
         end
         update()
-        return
-
         --[[if lastpointer == pointer and lasttree == tree then
         _debug(tree, pointer)
         err('nothing consumed in continue at pointer '..pointer)
