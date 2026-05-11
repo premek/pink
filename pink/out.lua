@@ -13,6 +13,184 @@ local trim = function(s)
     return s:match('^%s*(.-)%s*$')
 end
 
+local resolveNlInstructions = function(buffer)
+    local t = {}
+    local lineHasContent = false
+    local trimStack = {} -- {savedLineHasContent, hadOutput}
+    for _, e in ipairs(buffer) do
+        if e == '\n' then
+            table.insert(t, e)
+            lineHasContent = false
+        elseif e['nl'] then
+            if lineHasContent then
+                table.insert(t, '\n')
+                lineHasContent = false
+            end
+        elseif e['trim'] then
+            table.insert(trimStack, { saved = lineHasContent, hadOutput = false })
+            lineHasContent = false
+            table.insert(t, e)
+        elseif e['trimEnd'] then
+            local frame = table.remove(trimStack)
+            if frame.hadOutput then
+                lineHasContent = true
+                if #trimStack > 0 then
+                    trimStack[#trimStack].hadOutput = true
+                end
+            else
+                lineHasContent = frame.saved
+            end
+            table.insert(t, e)
+        elseif type(e) == 'string' then
+            lineHasContent = true
+            if trim(e) ~= '' and #trimStack > 0 then
+                trimStack[#trimStack].hadOutput = true
+            end
+            table.insert(t, e)
+        else
+            table.insert(t, e)
+        end
+    end
+    return t
+end
+
+local insertOutBlockGlue = function(buffer)
+    local t = {}
+    for i = 1, #buffer do
+        if buffer[i]['outBlockStart'] then
+            for j = i - 1, 0, -1 do
+                if buffer[j] and buffer[j]['trim'] then -- FIXME eh?
+                    break
+                end
+                if buffer[j] and type(buffer[j]) == 'string' then
+                    if buffer[j] ~= '\n' then
+                        table.insert(t, { glue = true })
+                    end
+                    break
+                end
+            end
+        else
+            table.insert(t, buffer[i])
+        end
+    end
+    return t
+end
+
+local applyGlue = function(buffer)
+    local t = {}
+    local glue = false
+    for _, e in ipairs(buffer) do
+        if e['glue'] then
+            glue = true
+            for i = #t, 1, -1 do
+                if t[i] == '\n' then
+                    table.remove(t, i)
+                elseif type(t[i]) == 'string' and trim(t[i]) == '' then
+                    local _ -- keep spaces, but keep glueing
+                elseif type(t[i]) == 'string' or t[i]['trim'] then
+                    break
+                end
+            end
+        elseif glue and e == '\n' then
+            local _
+            -- ignore newlines after glue
+        else
+            table.insert(t, e)
+            if type(e) == 'string' or e['trimEnd'] then -- TODO
+                glue = false
+            end
+        end
+    end
+    return t
+end
+
+local applyTrimEnd = function(buffer)
+    local t = {}
+    for i, e in ipairs(buffer) do
+        if e['trimEnd'] then
+            for j = i - 1, 1, -1 do
+                if t[j] then
+                    if t[j]['trim'] then
+                        table.remove(t, j)
+                        break
+                    end
+                    t[j] = rtrim(t[j])
+                    if #t[j] > 0 then
+                        break
+                    end
+                end
+            end
+        else
+            table.insert(t, e)
+        end
+    end
+    return t
+end
+
+local removeEmptyTrim = function(buffer)
+    local t = {}
+    for _, e in ipairs(buffer) do
+        if not e['trim'] and e ~= '' then
+            table.insert(t, e)
+        end
+    end
+    return t
+end
+
+local collapseDoubleNewlines = function(buffer)
+    local t = {}
+    for _, e in ipairs(buffer) do
+        if e == '\n' and t[#t] == '\n' then
+            local _
+            -- remove double newlines
+        else
+            table.insert(t, e)
+        end
+    end
+    return t
+end
+
+local joinToLines = function(buffer, midExpressionEnd)
+    local t = { '' }
+    for _, e in ipairs(buffer) do
+        if e ~= '\n' then
+            t[#t] = t[#t] .. e
+        else
+            t[#t], _ = t[#t]:gsub(' +', ' '):gsub('\n +', '\n')
+            table.insert(t, e)
+            table.insert(t, '')
+        end
+    end
+    while t[#t] == '' do -- eh
+        table.remove(t, #t) -- remove the last empty placeholder
+    end
+    if t[#t] == ' ' then -- eh
+        table.remove(t, #t)
+    end
+    local str = table.concat(t)
+    local result = {}
+    local s = str
+    while #s > 0 do
+        local nl = s:find('\n', 1, true)
+        if nl then
+            table.insert(result, s:sub(1, nl - 1))
+            table.insert(result, '\n')
+            s = s:sub(nl + 1)
+        else
+            table.insert(result, s)
+            s = ''
+        end
+    end
+    local hadTrailingNl
+    if result[#result] == '\n' then
+        hadTrailingNl = true
+        table.remove(result, #result)
+    else
+        hadTrailingNl = not midExpressionEnd
+    end
+    return result, hadTrailingNl
+end
+
 -- TODO refactor
 return {
     buffer = {},
@@ -42,181 +220,16 @@ return {
         end
         self.needsCollect = false
         _debug(self.buffer)
-
-        -- resolve {nl}: emit '\n' only when the current logical line has non-whitespace content.
-        -- trim/trimEnd pairs bracket inline function calls; we save lineHasContent on entry and
-        -- restore it on exit unless the function produced non-whitespace output (hadOutput).
-        -- this ensures outer-level whitespace counts for lineHasContent but function-body-only
-        -- whitespace does not propagate out to affect the surrounding line's nl decisions.
-        local t = {}
-        local lineHasContent = false
-        local trimStack = {} -- {savedLineHasContent, hadOutput}
-        for _, e in ipairs(self.buffer) do
-            if e == '\n' then
-                table.insert(t, e)
-                lineHasContent = false
-            elseif e['nl'] then
-                if lineHasContent then
-                    table.insert(t, '\n')
-                    lineHasContent = false
-                end
-            elseif e['trim'] then
-                table.insert(trimStack, { saved = lineHasContent, hadOutput = false })
-                lineHasContent = false
-                table.insert(t, e)
-            elseif e['trimEnd'] then
-                local frame = table.remove(trimStack)
-                if frame.hadOutput then
-                    lineHasContent = true
-                    if #trimStack > 0 then
-                        trimStack[#trimStack].hadOutput = true
-                    end
-                else
-                    lineHasContent = frame.saved
-                end
-                table.insert(t, e)
-            elseif type(e) == 'string' then
-                lineHasContent = true
-                if trim(e) ~= '' and #trimStack > 0 then
-                    trimStack[#trimStack].hadOutput = true
-                end
-                table.insert(t, e)
-            else
-                table.insert(t, e)
-            end
-        end
-        self.buffer = t
-
-        -- if {out} / if / seq is not at a line start then insert glue
-        t = {}
-        for i = 1, #self.buffer do
-            if self.buffer[i]['outBlockStart'] then
-                for j = i - 1, 0, -1 do
-                    if self.buffer[j] and self.buffer[j]['trim'] then -- FIXME eh?
-                        break
-                    end
-                    if self.buffer[j] and type(self.buffer[j]) == 'string' then
-                        if self.buffer[j] ~= '\n' then
-                            table.insert(t, { glue = true })
-                        end
-                        break
-                    end
-                end
-            else
-                table.insert(t, self.buffer[i])
-            end
-        end
-        self.buffer = t
-
-        t = {}
-        local glue = false
-        for _, e in ipairs(self.buffer) do
-            if e['glue'] then
-                glue = true
-                for i = #t, 1, -1 do
-                    if t[i] == '\n' then
-                        table.remove(t, i)
-                    elseif type(t[i]) == 'string' and trim(t[i]) == '' then
-                        local _ -- keep spaces, but keep glueing
-                    elseif type(t[i]) == 'string' or t[i]['trim'] then
-                        break
-                    end
-                end
-            elseif glue and e == '\n' then
-                local _
-                -- ignore newlines after glue
-            else
-                table.insert(t, e)
-                if type(e) == 'string' or e['trimEnd'] then -- TODO
-                    glue = false
-                end
-            end
-        end
-        self.buffer = t
-
-        t = {}
-        for i, e in ipairs(self.buffer) do
-            if e['trimEnd'] then
-                for j = i - 1, 1, -1 do
-                    if t[j] then
-                        if t[j]['trim'] then
-                            table.remove(t, j)
-                            break
-                        end
-                        t[j] = rtrim(t[j])
-                        if #t[j] > 0 then
-                            break
-                        end
-                    end
-                end
-            else
-                table.insert(t, e)
-            end
-        end
-        self.buffer = t
-
-        t = {}
-        for _, e in ipairs(self.buffer) do
-            if not e['trim'] and e ~= '' then
-                table.insert(t, e)
-            end
-        end
-        self.buffer = t
-
-        t = {}
-        for _, e in ipairs(self.buffer) do
-            if e == '\n' and t[#t] == '\n' then
-                local _
-                -- remove double newlines
-            else
-                table.insert(t, e)
-            end
-        end
-        self.buffer = t
-
-        t = { '' }
-        for _, e in ipairs(self.buffer) do
-            if e ~= '\n' then
-                t[#t] = t[#t] .. e
-            else
-                t[#t], _ = t[#t]:gsub(' +', ' '):gsub('\n +', '\n')
-                table.insert(t, e)
-                table.insert(t, '')
-            end
-        end
-        while t[#t] == '' do -- eh
-            table.remove(t, #t) -- remove the last empty placeholder
-        end
-        if t[#t] == ' ' then -- eh
-            table.remove(t, #t)
-        end
-
-        self.buffer = t
-
-        _debug(t)
-        local str = table.concat(t)
-        self.buffer = {}
-        local s = str
-        while #s > 0 do
-            local nl = s:find('\n', 1, true)
-            if nl then
-                table.insert(self.buffer, s:sub(1, nl - 1))
-                table.insert(self.buffer, '\n')
-                s = s:sub(nl + 1)
-            else
-                table.insert(self.buffer, s)
-                s = ''
-            end
-        end
-        -- line is terminated if it had an explicit {nl}, or ended normally (no mid-expression divert)
-        if self.buffer[#self.buffer] == '\n' then
-            self.hadTrailingNl = true
-            table.remove(self.buffer, #self.buffer)
-        else
-            self.hadTrailingNl = not self.midExpressionEnd
-        end
+        local buf = self.buffer
+        buf = resolveNlInstructions(buf)
+        buf = insertOutBlockGlue(buf)
+        buf = applyGlue(buf)
+        buf = applyTrimEnd(buf)
+        buf = removeEmptyTrim(buf)
+        buf = collapseDoubleNewlines(buf)
+        buf, self.hadTrailingNl = joinToLines(buf, self.midExpressionEnd)
+        self.buffer = buf
         self.midExpressionEnd = false
-
         _debug('collect end', self.buffer)
     end,
     popLine = function(self)
