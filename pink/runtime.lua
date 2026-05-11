@@ -117,7 +117,7 @@ return function(globalTree)
     local stepInto = function(block, newEnv, fn)
         _debug('step into')
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
-        table.insert(callstack, { tree = tree, pointer = pointer, fn = fn })
+        table.insert(callstack, { tree = tree, pointer = pointer, fn = fn, env = env })
         newEnv = newEnv or {}
         newEnv._parent = env -- TODO make parent unaccessible from the script
         env = newEnv
@@ -149,7 +149,7 @@ return function(globalTree)
 
         pointer = frame.pointer
         tree = frame.tree
-        env = env._parent -- TODO encapsulate somehow / add to the frame?
+        env = frame.env
     end
 
     local incrementSeenCounter = function(path)
