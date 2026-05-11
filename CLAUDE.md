@@ -1,23 +1,24 @@
 # CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance to Claude when working with this repository.
 
 ## Code Style
-
-Minimalistic, minimal abstractions and layers of indirection. Prefer direct, obvious code over clever patterns. Short functions with meaningful names are encouraged — the problem is redundant wrappers that add no meaning (a function that just delegates to another with the same name and no added semantics).
+Minimal layers of indirection but properly structured.
+Prefer direct, obvious code over clever patterns.
+Short functions with meaningful names, descriptive names for variables (no need to keep them extra short).
 
 ## Project Overview
 
-**Pink** is a Lua implementation of the [Ink scripting language](https://github.com/inkle/ink) — a language for writing interactive branching narratives. It can be used standalone or with the LÖVE 2D game framework.
+**Pink** is a Lua implementation of the [Ink scripting language](https://github.com/inkle/ink) — a language 
+for writing interactive branching narratives.
 
 See [`docs/ink-language.md`](docs/ink-language.md) for a condensed Ink syntax reference.
-See [`docs/ink-api.md`](docs/ink-api.md) for the story API and what is/isn't implemented.
+See [`docs/ink-api.md`](docs/ink-api.md) for the API.
 
 ## Workflow
 
 ### Formatting, Linting
 
-After each change run:
+After each change:
 ```bash
 stylua pink-cli pink/*.lua test/*.lua
 luacheck --codes -q .
@@ -25,12 +26,16 @@ luacheck --codes -q .
 
 ### Code Navigation
 
-Use LSP (via the `LSP` tool) for symbol lookup, go-to-definition, and finding references. Prefer it over `grep` or `sed` for navigating Lua code. `lua-language-server` is installed and configured.
+Use LSP (via the `LSP` tool) for symbol lookup, go-to-definition, and finding references. 
+Prefer it over `grep` or `sed` for navigating Lua code. `lua-language-server` is installed and configured.
 
 ### Review
-Before commit, look at the uncommitted changes and check if anything was missed elsewhere in the project.
+Before commit, look at the uncommitted changes and check if anything was missed.
+Also review from high level perspective and readability.
 
 ### Running Tests
+
+Run `stylua` before running tests.
 
 ```bash
 ./test/test.sh              # Run all tests, including linting
@@ -38,24 +43,33 @@ Before commit, look at the uncommitted changes and check if anything was missed 
 ./test/test.sh "W1.3.*"     # Run tests matching a pattern
 ```
 
-To check for regressions, always compare against the baseline before your change:
-```bash
-git stash && ./test/test.sh 2>&1 | tail -1
-git stash pop && ./test/test.sh 2>&1 | tail -1
-```
+**Zero regressions policy:** a change is only acceptable if no previously-passing test starts failing.
 
-To find which tests newly regressed:
+Always compare against the baseline:
 ```bash
 git stash && ./test/test.sh 2>&1 | grep -v "OK$" > /tmp/baseline_fails.txt && git stash pop
 ./test/test.sh 2>&1 | grep -v "OK$" > /tmp/current_fails.txt
 diff /tmp/baseline_fails.txt /tmp/current_fails.txt
 ```
-Lines added (`>`) are newly failing tests.
+Lines added (`>`) are newly failing tests — fix them before declaring the change done.
+
+### Test Structure
+
+Each test case in `test/runtime/{Name}/` contains:
+- `story.ink` — Input story
+- `input.txt` — Choice sequence (one per line)
+- `transcript.txt` — Expected output
+
+To add a test, create a directory and run `./test/test.sh {Name}` (See [`docs/testing.md`](docs/testing.md)).
+
+Never edit expected output. Those must match the inklecate output and are generated using inklecate (installed in the system).
+
+API tests in `test/api.lua`.
 
 ## Naming Conventions
 
 - `camelCase` for all Lua variables, locals, and functions
-- `UPPER_SNAKE_CASE` only for Ink built-in function names (`FLOOR`, `RANDOM`, `LIST_ALL`, etc.) — because they are uppercase in the Ink language spec
+- `UPPER_SNAKE_CASE` only for Ink built-in function names (`FLOOR`, `RANDOM`, `LIST_ALL`, etc.)
 - `_prefix` for intentionally unused variables (`_debug`, `_ctx`, `_node`)
 - Single-letter locals are fine for short-lived values (`n`, `s`, `e`, `p`)
 
@@ -98,11 +112,3 @@ Pipeline:
 
 **Runtime value types**: `int`, `float`, `bool`, `str`, `list`, `el`, `fn`, `native`, `external`, `divert`.
 
-### Test Structure
-
-Each test case in `test/runtime/{Name}/` contains:
-- `story.ink` — Input story
-- `input.txt` — Choice sequence (one per line)
-- `transcript.txt` — Expected output
-
-API tests in `test/api.lua`. To add a test, create a directory and run `./test/test.sh {Name}`. See [`docs/testing.md`](docs/testing.md) for full detail on test structure, categories, and improvement plan.

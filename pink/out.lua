@@ -17,17 +17,30 @@ end
 return {
     buffer = {},
     hadTrailingGlue = false,
+    -- true unless midExpressionEnd cut the line short; returned by popLine() so continue() knows whether to append '\n'
+    hadTrailingNl = false,
+    -- set by goTo when ->END fires inside an inline if/seq branch; line is incomplete, suppress trailing '\n'
+    midExpressionEnd = false,
+    -- prevents a second collect() from re-running and overwriting hadTrailingNl/midExpressionEnd
+    needsCollect = false,
     instr = function(self, instr)
+        self.needsCollect = true
         table.insert(self.buffer, { [instr] = true })
     end,
     add = function(self, text)
         _debug('OUT add:', text)
+        self.needsCollect = true
         table.insert(self.buffer, text)
     end,
     nl = function(self)
+        self.needsCollect = true
         table.insert(self.buffer, { nl = true })
     end,
     collect = function(self)
+        if not self.needsCollect then
+            return
+        end
+        self.needsCollect = false
         _debug(self.buffer)
 
         -- resolve {nl}: emit '\n' only when the current logical line has non-whitespace content.
@@ -195,9 +208,14 @@ return {
                 s = ''
             end
         end
+        -- line is terminated if it had an explicit {nl}, or ended normally (no mid-expression divert)
         if self.buffer[#self.buffer] == '\n' then
+            self.hadTrailingNl = true
             table.remove(self.buffer, #self.buffer)
+        else
+            self.hadTrailingNl = not self.midExpressionEnd
         end
+        self.midExpressionEnd = false
 
         _debug('collect end', self.buffer)
     end,
@@ -208,15 +226,24 @@ return {
         end
         local result = trim(self.buffer[1])
         table.remove(self.buffer, 1)
+        local hadNl
         if self.buffer[1] == '\n' then
+            hadNl = true
             table.remove(self.buffer, 1)
+        else
+            -- last line: use flag set by collect() when it stripped the trailing '\n'
+            hadNl = self.hadTrailingNl
+            self.hadTrailingNl = false
         end
         local trailingGlue = self.hadTrailingGlue
         self.hadTrailingGlue = false
-        return result, trailingGlue
+        return result, trailingGlue, hadNl
     end,
     clear = function(self)
         self.buffer = {}
+        self.hadTrailingNl = false
+        self.midExpressionEnd = false
+        self.needsCollect = false
     end,
     isEmpty = function(self)
         -- scan raw buffer for trailing glue before collect() consumes the instruction;

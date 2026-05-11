@@ -203,6 +203,20 @@ return function(globalTree)
         _debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
+            -- if ->END fires inside an inline if/seq branch, the current line is incomplete:
+            -- remaining sibling nodes (including nl) were never reached.
+            -- scan callstack for an 'inline' frame between us and the nearest function boundary.
+            if #out.buffer > 0 then
+                for i = #callstack, 1, -1 do
+                    if callstack[i].fn == 'fn' then
+                        break
+                    end
+                    if callstack[i].fn == 'inline' then
+                        out.midExpressionEnd = true
+                        break
+                    end
+                end
+            end
             pointer = #tree + 1
             callstack = {} -- ? do not step out anywhere
             return
@@ -235,11 +249,10 @@ return function(globalTree)
                 next()
             end
         elseif knots[currentKnot] and knots[currentKnot][path] then
-            tree = globalTree --TODO store with knots?
             pointer = knots[currentKnot][path].pointer
+            tree = knots[currentKnot][path].tree
             next()
-
-            -- FIXME hack
+            incrementSeenCounter(currentKnot .. '.' .. path)
         elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
             tree = knots[noKnot][currentStitch][path].tree
             pointer = knots[noKnot][currentStitch][path].pointer
@@ -658,6 +671,7 @@ return function(globalTree)
                     -- all possible choices printed like this before selecting
                     -- FIXME
                     local oldBuf = out.buffer
+                    local oldDirty = out.needsCollect
                     local oldCS = callstack
                     callstack = {}
                     --TODO
@@ -668,6 +682,7 @@ return function(globalTree)
                     update()
                     local text = out:popLine()
                     out.buffer = oldBuf
+                    out.needsCollect = oldDirty
                     callstack = oldCS
                     --local text = trim((option[3] or '') .. (option[4] or '')) -- TODO trim
                     table.insert(s.currentChoices, { text = text, option = option, gather = gather })
@@ -740,13 +755,16 @@ return function(globalTree)
             return
         end
 
-        local updateFn = nodeUpdate[tree[pointer].type]
+        local nodeType = tree[pointer].type
+        local updateFn = nodeUpdate[nodeType]
         if not updateFn then
             err('unexpected node', tree[pointer])
         end
         local nextStep = updateFn(tree[pointer])
         if nextStep then
-            stepInto(nextStep)
+            -- 'if' and 'seq' are the only nodeUpdate handlers that emit {outBlockStart} before stepping in
+            local inlineFn = (nodeType == 'if' or nodeType == 'seq') and 'inline' or nil
+            stepInto(nextStep, nil, inlineFn)
         else
             next()
         end
@@ -778,10 +796,11 @@ return function(globalTree)
         _debug('out', out.buffer)
         local res = ''
         local trailingGlue = false
+        local hadNl = true
         local rawHadContent = #out.buffer > 0
         local bufferWasEmpty = out:isEmpty()
         if not bufferWasEmpty then
-            res, trailingGlue = out:popLine()
+            res, trailingGlue, hadNl = out:popLine()
         end
         _debug('OUT:', res)
         s.currentTags = tags
@@ -799,8 +818,11 @@ return function(globalTree)
             else
                 return '' -- story ended with no output
             end
-        elseif trailingGlue or s.canContinue or #s.currentChoices == 0 then
+        elseif trailingGlue or s.canContinue then
             return res .. '\n'
+        elseif #s.currentChoices == 0 then
+            -- story ended; omit \n if the line was cut short (e.g. ->END mid-text)
+            return res .. (hadNl and '\n' or '')
         else
             return res .. '\n\n'
         end
