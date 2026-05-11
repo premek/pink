@@ -272,6 +272,19 @@ return function(deps)
         return node.int(#deps.getChoices())
     end
 
+    local turnsFn = function()
+        return node.int(deps.getTurns())
+    end
+
+    local turnsSince = function(a)
+        requireType(a, 'divert')
+        local last = deps.getTurnsSince(a.target)
+        if last == nil then
+            return node.int(-1)
+        end
+        return node.int(deps.getTurns() - last)
+    end
+
     builtins.FLOOR = node.native(floor)
     builtins.CEILING = node.native(ceil)
     builtins.INT = node.native(int)
@@ -280,6 +293,8 @@ return function(deps)
     builtins.RANDOM = node.native(random)
     builtins.READ_COUNT = node.native(readCount)
     builtins.CHOICE_COUNT = node.native(choiceCount)
+    builtins.TURNS = node.native(turnsFn)
+    builtins.TURNS_SINCE = node.native(turnsSince)
 
     builtins['+'] = node.native(add)
     builtins['-'] = node.native(sub)

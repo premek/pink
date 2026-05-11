@@ -18,6 +18,8 @@ local noKnot = {} -- sentinel key for top-level content not inside any knot
 
 return function(globalTree)
     local getEnv, s -- forward declarations needed by createBuiltins closures
+    local turns = 0
+    local turnAtVisit = {}
 
     local rootEnv = createBuiltins({
         getEnv = function(...)
@@ -25,6 +27,12 @@ return function(globalTree)
         end,
         getChoices = function()
             return s.currentChoices
+        end,
+        getTurns = function()
+            return turns
+        end,
+        getTurnsSince = function(path)
+            return turnAtVisit[path]
         end,
     })
     local env = rootEnv -- TODO should env be part of the callstack?
@@ -149,6 +157,7 @@ return function(globalTree)
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var.value = var.value + 1
+        turnAtVisit[path] = turns
     end
 
     local update, getValue
@@ -820,6 +829,7 @@ return function(globalTree)
         stepInto(choice.option.t1)
 
         s.currentChoices = {}
+        turns = turns + 1
         update()
     end
 
