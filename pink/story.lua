@@ -7,7 +7,7 @@ Story.new = function(env)
             visitCount = {},
         },
         variablesState = env,
-        canContinue = true,
+        canContinue = true, -- true before first continue(), matching C# Ink API
     }
 end
 
