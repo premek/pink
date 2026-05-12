@@ -847,8 +847,6 @@ return function(globalTree)
         end
     end
 
-    s.currentChoices = {}
-
     s.chooseChoiceIndex = function(index)
         if type(index) ~= 'number' then
             error('number expected')
@@ -894,8 +892,6 @@ return function(globalTree)
         env[name] = node.externalFn(fn)
         update()
     end
-
-    s.currentTags = {}
 
     -- s.state.ToJson();s.state.LoadJson(savedJson);
 

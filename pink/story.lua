@@ -8,6 +8,8 @@ Story.new = function(env)
         },
         variablesState = env,
         canContinue = true, -- true before first continue(), matching C# Ink API
+        currentChoices = {},
+        currentTags = {},
     }
 end
 
