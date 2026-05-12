@@ -62,11 +62,13 @@ Run `stylua` before running tests.
 
 Always compare against the baseline:
 ```bash
-git stash && ./test/test.sh 2>&1 | grep -v "OK$" > /tmp/baseline_fails.txt && git stash pop
-./test/test.sh 2>&1 | grep -v "OK$" > /tmp/current_fails.txt
-diff /tmp/baseline_fails.txt /tmp/current_fails.txt
+git stash
+./test/test.sh 2>&1 > /tmp/baseline
+git stash pop
+./test/test.sh 2>&1 > /tmp/current
+diff /tmp/baseline /tmp/current
 ```
-Lines added (`>`) are newly failing tests — fix them before declaring the change done.
+Fix all newly failing test before declaring the change done.
 
 ### Test Structure
 

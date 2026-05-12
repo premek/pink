@@ -352,22 +352,22 @@ return function(globalTree)
             -- FIXME detect unresolved function on compile time
 
             -- call divert as fn -- FIXME
-            if target.type == 'divert' then
+            if is('divert', target) then
                 local path = target.target
                 local divertTarget = getEnv(path)
-                if divertTarget.type == 'fn' then
+                if is('fn', divertTarget) then
                     target = divertTarget
                 end
             end
 
-            if target.type == 'native' or target.type == 'external' then
+            if is('native', target) or is('external', target) then
                 local argumentValues = {}
                 for _, arg in ipairs(args) do
                     table.insert(argumentValues, getValue(arg))
                 end
                 -- TODO convert arguments, return values for external
                 return target.fn(unpack(argumentValues))
-            elseif target.type == 'fn' then
+            elseif is('fn', target) then
                 local params = target.params
                 local body = target.body
                 local newEnv = getArgumentsEnv(params, args)
@@ -379,7 +379,7 @@ return function(globalTree)
                 _debug('RET', ret)
                 returnValue = { present = false, value = nil }
                 return ret
-            elseif target.type == 'list' then
+            elseif is('list', target) then
                 if #args == 0 then
                     return list.empty()
                 elseif #args > 1 then
