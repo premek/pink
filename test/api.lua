@@ -58,6 +58,15 @@ function testRTags()
     --{"location: Germany", "overview: munich.ogg", "require: Train ticket"})
 end
 
+function testTwoSimultaneousStories()
+    local s1 = pink('test/twolines.ink')
+    local s2 = pink('test/twolines.ink')
+    luaunit.assertEquals(s1.continue(), 'hello\n')
+    luaunit.assertEquals(s2.continue(), 'hello\n')
+    luaunit.assertEquals(s1.continue(), 'world\n')
+    luaunit.assertEquals(s2.continue(), 'world\n')
+end
+
 -----------------------------
 
 os.exit(luaunit.LuaUnit.run())

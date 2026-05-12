@@ -1,6 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local Story = require(base_path .. 'story')
-local out = require(base_path .. 'out')
+local newOutputBuffer = require(base_path .. 'output_buffer')
 local list = require(base_path .. 'list')
 local node = require(base_path .. 'node')
 local createBuiltins = require(base_path .. 'builtins')
@@ -18,6 +18,7 @@ local unpack = table.unpack or unpack
 local noKnot = {} -- sentinel key for top-level content not inside any knot
 
 return function(globalTree)
+    local outputBuffer = newOutputBuffer()
     local getEnv, s -- forward declarations needed by createBuiltins closures
     local turns = 0
     local turnAtVisit = {}
@@ -213,13 +214,13 @@ return function(globalTree)
             -- if ->END fires inside an inline if/seq branch, the current line is incomplete:
             -- remaining sibling nodes (including nl) were never reached.
             -- scan callstack for an 'inline' frame between us and the nearest function boundary.
-            if #out.buffer > 0 then
+            if #outputBuffer.buffer > 0 then
                 for i = callstack.size(), 1, -1 do
                     if callstack.get(i).fn == 'fn' then
                         break
                     end
                     if callstack.get(i).fn == 'inline' then
-                        out.midExpressionEnd = true
+                        outputBuffer.midExpressionEnd = true
                         break
                     end
                 end
@@ -373,10 +374,10 @@ return function(globalTree)
                 local body = target.body
                 local newEnv = getArgumentsEnv(params, args)
                 stepInto(body, newEnv, 'fn')
-                out:instr('trim')
+                outputBuffer:instr('trim')
                 update()
                 local ret = returnValue.value
-                out:instr('trimEnd')
+                outputBuffer:instr('trimEnd')
                 _debug('RET', ret)
                 returnValue = { present = false, value = nil }
                 return ret
@@ -441,7 +442,7 @@ return function(globalTree)
         if #s.currentChoices > 0 then
             return false
         end
-        return not out:isEmpty()
+        return not outputBuffer:isEmpty()
     end
 
     local nodeUpdateAssign = function(n)
@@ -478,11 +479,11 @@ return function(globalTree)
     local nodeUpdateOutValue = function(n)
         local val = getValue(n)
         if val ~= nil then
-            out:add(node.output(val))
+            outputBuffer:add(node.output(val))
         end
     end
     local nodeUpdateOut = function(n)
-        out:instr('outBlockStart')
+        outputBuffer:instr('outBlockStart')
         nodeUpdateOutValue(n)
     end
 
@@ -571,7 +572,7 @@ return function(globalTree)
 
         seq = function(n)
             -- TODO not needed when continue stops on each end of line???
-            out:instr('outBlockStart')
+            outputBuffer:instr('outBlockStart')
             return seqPickBranch(n)
         end,
 
@@ -582,10 +583,10 @@ return function(globalTree)
             logging.warn(n.text, n)
         end,
         glue = function()
-            out:instr('glue')
+            outputBuffer:instr('glue')
         end,
         nl = function()
-            out:nl()
+            outputBuffer:nl()
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
             incrementSeenCounter(n.name)
@@ -607,7 +608,7 @@ return function(globalTree)
         ['if'] = function(n)
             for _, branch in ipairs(n.branches) do
                 if node.isTruthy(getValue(branch.cond)) then
-                    out:instr('outBlockStart') -- TODO before or after the getValue call above?
+                    outputBuffer:instr('outBlockStart') -- TODO before or after the getValue call above?
                     return branch.body
                 end
             end
@@ -617,11 +618,11 @@ return function(globalTree)
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
     local clear = function()
-        return { outSnapshot = out:clear(), frames = callstack.clear() }
+        return { outSnapshot = outputBuffer:clear(), frames = callstack.clear() }
     end
 
     local reset = function(snapshot)
-        out:reset(snapshot.outSnapshot)
+        outputBuffer:reset(snapshot.outSnapshot)
         callstack = newStack(snapshot.frames)
     end
 
@@ -632,7 +633,7 @@ return function(globalTree)
         update()
         stepInto(option.t2)
         update()
-        local text = out:popLine()
+        local text = outputBuffer:popLine()
         reset(snapshot)
         return text
     end
@@ -812,14 +813,14 @@ return function(globalTree)
             update() -- first call: process story before popping
         end
 
-        _debug('out', out.buffer)
+        _debug('out', outputBuffer.buffer)
         local res = ''
         local trailingGlue = false
         local hadNl = true
-        local rawHadContent = #out.buffer > 0
-        local bufferWasEmpty = out:isEmpty()
+        local rawHadContent = #outputBuffer.buffer > 0
+        local bufferWasEmpty = outputBuffer:isEmpty()
         if not bufferWasEmpty then
-            res, trailingGlue, hadNl = out:popLine()
+            res, trailingGlue, hadNl = outputBuffer:popLine()
         end
         _debug('OUT:', res)
         s.currentTags = tags

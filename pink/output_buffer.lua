@@ -192,91 +192,94 @@ local joinToLines = function(buffer, midExpressionEnd)
 end
 
 -- TODO refactor
-return {
-    buffer = {},
-    hadTrailingGlue = false,
-    -- true unless midExpressionEnd cut the line short; returned by popLine() so continue() knows whether to append '\n'
-    hadTrailingNl = false,
-    -- set by goTo when ->END fires inside an inline if/seq branch; line is incomplete, suppress trailing '\n'
-    midExpressionEnd = false,
-    -- prevents a second collect() from re-running and overwriting hadTrailingNl/midExpressionEnd
-    needsCollect = false,
-    instr = function(self, instr)
-        self.needsCollect = true
-        table.insert(self.buffer, { [instr] = true })
-    end,
-    add = function(self, text)
-        _debug('OUT add:', text)
-        self.needsCollect = true
-        table.insert(self.buffer, text)
-    end,
-    nl = function(self)
-        self.needsCollect = true
-        table.insert(self.buffer, { nl = true })
-    end,
-    collect = function(self)
-        if not self.needsCollect then
-            return
-        end
-        self.needsCollect = false
-        _debug(self.buffer)
-        local buf = self.buffer
-        buf = resolveNlInstructions(buf)
-        buf = insertOutBlockGlue(buf)
-        buf = applyGlue(buf)
-        buf = applyTrimEnd(buf)
-        buf = removeEmptyTrim(buf)
-        buf = collapseDoubleNewlines(buf)
-        buf, self.hadTrailingNl = joinToLines(buf, self.midExpressionEnd)
-        self.buffer = buf
-        self.midExpressionEnd = false
-        _debug('collect end', self.buffer)
-    end,
-    popLine = function(self)
-        self:collect()
-        if #self.buffer < 1 then
-            error('no line to pop')
-        end
-        local result = trim(self.buffer[1])
-        table.remove(self.buffer, 1)
-        local hadNl
-        if self.buffer[1] == '\n' then
-            hadNl = true
-            table.remove(self.buffer, 1)
-        else
-            -- last line: use flag set by collect() when it stripped the trailing '\n'
-            hadNl = self.hadTrailingNl
-            self.hadTrailingNl = false
-        end
-        local trailingGlue = self.hadTrailingGlue
-        self.hadTrailingGlue = false
-        return result, trailingGlue, hadNl
-    end,
-    clear = function(self)
-        local snapshot = { buffer = self.buffer, needsCollect = self.needsCollect }
-        self.buffer = {}
-        self.hadTrailingNl = false
-        self.midExpressionEnd = false
-        self.needsCollect = false
-        return snapshot
-    end,
-    reset = function(self, snapshot)
-        self.buffer = snapshot.buffer
-        self.needsCollect = snapshot.needsCollect
-    end,
-    isEmpty = function(self)
-        -- scan raw buffer for trailing glue before collect() consumes the instruction;
-        -- skip trailing '\n's since glue absorbs them
-        for i = #self.buffer, 1, -1 do
-            local e = self.buffer[i]
-            if type(e) == 'string' and e ~= '\n' then
-                break -- real content before any glue: no trailing glue
-            elseif e['glue'] then
-                self.hadTrailingGlue = true
-                break
+return function()
+    return {
+        buffer = {},
+        hadTrailingGlue = false,
+        -- true unless midExpressionEnd cut the line short; returned by popLine() so
+        -- continue() knows whether to append '\n'
+        hadTrailingNl = false,
+        -- set by goTo when ->END fires inside an inline if/seq branch; line is incomplete, suppress trailing '\n'
+        midExpressionEnd = false,
+        -- prevents a second collect() from re-running and overwriting hadTrailingNl/midExpressionEnd
+        needsCollect = false,
+        instr = function(self, instr)
+            self.needsCollect = true
+            table.insert(self.buffer, { [instr] = true })
+        end,
+        add = function(self, text)
+            _debug('OUT add:', text)
+            self.needsCollect = true
+            table.insert(self.buffer, text)
+        end,
+        nl = function(self)
+            self.needsCollect = true
+            table.insert(self.buffer, { nl = true })
+        end,
+        collect = function(self)
+            if not self.needsCollect then
+                return
             end
-        end
-        self:collect()
-        return #self.buffer == 0
-    end,
-}
+            self.needsCollect = false
+            _debug(self.buffer)
+            local buf = self.buffer
+            buf = resolveNlInstructions(buf)
+            buf = insertOutBlockGlue(buf)
+            buf = applyGlue(buf)
+            buf = applyTrimEnd(buf)
+            buf = removeEmptyTrim(buf)
+            buf = collapseDoubleNewlines(buf)
+            buf, self.hadTrailingNl = joinToLines(buf, self.midExpressionEnd)
+            self.buffer = buf
+            self.midExpressionEnd = false
+            _debug('collect end', self.buffer)
+        end,
+        popLine = function(self)
+            self:collect()
+            if #self.buffer < 1 then
+                error('no line to pop')
+            end
+            local result = trim(self.buffer[1])
+            table.remove(self.buffer, 1)
+            local hadNl
+            if self.buffer[1] == '\n' then
+                hadNl = true
+                table.remove(self.buffer, 1)
+            else
+                -- last line: use flag set by collect() when it stripped the trailing '\n'
+                hadNl = self.hadTrailingNl
+                self.hadTrailingNl = false
+            end
+            local trailingGlue = self.hadTrailingGlue
+            self.hadTrailingGlue = false
+            return result, trailingGlue, hadNl
+        end,
+        clear = function(self)
+            local snapshot = { buffer = self.buffer, needsCollect = self.needsCollect }
+            self.buffer = {}
+            self.hadTrailingNl = false
+            self.midExpressionEnd = false
+            self.needsCollect = false
+            return snapshot
+        end,
+        reset = function(self, snapshot)
+            self.buffer = snapshot.buffer
+            self.needsCollect = snapshot.needsCollect
+        end,
+        isEmpty = function(self)
+            -- scan raw buffer for trailing glue before collect() consumes the instruction;
+            -- skip trailing '\n's since glue absorbs them
+            for i = #self.buffer, 1, -1 do
+                local e = self.buffer[i]
+                if type(e) == 'string' and e ~= '\n' then
+                    break -- real content before any glue: no trailing glue
+                elseif e['glue'] then
+                    self.hadTrailingGlue = true
+                    break
+                end
+            end
+            self:collect()
+            return #self.buffer == 0
+        end,
+    }
+end
