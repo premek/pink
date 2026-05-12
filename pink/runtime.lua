@@ -119,9 +119,10 @@ return function(globalTree)
         _debug('step into')
         -- TODO everything on the stack, current pointer, tree, env; not 'out'
         callstack.push({ tree = tree, pointer = pointer, fn = fn, env = env })
-        newEnv = newEnv or {}
-        newEnv._parent = env -- TODO make parent unaccessible from the script
-        env = newEnv
+        if newEnv then
+            newEnv._parent = env -- TODO make parent unaccessible from the script
+            env = newEnv
+        end
         tree = block
         pointer = 1
     end
@@ -549,8 +550,7 @@ return function(globalTree)
             table.insert(tags, n.text)
         end,
         tempvar = function(n)
-            -- FIXME what's the right env to write to?
-            rootEnv[n.name] = getValue(n.value)
+            env[n.name] = getValue(n.value)
         end,
         assign = nodeUpdateAssign,
         ['return'] = function(n)
