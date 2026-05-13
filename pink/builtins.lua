@@ -1,5 +1,5 @@
 local base_path = (...):match('(.-)[^%.]+$')
-local list = require(base_path .. 'list')
+local lists = require(base_path .. 'lists')
 local node = require(base_path .. 'node')
 local logging = require(base_path .. 'logging')
 local err = logging.error
@@ -55,10 +55,10 @@ return function(deps)
         end
 
         if a.type == 'list' and (b.type == 'list' or b.type == 'el') then -- FIXME
-            return list.plus(a, b)
+            return lists.plus(a, b)
         end
         if a.type == 'list' and b.type == 'int' then
-            return list.inc(a, b.value)
+            return lists.inc(a, b.value)
         end
 
         if a.type == 'bool' then
@@ -81,7 +81,7 @@ return function(deps)
         requireType(b, 'float', 'int', 'bool', 'list', 'el')
 
         if a.type == 'list' then
-            return list.minus(a, b)
+            return lists.minus(a, b)
         end
 
         if b.type == 'bool' then
@@ -159,9 +159,9 @@ return function(deps)
 
         -- TODO all combinations
         if a.type == 'list' and b.type == 'el' then
-            return node.bool(list.contains(a, b))
+            return node.bool(lists.contains(a, b))
         elseif a.type == 'el' and b.type == 'list' then
-            return node.bool(list.contains(b, a))
+            return node.bool(lists.contains(b, a))
         elseif a.type == 'el' and b.type == 'el' then
             return node.bool(a.listName == b.listName and a.elName == b.elName)
         end
@@ -188,7 +188,7 @@ return function(deps)
         requireType(a, 'bool', 'int', 'float', 'el', 'list')
         requireType(b, 'bool', 'int', 'float', 'el', 'list')
         if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
-            return gt(list.value(a), list.value(b))
+            return gt(lists.value(a), lists.value(b))
         end
         return node.bool(node.toFloat(a).value > node.toFloat(b).value)
     end
@@ -197,7 +197,7 @@ return function(deps)
         requireType(a, 'bool', 'int', 'float', 'el', 'list')
         requireType(b, 'bool', 'int', 'float', 'el', 'list')
         if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
-            return gte(list.value(a), list.value(b))
+            return gte(lists.value(a), lists.value(b))
         end
         return node.bool(node.toFloat(a).value >= node.toFloat(b).value)
     end
@@ -206,7 +206,7 @@ return function(deps)
         requireType(a, 'bool', 'int', 'float', 'el', 'list')
         requireType(b, 'bool', 'int', 'float', 'el', 'list')
         if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
-            return lt(list.value(a), list.value(b))
+            return lt(lists.value(a), lists.value(b))
         end
         return node.bool(node.toFloat(a).value < node.toFloat(b).value)
     end
@@ -215,7 +215,7 @@ return function(deps)
         requireType(a, 'bool', 'int', 'float', 'el', 'list')
         requireType(b, 'bool', 'int', 'float', 'el', 'list')
         if (a.type == 'el' or a.type == 'list') and (b.type == 'el' or b.type == 'list') then
-            return lte(list.value(a), list.value(b))
+            return lte(lists.value(a), lists.value(b))
         end
         return node.bool(node.toFloat(a).value <= node.toFloat(b).value)
     end
@@ -237,9 +237,9 @@ return function(deps)
         elseif is('el', a) and is('el', b) then
             return eq(a, b)
         elseif is('list', a) and is('el', b) then
-            return node.bool(list.contains(a, b))
+            return node.bool(lists.contains(a, b))
         elseif is('list', a) and is('list', b) then
-            return node.bool(list.containsAll(a, b))
+            return node.bool(lists.containsAll(a, b))
         end
         _debug(a, b)
         err('unexpected type')
@@ -320,15 +320,15 @@ return function(deps)
     builtins['>='] = node.native(gte)
     builtins.MIN = node.native(min)
     builtins.MAX = node.native(max)
-    builtins.LIST_VALUE = node.native(list.value)
-    builtins.LIST_COUNT = node.native(list.count)
-    builtins.LIST_RANDOM = node.native(list.random)
-    builtins.LIST_ALL = node.native(list.all)
-    builtins.LIST_MIN = node.native(list.min)
-    builtins.LIST_MAX = node.native(list.max)
-    builtins.LIST_INVERT = node.native(list.invert)
-    builtins.LIST_RANGE = node.native(list.range)
-    builtins['^'] = node.native(list.intersection)
+    builtins.LIST_VALUE = node.native(lists.value)
+    builtins.LIST_COUNT = node.native(lists.count)
+    builtins.LIST_RANDOM = node.native(lists.random)
+    builtins.LIST_ALL = node.native(lists.all)
+    builtins.LIST_MIN = node.native(lists.min)
+    builtins.LIST_MAX = node.native(lists.max)
+    builtins.LIST_INVERT = node.native(lists.invert)
+    builtins.LIST_RANGE = node.native(lists.range)
+    builtins['^'] = node.native(lists.intersection)
 
     return builtins
 end

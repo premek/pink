@@ -1,6 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
-local list = function()
-    return require(base_path .. 'list')
+local lists = function()
+    return require(base_path .. 'lists')
 end -- avoid cyclic dependency -- FIXME
 local logging = require(base_path .. 'logging')
 local err = logging.error
@@ -221,7 +221,7 @@ node.toBool = function(a)
     elseif a.type == 'str' then
         return node.bool(#a.value ~= 0)
     elseif a.type == 'list' then
-        return node.bool(not list().isEmpty(a))
+        return node.bool(not lists().isEmpty(a))
     elseif a.type == 'el' then
         return node.bool(true)
     else
@@ -249,7 +249,7 @@ node.output = function(a)
     elseif a.type == 'el' then
         return a.elName
     elseif a.type == 'list' then
-        return list().output(a)
+        return lists().output(a)
     else
         err('cannot output', a)
     end

@@ -1,7 +1,7 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local Story = require(base_path .. 'story')
 local newOutputBuffer = require(base_path .. 'output_buffer')
-local list = require(base_path .. 'list')
+local lists = require(base_path .. 'lists')
 local node = require(base_path .. 'node')
 local createBuiltins = require(base_path .. 'builtins')
 local compile = require(base_path .. 'compiler')
@@ -344,7 +344,7 @@ return function(globalTree)
             local var = getEnv(name, val)
             return getValue(var)
         elseif is('listlit', val) then
-            return getValue(list.fromLit(val, getEnv))
+            return getValue(lists.fromLit(val, getEnv))
         elseif is('call', val) then
             local name = val.name
             local args = val.args
@@ -383,13 +383,13 @@ return function(globalTree)
                 return ret
             elseif is('list', target) then
                 if #args == 0 then
-                    return list.empty()
+                    return lists.empty()
                 elseif #args > 1 then
                     err('too many arguments')
                 end
                 local index = getValue(args[1])
                 requireType(index, 'int')
-                return list.elByValue(name, index.value)
+                return lists.elByValue(name, index.value)
             else
                 error('invalid call target: ' .. target.type)
             end
@@ -460,7 +460,7 @@ return function(globalTree)
 
         local newValue = getValue(n.expr)
         if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
-            list.set(oldValue, newValue)
+            lists.set(oldValue, newValue)
         else
             if newValue == nil then
                 err('cannot assign nil')
@@ -905,7 +905,7 @@ return function(globalTree)
         pointer = pointer + 1
     end
     _debug(tree)
-    _debug('lists:', list.defs)
+    _debug('lists:', lists.defs)
     _debug('external:', externalDefs)
     _debug('state:', s.variablesState)
 

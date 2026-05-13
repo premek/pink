@@ -1,6 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local node = require(base_path .. 'node')
-local list = require(base_path .. 'list')
+local lists = require(base_path .. 'lists')
 local is = node.is
 
 -- TODO(save/load): compiled output is the static half; reload from source on restore
@@ -17,9 +17,9 @@ return function(globalTree, env, noKnot)
             val = env[val.name]
         end
         if is('el', val) then
-            return list.fromEls({ val }, {})
+            return lists.fromEls({ val }, {})
         elseif is('listlit', val) then
-            return list.fromLit(val, function(name)
+            return lists.fromLit(val, function(name)
                 return env[name]
             end)
         end
@@ -44,7 +44,7 @@ return function(globalTree, env, noKnot)
                 env[n.name] = n.value
             end
             if is('listdef', n) then
-                list.listDef(n.name, n.elements, env)
+                lists.listDef(n.name, n.elements, env)
             end
         end
 
