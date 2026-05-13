@@ -21,7 +21,7 @@ return function(globalTree)
     local outputBuffer = newOutputBuffer()
     local listDefinitions = newListDefinitions()
     local nodeOutput = node.makeOutput(listDefinitions)
-    local getEnv, s -- forward declarations needed by createBuiltins closures
+    local getEnv, s, nodeById -- forward declarations needed by createBuiltins closures
     local turns = 0
     local turnAtVisit = {}
 
@@ -51,13 +51,71 @@ return function(globalTree)
 
     local tree = globalTree
     local pointer = 1
-    -- TODO(save/load): callstack holds direct table refs; convert to path strings for serialization
     local callstack = newStack()
+    -- Describes which block 'tree' refers to; nil = globalTree or unknown (direct goTo navigation).
+    -- Updated by stepInto/stepOut. Enables callstack frame serialization for save/load.
+    local currentAddr = nil
     local knots
     local tags = {}
     local externalDefs
     local storyStarted = false
 
+    local markOptionUsed = function(option)
+        s.state.usedOptions[option.nodeId] = true
+    end
+    local isOptionUsed = function(option)
+        return s.state.usedOptions[option.nodeId] == true
+    end
+    -- Constructs an address: a serializable pointer to a block (array of nodes) inside a node.
+    local addr = function(n, field, index, subfield)
+        local a = { nodeId = n.nodeId, field = field }
+        if index then
+            a.index = index
+        end
+        if subfield then
+            a.subfield = subfield
+        end
+        return a
+    end
+    local bodyAddr = function(n)
+        return addr(n, 'body')
+    end
+    local nodesAddr = function(n)
+        return addr(n, 'nodes')
+    end
+    local t1Addr = function(n)
+        return addr(n, 't1')
+    end
+    local t2Addr = function(n)
+        return addr(n, 't2')
+    end
+    local t3Addr = function(n)
+        return addr(n, 't3')
+    end
+    local seqBranchAddr = function(n, i)
+        return addr(n, 'branches', i)
+    end
+    local ifBranchAddr = function(n, i)
+        return addr(n, 'branches', i, 'body')
+    end
+    -- Reconstructs a block from a saved address. Used by future save/load.
+    local _blockFromAddr = function(a)
+        if not a then
+            return nil
+        end
+        local n = nodeById[a.nodeId]
+        if not n then
+            return nil
+        end
+        local field = n[a.field]
+        if a.index then
+            field = field[a.index]
+            if a.subfield then
+                return field[a.subfield]
+            end
+        end
+        return field
+    end
     local next = function()
         pointer = pointer + 1
     end
@@ -119,10 +177,10 @@ return function(globalTree)
         return val, e
     end
 
-    local stepInto = function(block, newEnv, fn)
+    local stepInto = function(block, newEnv, fn, blockAddr)
         _debug('step into')
-        -- TODO everything on the stack, current pointer, tree, env; not 'out'
-        callstack.push({ tree = tree, pointer = pointer, fn = fn, env = env })
+        callstack.push({ tree = tree, pointer = pointer, fn = fn, env = env, addr = currentAddr })
+        currentAddr = blockAddr
         if newEnv then
             newEnv._parent = env -- TODO make parent unaccessible from the script
             env = newEnv
@@ -133,8 +191,8 @@ return function(globalTree)
 
     -- like stepInto but one step before, so when we step out, we do not skip the first instruction
     -- FIXME stepInto must be called after calling this
-    local returnTo = function(block)
-        stepInto(block)
+    local returnTo = function(block, blockAddr)
+        stepInto(block, nil, nil, blockAddr)
         pointer = 0
     end
 
@@ -156,6 +214,7 @@ return function(globalTree)
         pointer = frame.pointer
         tree = frame.tree
         env = frame.env
+        currentAddr = frame.addr
     end
 
     local incrementSeenCounter = function(path)
@@ -282,11 +341,11 @@ return function(globalTree)
             -- TODO messy
             if isNext('option') then
                 local option = tree[pointer]
-                option.used = true --FIXME different mechanism used for labelled and anon options
-                -- TODO duplicated logic in chooseChoice
-                returnTo(option.body)
-                returnTo(option.t3)
-                stepInto(option.t1)
+                -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
+                markOptionUsed(option)
+                returnTo(option.body, bodyAddr(option))
+                returnTo(option.t3, t3Addr(option))
+                stepInto(option.t1, nil, nil, t1Addr(option))
             end
             if isNext('gather') then
                 tree = tree[pointer].body
@@ -299,7 +358,7 @@ return function(globalTree)
             local params = knots[path].params
             local body = knots[path].tree
             local newEnv = getArgumentsEnv(params, args)
-            stepInto(body, newEnv)
+            stepInto(body, newEnv, nil, bodyAddr(knots[path]))
 
             incrementSeenCounter(path) -- TODO not just knots
 
@@ -376,7 +435,7 @@ return function(globalTree)
                 local params = target.params
                 local body = target.body
                 local newEnv = getArgumentsEnv(params, args)
-                stepInto(body, newEnv, 'fn')
+                stepInto(body, newEnv, 'fn', bodyAddr(target))
                 outputBuffer:instr('trim')
                 update()
                 local ret = returnValue.value
@@ -490,51 +549,49 @@ return function(globalTree)
         nodeUpdateOutValue(n)
     end
 
-    local seqShuffle = function(elements, len)
-        local unshuffled = {}
-        for i = 1, #elements do
-            table.insert(unshuffled, elements[i])
+    -- Returns a permutation (array of branch indices) with the first `shuffleLen` indices
+    -- randomly ordered and the rest in their original order. Uses the same RNG call sequence
+    -- as the previous element-based shuffle to preserve SEED_RANDOM test compatibility.
+    local seqShuffle = function(total, shuffleLen)
+        local indices = {}
+        for i = 1, total do
+            indices[i] = i
         end
-
-        local shuffled = {}
-        -- shuffle the elements that needs to be shuffled, remove them from unshuffled, go from the end
-        for i = len, 1, -1 do
-            table.insert(shuffled, table.remove(unshuffled, math.random(i)))
+        local perm = {}
+        for i = shuffleLen, 1, -1 do
+            local j = math.random(i)
+            table.insert(perm, table.remove(indices, j))
         end
-        -- insert the remaining unshuffled elements to the end
-        for i = 1, #unshuffled do
-            table.insert(shuffled, unshuffled[i])
+        for _, idx in ipairs(indices) do
+            table.insert(perm, idx)
         end
-        return shuffled
+        return perm
     end
 
     seqPickBranch = function(n)
-        if n.opts.shuffle and not n.shuffled then
-            if n.opts.stopping then
-                n.branches = seqShuffle(n.branches, #n.branches - 1) -- shuffle all except the last one
-            else
-                n.branches = seqShuffle(n.branches, #n.branches)
-            end
-            n.shuffled = true
+        local st = s.state.seqState[n.nodeId]
+        if not st then
+            st = { current = 1 }
+            s.state.seqState[n.nodeId] = st
         end
 
-        -- FIXME store somewhere else, support save/load, could be a "seen counter" too
-        n.current = n.current or 1
-
-        local ret = nil
-        if n.current <= #n.branches then
-            ret = n.branches[n.current]
+        if n.opts.shuffle and not st.shuffleOrder then
+            local shuffleLen = n.opts.stopping and #n.branches - 1 or #n.branches
+            st.shuffleOrder = seqShuffle(#n.branches, shuffleLen)
         end
+
+        local branchIdx = st.shuffleOrder and st.shuffleOrder[st.current] or st.current
+        local ret = n.branches[branchIdx]
 
         if n.opts.stopping then
-            n.current = math.min(#n.branches, n.current + 1) -- stay at the last one
+            st.current = math.min(#n.branches, st.current + 1)
         elseif n.opts.once then
-            n.current = math.min(#n.branches + 1, n.current + 1) -- stay *after* the last one
+            st.current = math.min(#n.branches + 1, st.current + 1)
         elseif n.opts.cycle then
-            n.current = math.fmod(n.current, #n.branches) + 1
+            st.current = math.fmod(st.current, #n.branches) + 1
         end
 
-        return ret
+        return ret, branchIdx
     end
 
     local nodeSkip = function() end
@@ -576,7 +633,8 @@ return function(globalTree)
         seq = function(n)
             -- TODO not needed when continue stops on each end of line???
             outputBuffer:instr('outBlockStart')
-            return seqPickBranch(n)
+            local branch, branchIdx = seqPickBranch(n)
+            return branch, branch and seqBranchAddr(n, branchIdx)
         end,
 
         call = function(n)
@@ -595,7 +653,7 @@ return function(globalTree)
             incrementSeenCounter(n.name)
         end,
         ink = function(n)
-            return n.nodes
+            return n.nodes, nodesAddr(n)
         end,
         gather = function(n)
             if n.label then
@@ -605,14 +663,14 @@ return function(globalTree)
                     incrementSeenCounter(n.label)
                 end
             end
-            return n.body
+            return n.body, bodyAddr(n)
         end,
 
         ['if'] = function(n)
-            for _, branch in ipairs(n.branches) do
+            for i, branch in ipairs(n.branches) do
                 if node.isTruthy(getValue(branch.cond)) then
                     outputBuffer:instr('outBlockStart') -- TODO before or after the getValue call above?
-                    return branch.body
+                    return branch.body, ifBranchAddr(n, i)
                 end
             end
             -- no condition evaluated to true (and the else branch not present): do nothing
@@ -621,20 +679,21 @@ return function(globalTree)
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
     local clear = function()
-        return { outSnapshot = outputBuffer:clear(), frames = callstack.clear() }
+        return { outSnapshot = outputBuffer:clear(), frames = callstack.clear(), currentAddr = currentAddr }
     end
 
     local reset = function(snapshot)
         outputBuffer:reset(snapshot.outSnapshot)
         callstack = newStack(snapshot.frames)
+        currentAddr = snapshot.currentAddr
     end
 
     local evaluateOptionText = function(option)
         -- FIXME?
         local snapshot = clear()
-        stepInto(option.t1)
+        stepInto(option.t1, nil, nil, t1Addr(option))
         update()
-        stepInto(option.t2)
+        stepInto(option.t2, nil, nil, t2Addr(option))
         update()
         local text = outputBuffer:popLine()
         reset(snapshot)
@@ -697,7 +756,7 @@ return function(globalTree)
             for _, option in ipairs(options) do
                 local sticky = option.sticky == 'sticky' -- TODO
                 local fallback = option.fallback == 'fallback'
-                local displayOption = sticky or not option.used -- TODO seen counter
+                local displayOption = sticky or not isOptionUsed(option) -- TODO seen counter
 
                 if fallback then
                     table.insert(fallbacks, option)
@@ -719,15 +778,15 @@ return function(globalTree)
             if #s.currentChoices == 0 then
                 local doUpdate = false
                 if gather then
-                    stepInto(gather.body)
+                    stepInto(gather.body, nil, nil, bodyAddr(gather))
                     doUpdate = true
                 end
                 for _, fallback in ipairs(fallbacks) do
                     if getOptionConditionsResult(fallback) then
                         if gather then
-                            returnTo(gather.body)
+                            returnTo(gather.body, bodyAddr(gather))
                         end
-                        stepInto(fallback.body)
+                        stepInto(fallback.body, nil, nil, bodyAddr(fallback))
                         doUpdate = true
                         break
                     end
@@ -785,11 +844,11 @@ return function(globalTree)
         if not updateFn then
             err('unexpected node', tree[pointer])
         end
-        local nextStep = updateFn(tree[pointer])
+        local nextStep, nextAddr = updateFn(tree[pointer])
         if nextStep then
             -- 'if' and 'seq' are the only nodeUpdate handlers that emit {outBlockStart} before stepping in
             local inlineFn = (nodeType == 'if' or nodeType == 'seq') and 'inline' or nil
-            stepInto(nextStep, nil, inlineFn)
+            stepInto(nextStep, nil, inlineFn, nextAddr)
         else
             next()
         end
@@ -861,15 +920,15 @@ return function(globalTree)
         if choice.option.label then -- the option has a label
             incrementSeenCounter(choice.option.label) -- TODO full path??
         end
-        choice.option.used = true -- FIXME store somewhere else, support save/load
+        markOptionUsed(choice.option)
 
         if choice.gather then
-            returnTo(choice.gather.body)
+            returnTo(choice.gather.body, bodyAddr(choice.gather))
         end
 
-        returnTo(choice.option.body)
-        returnTo(choice.option.t3)
-        stepInto(choice.option.t1)
+        returnTo(choice.option.body, bodyAddr(choice.option))
+        returnTo(choice.option.t3, t3Addr(choice.option))
+        stepInto(choice.option.t1, nil, nil, t1Addr(choice.option))
 
         s.currentChoices = {}
         turns = turns + 1
@@ -901,6 +960,7 @@ return function(globalTree)
 
     local compiled = compile(tree, env, noKnot, listDefinitions)
     knots = compiled.knots
+    nodeById = compiled.nodeById
     externalDefs = compiled.externalDefs
     s.globalTags = compiled.globalTags
     -- skip leading tags already collected into globalTags by compiler

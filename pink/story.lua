@@ -5,6 +5,8 @@ Story.new = function(env)
         globalTags = {},
         state = {
             visitCount = {},
+            usedOptions = {}, -- [nodeId] = true
+            seqState = {}, -- [nodeId] = {current, shuffleOrder}
         },
         variablesState = env,
         canContinue = true, -- true before first continue(), matching C# Ink API

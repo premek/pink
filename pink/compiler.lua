@@ -10,6 +10,58 @@ return function(globalTree, env, noKnot, listDefinitions)
     local globalTags = {}
     local lastKnot = noKnot
     local lastStitch = nil
+    local nodeById = {} -- [nodeId] = node, for callstack frame reconstruction on save/load
+    local nodeIdCounter = 0
+
+    local assignNode, assignIds
+
+    -- Assigns a stable nodeId to every AST node reachable from the given array.
+    assignIds = function(nodes)
+        if type(nodes) ~= 'table' then
+            return
+        end
+        for _, n in ipairs(nodes) do
+            assignNode(n)
+        end
+    end
+
+    -- Assigns a stable nodeId to a single node and recurses into all child nodes.
+    assignNode = function(n)
+        if type(n) ~= 'table' or not n.type then
+            return
+        end
+        nodeIdCounter = nodeIdCounter + 1
+        n.nodeId = nodeIdCounter
+        nodeById[n.nodeId] = n
+        -- array fields
+        assignIds(n.nodes)
+        assignIds(n.body)
+        assignIds(n.options)
+        assignIds(n.t1)
+        assignIds(n.t2)
+        assignIds(n.t3)
+        assignIds(n.conditions)
+        assignIds(n.args)
+        assignIds(n.elements)
+        -- single-node expression fields (can contain nested seq/if evaluated via getValue)
+        assignNode(n.value)
+        assignNode(n.content)
+        assignNode(n.expr)
+        assignNode(n.gather)
+        -- branches: if-style {cond, body} or seq-style plain arrays of nodes
+        if n.branches then
+            for _, branch in ipairs(n.branches) do
+                if branch.body then
+                    assignNode(branch.cond)
+                    assignIds(branch.body)
+                else
+                    assignIds(branch)
+                end
+            end
+        end
+    end
+
+    assignIds(globalTree)
 
     local evalVarInit = function(val)
         if is('ref', val) then
@@ -63,7 +115,7 @@ return function(globalTree, env, noKnot, listDefinitions)
             end
 
             if is('knot', n) then
-                knots[n.name] = { tree = n.body, params = n.params }
+                knots[n.name] = { tree = n.body, params = n.params, nodeId = n.nodeId }
                 env[n.name] = node.int(0)
                 lastKnot = n.name
                 lastStitch = nil
@@ -111,7 +163,9 @@ return function(globalTree, env, noKnot, listDefinitions)
             if is('fndef', n) then
                 -- function declarations can appear after their call sites in source
                 table.insert(n.body, node.ret(nil)) -- ensure every function has a return at the end
-                env[n.name] = node.fn(n.params, n.body)
+                local fnVal = node.fn(n.params, n.body)
+                fnVal.nodeId = n.nodeId -- for callstack frame reconstruction
+                env[n.name] = fnVal
             end
 
             if is('external', n) then
@@ -137,6 +191,7 @@ return function(globalTree, env, noKnot, listDefinitions)
 
     return {
         knots = knots,
+        nodeById = nodeById,
         externalDefs = externalDefs,
         globalTags = globalTags,
     }
