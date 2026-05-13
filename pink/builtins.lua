@@ -143,7 +143,10 @@ return function(deps)
         requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
 
         -- str and bool/num
-        if a.type == 'str' or b.type == 'str' then
+        if
+            (a.type == 'str' and (b.type == 'bool' or b.type == 'float' or b.type == 'int'))
+            or (b.type == 'str' and (a.type == 'bool' or a.type == 'float' or a.type == 'int'))
+        then
             return node.bool(node.toStr(a).value == node.toStr(b).value)
         end
 
@@ -176,6 +179,14 @@ return function(deps)
             return node.bool(a.value == b.value)
         end
 
+        if (a.type == 'list' and b.type == 'str') or (b.type == 'list' and a.type == 'str') then
+            err('eq not supported for list and str')
+        end
+
+        if (a.type == 'el' and b.type == 'str') or (b.type == 'el' and a.type == 'str') then
+            -- TODO
+            err('eq not yet implemented for el and str')
+        end
         err('eq not yet implemented for: ' .. a.type .. ', ' .. b.type)
     end
 

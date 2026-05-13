@@ -176,6 +176,20 @@ end
 
 -- ── Type conversions ──────────────────────────────────────────────────────────
 
+local intToStr = function(a)
+    node.requireType(a, 'int')
+    return tostring(math.floor(a.value))
+end
+local floatToStr = function(a)
+    node.requireType(a, 'float')
+    local formatted, _ = string.format('%.7f', a.value):gsub('%.?0+$', '')
+    return formatted
+end
+local boolToStr = function(a)
+    node.requireType(a, 'bool')
+    return tostring(a.value)
+end
+
 node.toInt = function(a)
     node.requirePinkType(a)
     if a.type == 'int' then
@@ -204,8 +218,14 @@ node.toStr = function(a)
     node.requirePinkType(a)
     if a.type == 'str' then
         return a
+    elseif a.type == 'int' then
+        return node.str(intToStr(a))
+    elseif a.type == 'float' then
+        return node.str(floatToStr(a))
+    elseif a.type == 'bool' then
+        return node.str(boolToStr(a))
     else
-        return node.str(node.output(a))
+        err('cannot convert to str', a)
     end
 end
 
@@ -246,12 +266,11 @@ node.makeOutput = function(listDefinitions)
         if a.type == 'str' then
             return a.value
         elseif a.type == 'int' then
-            return tostring(math.floor(a.value))
+            return intToStr(a)
         elseif a.type == 'float' then
-            local formatted, _ = string.format('%.7f', a.value):gsub('%.?0+$', '')
-            return formatted
+            return floatToStr(a)
         elseif a.type == 'bool' then
-            return tostring(a.value)
+            return boolToStr(a)
         elseif a.type == 'el' then
             return a.elName
         elseif a.type == 'list' then
@@ -261,9 +280,6 @@ node.makeOutput = function(listDefinitions)
         end
     end
 end
-
--- FIXME: cannot output list type without story context; use node.makeOutput(listDefinitions)
-node.output = node.makeOutput(nil)
 
 -- ── List operations ───────────────────────────────────────────────────────────
 
