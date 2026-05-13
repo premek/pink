@@ -1,7 +1,7 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local Story = require(base_path .. 'story')
 local newOutputBuffer = require(base_path .. 'output_buffer')
-local lists = require(base_path .. 'lists')
+local newListDefinitions = require(base_path .. 'list_definitions')
 local node = require(base_path .. 'node')
 local createBuiltins = require(base_path .. 'builtins')
 local compile = require(base_path .. 'compiler')
@@ -19,6 +19,8 @@ local noKnot = {} -- sentinel key for top-level content not inside any knot
 
 return function(globalTree)
     local outputBuffer = newOutputBuffer()
+    local listDefinitions = newListDefinitions()
+    local nodeOutput = node.makeOutput(listDefinitions)
     local getEnv, s -- forward declarations needed by createBuiltins closures
     local turns = 0
     local turnAtVisit = {}
@@ -36,6 +38,7 @@ return function(globalTree)
         getTurnsSince = function(path)
             return turnAtVisit[path]
         end,
+        listDefinitions = listDefinitions,
     })
     local env = rootEnv -- TODO should env be part of the callstack?
 
@@ -344,7 +347,7 @@ return function(globalTree)
             local var = getEnv(name, val)
             return getValue(var)
         elseif is('listlit', val) then
-            return getValue(lists.fromLit(val, getEnv))
+            return getValue(node.listFromLit(val, getEnv))
         elseif is('call', val) then
             local name = val.name
             local args = val.args
@@ -383,13 +386,13 @@ return function(globalTree)
                 return ret
             elseif is('list', target) then
                 if #args == 0 then
-                    return lists.empty()
+                    return node.listEmpty()
                 elseif #args > 1 then
                     err('too many arguments')
                 end
                 local index = getValue(args[1])
                 requireType(index, 'int')
-                return lists.elByValue(name, index.value)
+                return node.listElByValue(name, index.value, listDefinitions)
             else
                 error('invalid call target: ' .. target.type)
             end
@@ -399,7 +402,7 @@ return function(globalTree)
             for i = 1, #val.nodes do
                 local value = getValue(val.nodes[i])
                 if value ~= nil then
-                    result = result .. node.output(value)
+                    result = result .. nodeOutput(value)
                 end
             end
             return node.str(result)
@@ -412,7 +415,7 @@ return function(globalTree)
             for i = 1, #branch do
                 local value = getValue(branch[i])
                 if value ~= nil then
-                    result = result .. node.output(value)
+                    result = result .. nodeOutput(value)
                 end
             end
             return node.str(result)
@@ -460,7 +463,7 @@ return function(globalTree)
 
         local newValue = getValue(n.expr)
         if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
-            lists.set(oldValue, newValue)
+            node.listSet(oldValue, newValue)
         else
             if newValue == nil then
                 err('cannot assign nil')
@@ -479,7 +482,7 @@ return function(globalTree)
     local nodeUpdateOutValue = function(n)
         local val = getValue(n)
         if val ~= nil then
-            outputBuffer:add(node.output(val))
+            outputBuffer:add(nodeOutput(val))
         end
     end
     local nodeUpdateOut = function(n)
@@ -896,7 +899,7 @@ return function(globalTree)
 
     -- s.state.ToJson();s.state.LoadJson(savedJson);
 
-    local compiled = compile(tree, env, noKnot)
+    local compiled = compile(tree, env, noKnot, listDefinitions)
     knots = compiled.knots
     externalDefs = compiled.externalDefs
     s.globalTags = compiled.globalTags
@@ -905,7 +908,7 @@ return function(globalTree)
         pointer = pointer + 1
     end
     _debug(tree)
-    _debug('lists:', lists.defs)
+    _debug('lists:', listDefinitions)
     _debug('external:', externalDefs)
     _debug('state:', s.variablesState)
 

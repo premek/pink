@@ -67,6 +67,13 @@ function testTwoSimultaneousStories()
     luaunit.assertEquals(s2.continue(), 'world\n')
 end
 
+function testTwoStoriesWithLists()
+    local s1 = pink('test/list_red.ink')
+    local s2 = pink('test/list_blue.ink')
+    luaunit.assertEquals(s1.continue(), 'red, green\n')
+    luaunit.assertEquals(s2.continue(), 'blue, yellow\n')
+end
+
 -----------------------------
 
 os.exit(luaunit.LuaUnit.run())

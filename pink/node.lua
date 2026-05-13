@@ -1,7 +1,4 @@
 local base_path = (...):match('(.-)[^%.]+$')
-local lists = function()
-    return require(base_path .. 'lists')
-end -- avoid cyclic dependency -- FIXME
 local logging = require(base_path .. 'logging')
 local err = logging.error
 local _debug = logging.debug
@@ -221,7 +218,15 @@ node.toBool = function(a)
     elseif a.type == 'str' then
         return node.bool(#a.value ~= 0)
     elseif a.type == 'list' then
-        return node.bool(not lists().isEmpty(a))
+        -- TODO: use lists.isEmpty once node no longer needs to be lists-agnostic
+        local hasEl = false
+        for _, els in pairs(a.elements) do
+            if next(els) then
+                hasEl = true
+                break
+            end
+        end
+        return node.bool(hasEl)
     elseif a.type == 'el' then
         return node.bool(true)
     else
@@ -235,24 +240,396 @@ end
 
 -- ── Output ────────────────────────────────────────────────────────────────────
 
-node.output = function(a)
-    node.requirePinkType(a)
-    if a.type == 'str' then
-        return a.value
-    elseif a.type == 'int' then
-        return tostring(math.floor(a.value))
-    elseif a.type == 'float' then
-        local formatted, _ = string.format('%.7f', a.value):gsub('%.?0+$', '')
-        return formatted
-    elseif a.type == 'bool' then
-        return tostring(a.value)
-    elseif a.type == 'el' then
-        return a.elName
-    elseif a.type == 'list' then
-        return lists().output(a)
-    else
-        err('cannot output', a)
+node.makeOutput = function(listDefinitions)
+    return function(a)
+        node.requirePinkType(a)
+        if a.type == 'str' then
+            return a.value
+        elseif a.type == 'int' then
+            return tostring(math.floor(a.value))
+        elseif a.type == 'float' then
+            local formatted, _ = string.format('%.7f', a.value):gsub('%.?0+$', '')
+            return formatted
+        elseif a.type == 'bool' then
+            return tostring(a.value)
+        elseif a.type == 'el' then
+            return a.elName
+        elseif a.type == 'list' then
+            return node.listOutput(a, listDefinitions)
+        else
+            err('cannot output', a)
+        end
     end
+end
+
+-- FIXME: cannot output list type without story context; use node.makeOutput(listDefinitions)
+node.output = node.makeOutput(nil)
+
+-- ── List operations ───────────────────────────────────────────────────────────
+
+local iterateElements = function(lst, callback)
+    for listName, els in pairs(lst.elements) do
+        for elName, _ in pairs(els) do
+            callback(node.el(listName, elName))
+        end
+    end
+end
+
+local listValueInt = function(a, listDefinitions)
+    node.requireType(a, 'el', 'list')
+
+    if node.is('el', a) then
+        local listName, elementName = a.listName, a.elName
+        if not listName then
+            err('ambiguous list element: ' .. elementName)
+        end
+        return listDefinitions[listName].byName[elementName]
+    elseif node.is('list', a) then
+        local result = 0
+        for listName, els in pairs(a.elements) do
+            for elementName, _ in pairs(els) do
+                result = listDefinitions[listName].byName[elementName]
+                -- do not break, use the last one that is set to true
+            end
+        end
+        return result
+    end
+end
+
+local listGetElements = function(lst)
+    local els = {}
+    iterateElements(lst, function(el)
+        table.insert(els, el)
+    end)
+    return els
+end
+
+local getListElements = function(els, knownListNames)
+    local elements = {}
+    for _, listName in ipairs(knownListNames) do
+        elements[listName] = {}
+    end
+    for _, el in ipairs(els) do
+        node.requireType(el, 'el')
+        local listName, elName = el.listName, el.elName
+        if listName == nil then
+            err('ambiguous list element: ' .. elName)
+        end
+
+        elements[listName] = elements[listName] or {}
+        elements[listName][elName] = 1
+    end
+    -- elements: {[listName1] = {elName1=1, elName2=1}, [listName2] = {...}, ...}
+    return elements
+end
+
+local listCopy = function(lst)
+    local res = {}
+    for listName, els in pairs(lst.elements) do
+        res[listName] = res[listName] or {}
+        for elName, _ in pairs(els) do
+            res[listName][elName] = 1
+        end
+    end
+    return node.list(res)
+end
+
+local listSetInternal = function(lst, el, internalValue)
+    node.requireType(lst, 'list')
+    node.requireType(el, 'el')
+    lst.elements[el.listName] = lst.elements[el.listName] or {}
+    lst.elements[el.listName][el.elName] = internalValue -- just a placeholder value, we're using keys, nil to unset
+end
+local listAdd = function(lst, el)
+    listSetInternal(lst, el, 1)
+end
+local listRemove = function(lst, el)
+    listSetInternal(lst, el, nil)
+end
+
+local minusEl = function(lst, el)
+    node.requireType(lst, 'list')
+    node.requireType(el, 'el')
+
+    local new = listCopy(lst)
+    listRemove(new, el)
+    return new
+end
+
+local listCountNumber = function(a)
+    node.requireType(a, 'list')
+
+    local count = 0
+    iterateElements(a, function()
+        count = count + 1
+    end)
+    return count
+end
+
+local listSetValue = function(lst, value, listDefinitions)
+    for listName, _ in pairs(lst.elements) do
+        local elName = listDefinitions[listName].byValue[value]
+        if elName then
+            node.listSet(lst, node.el(listName, elName)) --FIXME
+        end
+    end
+end
+
+-- pure list operations
+
+node.listContains = function(lst, el)
+    node.requireType(lst, 'list')
+    node.requireType(el, 'el')
+
+    local listName, elName = el.listName, el.elName
+    return lst.elements[listName] ~= nil and lst.elements[listName][elName] ~= nil
+end
+node.listContainsAll = function(hay, needles)
+    node.requireType(hay, 'list')
+    node.requireType(needles, 'list')
+
+    local empty = true -- no lists contain the empty list
+    local res = true
+    iterateElements(needles, function(needle)
+        empty = false
+        res = res and node.listContains(hay, needle)
+    end)
+    return empty or res
+end
+
+node.listFromEls = function(els, knownListNames)
+    return node.list(getListElements(els, knownListNames))
+end
+
+node.listFromLit = function(listLiteral, getEnv) -- FIXME env
+    node.requireType(listLiteral, 'listlit')
+    local els = {}
+    for _, elName in ipairs(listLiteral.elements) do
+        local el = getEnv(elName)
+        table.insert(els, el)
+    end
+    return node.listFromEls(els, {})
+end
+node.listEmpty = function()
+    return node.list({})
+end
+
+-- TODO name list functions
+node.listPlus = function(a, b)
+    node.requireType(a, 'list')
+    node.requireType(b, 'el', 'list')
+
+    local new = listCopy(a)
+    if node.is('el', b) then
+        listAdd(new, b)
+    else
+        for listName, els in pairs(b.elements) do
+            for elName, _ in pairs(els) do
+                listAdd(new, node.el(listName, elName))
+            end
+        end
+    end
+    return new
+end
+
+node.listMinus = function(a, b)
+    node.requireType(a, 'list')
+    node.requireType(b, 'el', 'list')
+
+    if node.is('list', b) then
+        local l = a
+        iterateElements(b, function(el)
+            l = minusEl(l, el)
+        end)
+        return l
+    else
+        return minusEl(a, b)
+    end
+end
+
+node.listSet = function(lst, new)
+    node.requireType(lst, 'list')
+    node.requireType(new, 'list', 'el')
+
+    local els
+    if node.is('el', new) then
+        els = { new }
+    else
+        -- TODO -- rename functions
+        els = listGetElements(new)
+    end
+    if #els == 0 then
+        -- keep the known lists
+        iterateElements(lst, function(el)
+            lst.elements[el.listName] = {}
+        end)
+    else
+        lst.elements = getListElements(els, {}) --FIXME known lists
+    end
+end
+
+node.listCount = function(a)
+    return node.int(listCountNumber(a))
+end
+
+node.listIsEmpty = function(a)
+    node.requireType(a, 'list')
+    return listCountNumber(a) == 0
+end
+
+node.listRandom = function(a)
+    node.requireType(a, 'list')
+
+    local els = listGetElements(a)
+    if #els == 0 then
+        return node.list({})
+    end
+    return els[math.random(1, #els)]
+end
+
+node.listIntersection = function(a, b)
+    node.requireType(a, 'list')
+    node.requireType(b, 'list')
+    local els = {}
+    iterateElements(b, function(el)
+        if node.listContains(a, el) then
+            table.insert(els, el)
+        end
+    end)
+    return node.listFromEls(els, {})
+end
+
+-- list operations requiring definitions
+
+node.listValue = function(a, listDefinitions)
+    return node.int(listValueInt(a, listDefinitions))
+end
+
+node.listElByValue = function(listName, elementValue, listDefinitions)
+    return node.el(listName, listDefinitions[listName].byValue[elementValue])
+end
+
+node.listOutput = function(lst, listDefinitions)
+    local outEls = listGetElements(lst)
+    table.sort(outEls, function(a, b)
+        local val = listValueInt(a, listDefinitions) - listValueInt(b, listDefinitions)
+        return val == 0 and a.listName < b.listName or val < 0
+    end)
+
+    local names = {}
+    for _, el in ipairs(outEls) do
+        table.insert(names, el.elName)
+    end
+    return table.concat(names, ', ')
+end
+
+-- sets the present value of the list 'a' times to the next element
+-- empty list stays empty
+-- list with elements from different listDefinitions: undefined??? --TODO
+node.listInc = function(lst, a, listDefinitions)
+    local new = listCopy(lst)
+    local value = listValueInt(new, listDefinitions) + a
+    listSetValue(new, value, listDefinitions)
+    return new
+end
+
+node.listAll = function(a, listDefinitions)
+    node.requireType(a, 'el', 'list') -- TODO is 'el' just a 'list' with one element?
+    local listNames = {}
+    if a.type == 'el' then
+        table.insert(listNames, a.listName)
+    else
+        -- collect "known" lists
+        for listName, _ in pairs(a.elements) do
+            table.insert(listNames, listName)
+        end
+    end
+    local els = {}
+
+    for _, listName in ipairs(listNames) do
+        for elName, _ in pairs(listDefinitions[listName].byName) do
+            table.insert(els, node.el(listName, elName))
+        end
+    end
+
+    return node.listFromEls(els, listNames)
+end
+
+-- TODO simplify
+node.listMax = function(a, listDefinitions)
+    node.requireType(a, 'list')
+
+    local name = nil
+    local max = -1
+    for listName, els in pairs(a.elements) do
+        for elementName, _ in pairs(els) do
+            local elementValue = listDefinitions[listName].byName[elementName]
+            if elementValue >= max then
+                max = elementValue
+                name = listName
+            end
+        end
+    end
+
+    if name == nil then
+        return node.list({})
+    end
+
+    return node.listElByValue(name, max, listDefinitions)
+end
+
+node.listMin = function(a, listDefinitions)
+    node.requireType(a, 'list')
+
+    local name = nil
+    local min = nil
+    for listName, els in pairs(a.elements) do
+        for elementName, _ in pairs(els) do
+            local elementValue = listDefinitions[listName].byName[elementName]
+            if min == nil or elementValue < min then
+                min = elementValue
+                name = listName
+            end
+        end
+    end
+
+    if name == nil then
+        return node.list({})
+    end
+
+    return node.listElByValue(name, min, listDefinitions)
+end
+
+node.listInvert = function(lst, listDefinitions)
+    local new = node.listAll(lst, listDefinitions)
+    for listName, els in pairs(lst.elements) do
+        for elName, _ in pairs(els) do
+            listRemove(new, node.el(listName, elName))
+        end
+    end
+    return new
+end
+
+node.listRange = function(lst, minIncl, maxIncl, listDefinitions)
+    if node.is('el', minIncl) then
+        minIncl = node.listValue(minIncl, listDefinitions)
+    end
+    if node.is('el', maxIncl) then
+        maxIncl = node.listValue(maxIncl, listDefinitions)
+    end
+    node.requireType(minIncl, 'int')
+    node.requireType(maxIncl, 'int')
+
+    local els = {}
+    local listNames = {}
+    iterateElements(lst, function(el)
+        table.insert(listNames, el.listName)
+        local val = listValueInt(el, listDefinitions)
+        if minIncl.value <= val and val <= maxIncl.value then
+            table.insert(els, el)
+        end
+    end)
+    return node.listFromEls(els, listNames)
 end
 
 return node
