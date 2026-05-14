@@ -980,81 +980,52 @@ return function(input, source)
         consumeWhitespaceAndNewlines()
 
         -- Cycles are like sequences, but they loop their content.
-        if ahead('&') then
-            opts.cycle = true
-            consume('&')
-            local branches = seqSeparatedBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
-        end
-
-        -- Once-only alternatives are like sequences, but when they
-        -- run out of new content to display, they display nothing.
-        -- (as a sequence with a blank last entry.)
-        if ahead('!') then
-            opts.once = true
-            consume('!')
-            local branches = seqSeparatedBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
-        end
-
-        -- shuffle (randomised output)
-        if ahead('~') then
-            opts.cycle = true
-            opts.shuffle = true
-            consume('~')
-            local branches = seqSeparatedBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
-        end
-
-        -- Sequence: go through the alternatives, and stick on last
-        if ahead('stopping') then
-            consume('stopping')
-            opts.stopping = true
-            local branches = seqBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
-        end
-
-        -- Cycle: show each in turn, and then cycle
-        if ahead('cycle') then
-            consume('cycle')
-            opts.cycle = true
-            local branches = seqBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
-        end
-
-        -- Once-only alternatives are like sequences, but when they
-        -- run out of new content to display, they display nothing.
-        -- (as a sequence with a blank last entry.)
-        if ahead('once') then
-            consume('once')
-            opts.once = true
-            local branches = seqBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
-        end
-
-        -- Shuffle: show one at random
-        if ahead('shuffle') then
-            consume('shuffle')
-            opts.shuffle = true
-            -- TODO extract to a function
-            consumeWhitespaceAndNewlines()
-
-            if ahead('once') then
-                consume('once')
-                opts.once = true
-            elseif ahead('stopping') then
-                consume('stopping')
-                opts.stopping = true
-            else
-                opts.cycle = true
+        -- Once-only: when they run out of content, display nothing (as a sequence with a blank last entry).
+        -- Shuffle: randomised output.
+        -- Any combination/order of symbols (no spaces), e.g. ~! = shuffle once.
+        if ahead('&') or ahead('!') or ahead('~') then
+            while ahead('&') or ahead('!') or ahead('~') do
+                if ahead('~') then
+                    consume('~')
+                    opts.shuffle = true
+                elseif ahead('!') then
+                    consume('!')
+                    opts.once = true
+                elseif ahead('&') then
+                    consume('&')
+                    opts.cycle = true
+                end
             end
+            if opts.shuffle and not opts.once and not opts.cycle then
+                opts.cycle = true -- plain ~ defaults to cycle
+            end
+            local branches = seqSeparatedBranches()
+            consume('}')
+            return token(node.seq(opts, branches))
+        end
 
+        -- Sequence: go through alternatives and stick on last (stopping), cycle, once-only, shuffle.
+        -- Any order/combination of keywords, e.g. {stopping shuffle:} = {shuffle stopping:}.
+        if ahead('stopping') or ahead('shuffle') or ahead('once') or ahead('cycle') then
+            while ahead('stopping') or ahead('shuffle') or ahead('once') or ahead('cycle') do
+                if ahead('stopping') then
+                    consume('stopping')
+                    opts.stopping = true
+                elseif ahead('shuffle') then
+                    consume('shuffle')
+                    opts.shuffle = true
+                elseif ahead('once') then
+                    consume('once')
+                    opts.once = true
+                elseif ahead('cycle') then
+                    consume('cycle')
+                    opts.cycle = true
+                end
+                consumeWhitespaceAndNewlines()
+            end
+            if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
+                opts.cycle = true -- plain {shuffle:} defaults to cycle
+            end
             local branches = seqBranches()
             consume('}')
             return token(node.seq(opts, branches))

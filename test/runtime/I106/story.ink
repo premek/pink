@@ -1,4 +1,4 @@
-~ SEED_RANDOM(1)
+~ SEED_RANDOM(59)
 
 Once: {f_once()} {f_once()} {f_once()} {f_once()}
 Stopping: {f_stopping()} {f_stopping()} {f_stopping()} {f_stopping()}
