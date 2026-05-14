@@ -1,3 +1,6 @@
+// divert on the option line (after brackets) targets the enclosing labeled gather
 - (go)
-{go > 2: -> END}
-+ [Choose] Chosen. -> go
++ [Choose] -> go
++ [Stop]
+    Done.
+    -> END
