@@ -48,8 +48,8 @@ end
 logging.info = function()
     -- TODO
 end
-logging.warn = function()
-    -- TODO
+logging.warn = function(message, token)
+    io.stderr:write('WARNING: ' .. getLogMessage(message, token) .. '\n')
 end
 
 return logging

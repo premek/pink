@@ -8,6 +8,7 @@ local compile = require(base_path .. 'compiler')
 local logging = require(base_path .. 'logging')
 local newStack = require(base_path .. 'stack')
 local err = logging.error
+local warn = logging.warn
 local _debug = logging.debug
 local requireType = node.requireType
 local is = node.is
@@ -169,9 +170,8 @@ return function(globalTree)
         local first, rest = splitName(name)
         local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
-            -- FIXME detect on compile time
-            _debug(name, env)
-            err('unresolved variable: ' .. name, token)
+            warn('variable not found: ' .. name .. ', using default value of 0', token)
+            return node.int(0), env
         end
         val = getChildren(first, rest, val, token)
         return val, e
