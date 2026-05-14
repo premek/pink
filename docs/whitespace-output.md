@@ -83,6 +83,5 @@ Pink: `pink-cli` always did `print()` (blank line) before choices, regardless of
 ### What could be improved
 
 - `collect()` is called twice per line (once in `isEmpty()`, once in `popLine()`). It's idempotent but redundant.
-- The `TODO refactor` comment at the top of `out.lua` acknowledges this.
 - The `hadTrailingGlue` flag was added to `collect()`'s glue pass to survive the double-call — the "only update when glue was seen" logic is non-obvious. A simpler alternative is to scan the raw buffer in `isEmpty()` before `collect()` modifies it.
 - Pink does not pre-classify strings; all whitespace decisions happen during `collect()` passes. Fine at this scale but less efficient than C#'s O(1) approach.

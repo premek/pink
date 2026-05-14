@@ -10,7 +10,7 @@ cmp_ink() {
 }
 ```
 
-Scope: basic implemented features only. No tunnels, threads, or save/load.
+Scope: basic implemented features only
 
 ---
 

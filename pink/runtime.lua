@@ -196,6 +196,14 @@ return function(globalTree)
         pointer = 0
     end
 
+    -- like returnTo but marks the frame with gatherBody so discardGatherContinuations can find it
+    local returnToGather = function(block, blockAddr)
+        callstack.push({ tree = tree, pointer = pointer, fn = nil, env = env, addr = currentAddr, gatherBody = block })
+        currentAddr = blockAddr
+        tree = block
+        pointer = 0
+    end
+
     local stepOut
     stepOut = function(fn)
         local frame = callstack.pop()
@@ -263,8 +271,15 @@ return function(globalTree)
 
     local currentKnot = nil
     local currentStitch = nil
-    local discardFramesFor = function(t)
-        while not callstack.isEmpty() and callstack.peek().tree == t do
+    local discardGatherContinuations = function(gatherBody)
+        local popCount = 0
+        for i = callstack.size(), 1, -1 do
+            if callstack.get(i).gatherBody == gatherBody then
+                break
+            end
+            popCount = popCount + 1
+        end
+        for _ = 1, popCount do
             callstack.pop()
         end
     end
@@ -329,7 +344,7 @@ return function(globalTree)
             if isNext('gather') then
                 tree = tree[pointer].body
                 pointer = 1
-                discardFramesFor(tree)
+                discardGatherContinuations(tree)
             end
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[noKnot] and knots[noKnot][path] then
@@ -351,7 +366,7 @@ return function(globalTree)
                 tree = tree[pointer].body
                 pointer = 1
                 -- discard orphaned returnTo frames for this gather body left by fallback setup
-                discardFramesFor(tree)
+                discardGatherContinuations(tree)
             end
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[path] then
@@ -784,7 +799,7 @@ return function(globalTree)
                 for _, fallback in ipairs(fallbacks) do
                     if getOptionConditionsResult(fallback) then
                         if gather then
-                            returnTo(gather.body, bodyAddr(gather))
+                            returnToGather(gather.body, bodyAddr(gather))
                         end
                         stepInto(fallback.body, nil, nil, bodyAddr(fallback))
                         doUpdate = true
@@ -923,7 +938,7 @@ return function(globalTree)
         markOptionUsed(choice.option)
 
         if choice.gather then
-            returnTo(choice.gather.body, bodyAddr(choice.gather))
+            returnToGather(choice.gather.body, bodyAddr(choice.gather))
         end
 
         returnTo(choice.option.body, bodyAddr(choice.option))

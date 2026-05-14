@@ -78,4 +78,3 @@ Compared to the official C# runtime:
 - **Multiple flows** — parallel independent story flows
 - **`continueMaximally()`** — run all lines until choices or end
 - **Error handler callback** — `story.onError`
-- **`TURNS()` / `TURNS_SINCE()`** builtins
