@@ -284,7 +284,7 @@ return function(globalTree)
         end
     end
     local goTo
-    goTo = function(path, args)
+    goTo = function(path, args, tunnel)
         _debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
@@ -309,7 +309,7 @@ return function(globalTree)
 
         local val = getEnvOptional(path)
         if is('divert', val) then
-            goTo(val.target, args)
+            goTo(val.target, args, tunnel)
             return
         end
 
@@ -373,7 +373,7 @@ return function(globalTree)
             local params = knots[path].params
             local body = knots[path].tree
             local newEnv = getArgumentsEnv(params, args)
-            stepInto(body, newEnv, nil, bodyAddr(knots[path]))
+            stepInto(body, newEnv, tunnel, bodyAddr(knots[path]))
 
             incrementSeenCounter(path) -- TODO not just knots
 
@@ -634,7 +634,7 @@ return function(globalTree)
             stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
         tunnelreturn = function()
-            stepOut()
+            stepOut('tunnel')
         end,
 
         str = nodeUpdateOutValue,
@@ -740,7 +740,7 @@ return function(globalTree)
         end
 
         if isNext('divert') then
-            goTo(tree[pointer].target, tree[pointer].args)
+            goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
             update()
             return
         end
