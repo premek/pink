@@ -161,6 +161,7 @@ node.requirePinkType = function(a)
     if type(a.type) ~= 'string' then
         error('pink type expected')
     end
+    assert(a, 'pink type expected')
 end
 
 node.requireType = function(a, ...)
@@ -328,12 +329,12 @@ local getListElements = function(els, knownListNames)
     for _, el in ipairs(els) do
         node.requireType(el, 'el')
         local listName, elName = el.listName, el.elName
-        if listName == nil then
+        if listName ~= nil then
+            elements[listName] = elements[listName] or {}
+            elements[listName][elName] = 1
+        else
             err('ambiguous list element: ' .. elName)
         end
-
-        elements[listName] = elements[listName] or {}
-        elements[listName][elName] = 1
     end
     -- elements: {[listName1] = {elName1=1, elName2=1}, [listName2] = {...}, ...}
     return elements

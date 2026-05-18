@@ -540,7 +540,7 @@ return function(globalTree)
                 end
                 local index = getValue(args[1])
                 requireType(index, 'int')
-                return node.listElByValue(name, index.value, listDefinitions)
+                return node.listElByValue(name, assert(index).value, listDefinitions)
             else
                 error('invalid call target: ' .. target.type)
             end

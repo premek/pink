@@ -260,7 +260,7 @@ return function(input, source)
 
     local identifierCharAhead = function()
         local char = peek(1)
-        return identifierChars[char] or string.byte(char) > 127
+        return char ~= nil and (identifierChars[char] or string.byte(char) > 127)
     end
 
     local identifier = function()
@@ -864,7 +864,7 @@ return function(input, source)
             if ahead('=') then
                 consume('=')
                 consumeWhitespace()
-                elementValue = tonumber(number())
+                elementValue = assert(tonumber(number()))
                 consumeWhitespace()
             end
             table.insert(elements, { name = elementName, set = elementPresent, value = elementValue })
