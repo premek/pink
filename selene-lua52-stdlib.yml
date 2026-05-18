@@ -1,0 +1,11 @@
+# Extends selene's lua52 stdlib with io file handle fields missing from the base definition.
+# io.stderr/stdin/stdout are plain read-only properties in lua52.yml but are actually
+# file handle objects — any: true allows method calls like io.stderr:write().
+base: lua52
+globals:
+  io.stderr:
+    any: true
+  io.stdin:
+    any: true
+  io.stdout:
+    any: true

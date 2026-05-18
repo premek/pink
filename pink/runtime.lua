@@ -1185,10 +1185,8 @@ return function(globalTree)
         update()
         -- canContinue() returns false when choices are present, even if the buffer has text
         -- to output. Force s.canContinue so continue() is called to drain pending output.
-        if not outputBuffer:isEmpty() then
-            s.canContinue = true
-        elseif not s.canContinue and threadChoicesAdded then
-            -- buffer empty: still need continue() so the thread-choice paragraph separator is emitted
+        -- buffer empty: still need continue() if thread choices need a paragraph separator
+        if not outputBuffer:isEmpty() or (not s.canContinue and threadChoicesAdded) then
             s.canContinue = true
         end
     end
