@@ -7,6 +7,7 @@ local parser = require('pink.parser')
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
 local logging = require('pink.logging')
+local resolveIncludes = require('pink.includes')
 
 local function read(file)
     local f = io.open(file, 'rb')
@@ -22,19 +23,8 @@ local function basedir(str)
     return string.gsub(str, '(.*)(/.*)', '%1')
 end
 
-local parse
-parse = function(file)
-    local parsed = {}
-    for _, t in ipairs(parser(read(file), file)) do
-        if t[2] and t[1] == 'include' then
-            for _, includedNode in ipairs(parse(basedir(file) .. '/' .. t[2])) do
-                table.insert(parsed, includedNode)
-            end
-        else
-            table.insert(parsed, t)
-        end
-    end
-    return parsed
+local parse = function(file)
+    return resolveIncludes(parser(read(file), file), basedir(file), read)
 end
 
 if arg[1] == '-v' then

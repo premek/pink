@@ -1,6 +1,7 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local parser = require(base_path .. 'parser')
 local runtime = require(base_path .. 'runtime')
+local resolveIncludes = require(base_path .. 'includes')
 
 local function loveFileReader(file)
     if not love.filesystem.getInfo(file, 'file') then
@@ -31,22 +32,8 @@ local function basedir(str)
     return string.gsub(str, '(.*)(/.*)', '%1')
 end
 
-local parse
-parse = function(file)
-    local parsed = {}
-    local reader = getFileReader()
-    for _, t in ipairs(parser(reader(file), file)) do
-        if t.filename and t[1] == 'include' then
-            for _, includedNode in ipairs(parse(basedir(file) .. '/' .. t.filename)) do
-                table.insert(parsed, includedNode)
-            end
-        else
-            table.insert(parsed, t)
-        end
-    end
-    return parsed
-end
-
 return function(filename)
-    return runtime(parse(filename))
+    local reader = getFileReader()
+    local nodes = resolveIncludes(parser(reader(filename), filename), basedir(filename), reader)
+    return runtime(nodes)
 end
