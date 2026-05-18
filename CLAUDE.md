@@ -5,6 +5,7 @@ Guidance to Claude when working with this repository.
 Minimal layers of indirection but properly structured.
 Prefer direct, obvious code over clever patterns.
 Short functions with meaningful names, descriptive names for variables (no need to keep them extra short).
+Prefer designs that are easier to reason about during development over ones that minimize data storage.
 
 ## Project Overview
 

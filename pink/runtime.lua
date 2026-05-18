@@ -23,8 +23,10 @@ return function(globalTree)
     local listDefinitions = newListDefinitions()
     local nodeOutput = node.makeOutput(listDefinitions)
     local getEnv, s, nodeById -- forward declarations needed by createBuiltins closures
+    local currentKnot, currentStitch -- forward declarations needed by getEnv for label lookup
     local turns = 0
     local turnAtVisit = {}
+    local turnHadOutput = false -- true when at least one line of text was output this turn
 
     local rootEnv = createBuiltins({
         getEnv = function(...)
@@ -170,6 +172,13 @@ return function(globalTree)
         local first, rest = splitName(name)
         local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
+            -- check if it's a gather label in the current knot (e.g. 'done' inside 'review_case_notes')
+            if currentKnot and #rest == 0 then
+                local knotEntry = getEnvOptional(currentKnot, rootEnv)
+                if knotEntry and knotEntry._children and knotEntry._children[name] then
+                    return knotEntry._children[name], rootEnv
+                end
+            end
             warn('variable not found: ' .. name .. ', using default value of 0', token)
             return node.int(0), env
         end
@@ -233,7 +242,16 @@ return function(globalTree)
         turnAtVisit[path] = turns
     end
 
-    local update, getValue, seqPickBranch
+    local update, getValue, seqPickBranch, runThread
+
+    local getOptionConditionsResult = function(option)
+        for _, condition in ipairs(option.conditions) do
+            if not node.isTruthy(getValue(condition)) then
+                return false
+            end
+        end
+        return true
+    end
 
     -- params: placeholders defined in the function/knot definition.
     -- args: the actual values or expressions passed to the function/knot when calling it
@@ -269,8 +287,8 @@ return function(globalTree)
         return newEnv
     end
 
-    local currentKnot = nil
-    local currentStitch = nil
+    currentKnot = nil
+    currentStitch = nil
     local discardGatherContinuations = function(gatherBody)
         local popCount = 0
         for i = callstack.size(), 1, -1 do
@@ -288,22 +306,18 @@ return function(globalTree)
         _debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
-            -- if ->END fires inside an inline if/seq branch, the current line is incomplete:
-            -- remaining sibling nodes (including nl) were never reached.
-            -- scan callstack for an 'inline' frame between us and the nearest function boundary.
-            if #outputBuffer.buffer > 0 then
-                for i = callstack.size(), 1, -1 do
-                    if callstack.get(i).fn == 'fn' then
-                        break
-                    end
-                    if callstack.get(i).fn == 'inline' then
-                        outputBuffer.midExpressionEnd = true
-                        break
-                    end
-                end
+            -- ->END with buffered content: the nl that would follow was never reached,
+            -- so suppress the trailing '\n' that continue() would otherwise append.
+            -- ->DONE is a natural path end; keep the trailing '\n'.
+            if path == 'END' and #outputBuffer.buffer > 0 then
+                outputBuffer.midExpressionEnd = true
             end
             pointer = #tree + 1
-            callstack.clear() -- ? do not step out anywhere
+            -- DONE with pending thread choices: leave callstack intact so thread
+            -- continuations (e.g. ->-> tunnel returns) still work when a choice is made.
+            if path == 'END' or #s.currentChoices == 0 then
+                callstack.clear()
+            end
             return
         end
 
@@ -334,9 +348,27 @@ return function(globalTree)
                 next()
             end
         elseif knots[currentKnot] and knots[currentKnot][path] then
-            pointer = knots[currentKnot][path].pointer
-            tree = knots[currentKnot][path].tree
-            next()
+            local stitchEntry = knots[currentKnot][path]
+            pointer = stitchEntry.pointer
+            tree = stitchEntry.tree
+            if isNext('gather') then
+                -- navigate into the gather body (not skip past it)
+                tree = tree[pointer].body
+                pointer = 1
+                discardGatherContinuations(tree)
+            else
+                next() -- skip the stitch declaration node
+                if isNext('nl') then
+                    next() -- skip the newline that follows the stitch declaration in the source
+                end
+            end
+            -- bind stitch parameters (divert args) into the env
+            -- TODO: for non-thread callers this leaks env; currently only used via threads (runThread restores env)
+            if stitchEntry.params and #stitchEntry.params > 0 then
+                local newEnv = getArgumentsEnv(stitchEntry.params, args)
+                newEnv._parent = env
+                env = newEnv
+            end
             incrementSeenCounter(currentKnot .. '.' .. path)
         elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
             tree = knots[noKnot][currentStitch][path].tree
@@ -369,6 +401,9 @@ return function(globalTree)
                 discardGatherContinuations(tree)
             end
             incrementSeenCounter(path) -- TODO full paths
+            if isNext('stitch') then
+                next()
+            end
         elseif knots[path] then
             local params = knots[path].params
             local body = knots[path].tree
@@ -690,6 +725,10 @@ return function(globalTree)
             end
             -- no condition evaluated to true (and the else branch not present): do nothing
         end,
+
+        fork = function(n)
+            runThread(n)
+        end,
     }
     -- TODO move everything to getValue, call getValut from top and dont use the return value,
     -- but inside it can be used e.g. for recursive function call/return values
@@ -704,15 +743,133 @@ return function(globalTree)
     end
 
     local evaluateOptionText = function(option)
-        -- FIXME?
         local snapshot = clear()
-        stepInto(option.t1, nil, nil, t1Addr(option))
+        local savedTree, savedPointer, savedAddr = tree, pointer, currentAddr
+        -- Evaluate t1 and t2 directly without a boundary frame so the callstack
+        -- is empty when each block ends, preventing update() from escaping into
+        -- the parent story context via the stepOut path.
+        tree = option.t1
+        pointer = 1
+        currentAddr = t1Addr(option)
         update()
-        stepInto(option.t2, nil, nil, t2Addr(option))
+        tree = option.t2
+        pointer = 1
+        currentAddr = t2Addr(option)
         update()
         local text = outputBuffer:popLine()
+        tree, pointer, currentAddr = savedTree, savedPointer, savedAddr
         reset(snapshot)
         return text
+    end
+
+    runThread = function(n)
+        local savedTree, savedPointer, savedEnv, savedAddr = tree, pointer, env, currentAddr
+        local savedKnot, savedStitch = currentKnot, currentStitch
+        local mainCallstack = callstack
+        callstack = newStack()
+
+        goTo(n.target, n.args)
+
+        local threadChoices = {}
+
+        while true do
+            if tree[pointer] and tree[pointer].location then
+                logging.lastLocation = tree[pointer].location
+            end
+
+            if isEnd() then
+                if not callstack.isEmpty() then
+                    stepOut()
+                    next()
+                    if callstack.isEmpty() then
+                        break
+                    end
+                else
+                    break
+                end
+            elseif isNext('divert') and (tree[pointer].target == 'DONE' or tree[pointer].target == 'END') then
+                break
+            elseif isNext('divert') then
+                goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
+            elseif isNext('choice') then
+                local choiceNode = tree[pointer]
+                local gather = choiceNode.gather
+                local fallbacks = {}
+                local visible = {}
+
+                for _, option in ipairs(choiceNode.options) do
+                    local sticky = option.sticky == 'sticky'
+                    local fallback = option.fallback == 'fallback'
+                    local show = sticky or not isOptionUsed(option)
+                    if fallback then
+                        table.insert(fallbacks, option)
+                        show = false
+                    end
+                    if show and not getOptionConditionsResult(option) then
+                        show = false
+                    end
+                    if show then
+                        local text = evaluateOptionText(option)
+                        -- save thread env so divert parameters (e.g. -> go_back_to) remain
+                        -- accessible when the choice body and gather execute after selection;
+                        -- save threadKnot so we can increment labeled gather counters correctly
+                        table.insert(
+                            visible,
+                            { text = text, option = option, gather = gather, threadEnv = env, threadKnot = currentKnot }
+                        )
+                    end
+                end
+
+                if #visible > 0 then
+                    threadChoices = visible
+                    break
+                else
+                    local executed = false
+                    for _, fallback in ipairs(fallbacks) do
+                        if getOptionConditionsResult(fallback) then
+                            if gather then
+                                returnToGather(gather.body, bodyAddr(gather))
+                            end
+                            stepInto(fallback.body, nil, nil, bodyAddr(fallback))
+                            executed = true
+                            break
+                        end
+                    end
+                    if not executed then
+                        -- No visible choices and no fallback: thread has nothing to contribute.
+                        -- Do NOT follow the gather — it belongs to post-selection flow and can
+                        -- cause infinite recursion if it diverts back into the story.
+                        break
+                    end
+                end
+            else
+                local nodeType = tree[pointer].type
+                local updateFn = nodeUpdate[nodeType]
+                if not updateFn then
+                    err('unexpected node in thread', tree[pointer])
+                end
+                local nextStep, nextAddr = updateFn(tree[pointer])
+                if nextStep then
+                    local inlineFn = (nodeType == 'if' or nodeType == 'seq') and 'inline' or nil
+                    stepInto(nextStep, nil, inlineFn, nextAddr)
+                else
+                    next()
+                end
+            end
+        end
+
+        local threadFrames = callstack.clear()
+        callstack = mainCallstack
+
+        for _, c in ipairs(threadChoices) do
+            if #threadFrames > 0 then
+                c.threadFrames = threadFrames
+            end
+            table.insert(s.currentChoices, c)
+        end
+
+        tree, pointer, env, currentAddr = savedTree, savedPointer, savedEnv, savedAddr
+        currentKnot, currentStitch = savedKnot, savedStitch
     end
 
     update = function()
@@ -756,18 +913,7 @@ return function(globalTree)
             local gather = tree[pointer].gather
             local fallbacks = {}
 
-            s.currentChoices = {}
-
-            -- TODO move
-            local getOptionConditionsResult = function(option)
-                for _, condition in ipairs(option.conditions) do
-                    if not node.isTruthy(getValue(condition)) then
-                        return false
-                    end
-                end
-                return true
-            end
-
+            -- preserve any thread choices already added by fork nodes earlier this turn
             for _, option in ipairs(options) do
                 local sticky = option.sticky == 'sticky' -- TODO
                 local fallback = option.fallback == 'fallback'
@@ -905,22 +1051,48 @@ return function(globalTree)
         if #s.currentChoices == 0 then
             update() -- advance to next output; skip if choices already populated
         end
+        -- if update() added content to a truly empty buffer (no prior content this call),
+        -- pop it now so it's returned as text rather than as a blank separator
+        if res == '' and not rawHadContent and not outputBuffer:isEmpty() then
+            res, trailingGlue, hadNl = outputBuffer:popLine()
+            bufferWasEmpty = false
+        end
+        -- drain thread output before showing choices:
+        -- if buffer still has content, keep going; once empty with choices ready, stop
+        if not outputBuffer:isEmpty() then
+            s.canContinue = true
+        elseif #s.currentChoices > 0 then
+            s.canContinue = false
+        end
         if res == '' then
             if not bufferWasEmpty then
                 return '\n' -- whitespace-only line → blank line
             elseif #s.currentChoices > 0 then
-                return '\n' -- blank separator before choices
+                -- when thread choices are present and a turn has been taken with no text output,
+                -- emit an extra blank line (the thread transition creates a paragraph break)
+                local hasThreadChoices = false
+                if turns > 0 and not turnHadOutput then
+                    for _, c in ipairs(s.currentChoices) do
+                        if c.threadEnv then
+                            hasThreadChoices = true
+                            break
+                        end
+                    end
+                end
+                return hasThreadChoices and '\n\n' or '\n'
             elseif rawHadContent then
                 return '\n' -- buffer had nl-only content (e.g. loop ended at gather)
             else
                 return '' -- story ended with no output
             end
         elseif trailingGlue or s.canContinue then
+            turnHadOutput = true
             return res .. '\n'
         elseif #s.currentChoices == 0 then
             -- story ended; omit \n if the line was cut short (e.g. ->END mid-text)
             return res .. (hadNl and '\n' or '')
         else
+            turnHadOutput = true
             return res .. '\n\n'
         end
     end
@@ -932,12 +1104,31 @@ return function(globalTree)
 
         local choice = s.currentChoices[index]
 
+        if choice.threadFrames then
+            -- only re-push tunnel frames; entry frames (fn=nil) would re-execute the fork node
+            for _, frame in ipairs(choice.threadFrames) do
+                if frame.fn == 'tunnel' then
+                    callstack.push(frame)
+                end
+            end
+        end
+
+        if choice.threadEnv then
+            -- restore the env scope active when the thread collected this choice, so that
+            -- divert parameters (e.g. -> go_back_to) remain accessible in the choice body
+            env = choice.threadEnv
+        end
+
         if choice.option.label then -- the option has a label
             incrementSeenCounter(choice.option.label) -- TODO full path??
         end
         markOptionUsed(choice.option)
 
         if choice.gather then
+            -- thread choices bypass the gather node dispatch, so increment its label counter here
+            if choice.gather.label and choice.threadKnot then
+                incrementSeenCounter(choice.threadKnot .. '.' .. choice.gather.label)
+            end
             returnToGather(choice.gather.body, bodyAddr(choice.gather))
         end
 
@@ -947,7 +1138,21 @@ return function(globalTree)
 
         s.currentChoices = {}
         turns = turns + 1
+        turnHadOutput = false
         update()
+        -- canContinue() returns false when choices are present, even if the buffer has text
+        -- to output. Force s.canContinue so continue() is called to drain pending output.
+        if not outputBuffer:isEmpty() then
+            s.canContinue = true
+        elseif not s.canContinue then
+            -- buffer empty: still need continue() if thread choices need a paragraph separator
+            for _, c in ipairs(s.currentChoices) do
+                if c.threadEnv then
+                    s.canContinue = true
+                    break
+                end
+            end
+        end
     end
 
     s.choosePathString = function(knotName)

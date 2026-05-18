@@ -122,7 +122,7 @@ return function(globalTree, env, noKnot, listDefinitions)
                 n.body = preProcess(n.body)
             end
             if is('stitch', n) then
-                knots[lastKnot][n.name] = { pointer = p, tree = t }
+                knots[lastKnot][n.name] = { pointer = p, tree = t, params = n.args }
                 if lastKnot ~= noKnot then
                     env[lastKnot]._children = env[lastKnot]._children or {}
                     env[lastKnot]._children[n.name] = node.int(0)

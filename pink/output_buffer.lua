@@ -186,6 +186,9 @@ local joinToLines = function(buffer, midExpressionEnd)
         hadTrailingNl = true
         table.remove(result, #result)
     else
+        -- no trailing '\n' means no natural paragraph break; suppress trailing '\n' only
+        -- when ->END explicitly cut the line short (midExpressionEnd), otherwise keep it
+        -- (e.g. ->DONE in option body, or source file without trailing newline)
         hadTrailingNl = not midExpressionEnd
     end
     return result, hadTrailingNl
@@ -196,12 +199,11 @@ return function()
     return {
         buffer = {},
         hadTrailingGlue = false,
-        -- true unless midExpressionEnd cut the line short; returned by popLine() so
-        -- continue() knows whether to append '\n'
+        -- true when collect() found a trailing '\n' in the buffer (natural paragraph break)
         hadTrailingNl = false,
-        -- set by goTo when ->END fires inside an inline if/seq branch; line is incomplete, suppress trailing '\n'
+        -- set by goTo('END') to suppress the trailing '\n' on the final line
         midExpressionEnd = false,
-        -- prevents a second collect() from re-running and overwriting hadTrailingNl/midExpressionEnd
+        -- prevents a second collect() from re-running and overwriting hadTrailingNl
         needsCollect = false,
         instr = function(self, instr)
             self.needsCollect = true

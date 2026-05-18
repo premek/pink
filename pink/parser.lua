@@ -631,8 +631,8 @@ return function(input, source)
         consumeWhitespace()
         local id = identifier()
         consumeWhitespace()
-        local args = listOf(argument)
-        return token(node.stitch(id, args))
+        local params = parameters()
+        return token(node.stitch(id, params))
     end
 
     local gather = function(minNesting)
