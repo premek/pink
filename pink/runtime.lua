@@ -27,6 +27,7 @@ return function(globalTree)
     local turns = 0
     local turnAtVisit = {}
     local turnHadOutput = false -- true when at least one line of text was output this turn
+    local threadChoicesAdded = false -- true when runThread added choices to s.currentChoices this turn
 
     local rootEnv = createBuiltins({
         getEnv = function(...)
@@ -866,6 +867,7 @@ return function(globalTree)
                 c.threadFrames = threadFrames
             end
             table.insert(s.currentChoices, c)
+            threadChoicesAdded = true
         end
 
         tree, pointer, env, currentAddr = savedTree, savedPointer, savedEnv, savedAddr
@@ -1040,6 +1042,9 @@ return function(globalTree)
         local res = ''
         local trailingGlue = false
         local hadNl = true
+        -- rawHadContent: was there anything to potentially collect (before processing)?
+        -- bufferWasEmpty: did anything survive after collect() reduced the buffer?
+        -- A buffer with only {nl=true} has rawHadContent=true but bufferWasEmpty=true.
         local rawHadContent = #outputBuffer.buffer > 0
         local bufferWasEmpty = outputBuffer:isEmpty()
         if not bufferWasEmpty then
@@ -1070,15 +1075,7 @@ return function(globalTree)
             elseif #s.currentChoices > 0 then
                 -- when thread choices are present and a turn has been taken with no text output,
                 -- emit an extra blank line (the thread transition creates a paragraph break)
-                local hasThreadChoices = false
-                if turns > 0 and not turnHadOutput then
-                    for _, c in ipairs(s.currentChoices) do
-                        if c.threadEnv then
-                            hasThreadChoices = true
-                            break
-                        end
-                    end
-                end
+                local hasThreadChoices = turns > 0 and not turnHadOutput and threadChoicesAdded
                 return hasThreadChoices and '\n\n' or '\n'
             elseif rawHadContent then
                 return '\n' -- buffer had nl-only content (e.g. loop ended at gather)
@@ -1139,19 +1136,15 @@ return function(globalTree)
         s.currentChoices = {}
         turns = turns + 1
         turnHadOutput = false
+        threadChoicesAdded = false
         update()
         -- canContinue() returns false when choices are present, even if the buffer has text
         -- to output. Force s.canContinue so continue() is called to drain pending output.
         if not outputBuffer:isEmpty() then
             s.canContinue = true
-        elseif not s.canContinue then
-            -- buffer empty: still need continue() if thread choices need a paragraph separator
-            for _, c in ipairs(s.currentChoices) do
-                if c.threadEnv then
-                    s.canContinue = true
-                    break
-                end
-            end
+        elseif not s.canContinue and threadChoicesAdded then
+            -- buffer empty: still need continue() so the thread-choice paragraph separator is emitted
+            s.canContinue = true
         end
     end
 
