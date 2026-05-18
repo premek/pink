@@ -136,7 +136,9 @@ return function(globalTree, env, noKnot, listDefinitions)
                     knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
                     if lastKnot ~= noKnot then
                         env[lastKnot]._children = env[lastKnot]._children or {}
-                        env[lastKnot]._children._children = env[lastKnot]._children._children or {}
+                        env[lastKnot]._children[lastStitch] = env[lastKnot]._children[lastStitch] or node.int(0)
+                        env[lastKnot]._children[lastStitch]._children = env[lastKnot]._children[lastStitch]._children
+                            or {}
                         env[lastKnot]._children[lastStitch]._children[n.label] = node.int(0)
                     else
                         env[n.label] = node.int(0)

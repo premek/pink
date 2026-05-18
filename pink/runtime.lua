@@ -173,15 +173,23 @@ return function(globalTree)
         local first, rest = splitName(name)
         local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
-            -- check if it's a gather label in the current knot (e.g. 'done' inside 'review_case_notes')
-            if currentKnot and #rest == 0 then
+            if currentKnot then
                 local knotEntry = getEnvOptional(currentKnot, rootEnv)
-                if knotEntry and knotEntry._children and knotEntry._children[name] then
-                    return knotEntry._children[name], rootEnv
+                if knotEntry and knotEntry._children then
+                    if #rest == 0 and knotEntry._children[name] then
+                        -- bare label directly under current knot (e.g. 'done' inside 'review_case_notes')
+                        return knotEntry._children[name], rootEnv
+                    elseif #rest > 0 and knotEntry._children[first] then
+                        -- stitch.label path relative to current knot (e.g. 'stitch_one.gatherpoint')
+                        val = knotEntry._children[first]
+                        e = rootEnv
+                    end
                 end
             end
-            warn('variable not found: ' .. name .. ', using default value of 0', token)
-            return node.int(0), env
+            if val == nil then
+                warn('variable not found: ' .. name .. ', using default value of 0', token)
+                return node.int(0), env
+            end
         end
         val = getChildren(first, rest, val, token)
         return val, e
@@ -329,27 +337,55 @@ return function(globalTree)
         end
 
         if path:find('%.') ~= nil then
-            -- TODO proper path resolve - could be stitch.gather or knot.stitch.gather or something else?
-            local _, _, p1, p2 = path:find('(.+)%.(.+)')
+            local parts = {}
+            for part in path:gmatch('[^%.]+') do
+                table.insert(parts, part)
+            end
+            local entry
+            if #parts == 2 then
+                entry = knots[parts[1]] and knots[parts[1]][parts[2]]
+                if entry then
+                    currentKnot = parts[1]
+                    currentStitch = nil
+                end
+            elseif #parts == 3 then
+                entry = knots[parts[1]] and knots[parts[1]][parts[2]] and knots[parts[1]][parts[2]][parts[3]]
+                if entry then
+                    currentKnot = parts[1]
+                    currentStitch = parts[2]
+                end
+            end
+            if not entry then
+                err('unknown path: ' .. path)
+                return
+            end
+            pointer = entry.pointer
+            tree = entry.tree
 
-            pointer = knots[p1][p2].pointer
-            tree = knots[p1][p2].tree
-
-            -- enter inside the knot
             if isNext('knot') then
                 next()
             end
 
-            incrementSeenCounter(path)
+            if #parts == 2 then
+                -- count the stitch visit; stitch node is skipped below so update() won't count it
+                incrementSeenCounter(path)
+            end
+            -- for 3-part (knot.stitch.gather), let the gather node update count the visit
 
-            -- FIXME duplicates
-            currentKnot = p1
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
                 next()
             end
+            if isNext('option') then
+                local option = tree[pointer]
+                markOptionUsed(option)
+                returnTo(option.body, bodyAddr(option))
+                returnTo(option.t3, t3Addr(option))
+                stepInto(option.t1, nil, nil, t1Addr(option))
+            end
         elseif knots[currentKnot] and knots[currentKnot][path] then
             local stitchEntry = knots[currentKnot][path]
+            currentStitch = path
             pointer = stitchEntry.pointer
             tree = stitchEntry.tree
             if isNext('gather') then
@@ -414,8 +450,10 @@ return function(globalTree)
             incrementSeenCounter(path) -- TODO not just knots
 
             currentKnot = path
+            currentStitch = nil
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
+                currentStitch = tree[pointer].name
                 incrementSeenCounter(path .. '.' .. tree[pointer].name)
                 next()
             end
@@ -701,6 +739,7 @@ return function(globalTree)
             outputBuffer:nl()
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
+            currentStitch = n.name
             incrementSeenCounter(n.name)
         end,
         ink = function(n)
@@ -708,8 +747,10 @@ return function(globalTree)
         end,
         gather = function(n)
             if n.label then
-                if currentKnot then
-                    incrementSeenCounter(currentKnot .. '.' .. n.label) -- TODO
+                if currentKnot and currentStitch then
+                    incrementSeenCounter(currentKnot .. '.' .. currentStitch .. '.' .. n.label)
+                elseif currentKnot then
+                    incrementSeenCounter(currentKnot .. '.' .. n.label)
                 else
                     incrementSeenCounter(n.label)
                 end
