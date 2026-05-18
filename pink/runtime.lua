@@ -868,7 +868,9 @@ return function(globalTree)
                 else
                     local executed = false
                     for _, fallback in ipairs(fallbacks) do
-                        if getOptionConditionsResult(fallback) then
+                        local sticky = fallback.sticky == 'sticky'
+                        if (sticky or not isOptionUsed(fallback)) and getOptionConditionsResult(fallback) then
+                            markOptionUsed(fallback)
                             if gather then
                                 returnToGather(gather.body, bodyAddr(gather))
                             end
@@ -986,7 +988,9 @@ return function(globalTree)
                     doUpdate = true
                 end
                 for _, fallback in ipairs(fallbacks) do
-                    if getOptionConditionsResult(fallback) then
+                    local sticky = fallback.sticky == 'sticky'
+                    if (sticky or not isOptionUsed(fallback)) and getOptionConditionsResult(fallback) then
+                        markOptionUsed(fallback)
                         if gather then
                             returnToGather(gather.body, bodyAddr(gather))
                         end
