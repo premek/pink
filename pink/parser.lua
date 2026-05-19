@@ -1366,7 +1366,21 @@ return function(input, source)
         elseif ahead('*') or ahead('+') then
             return choice(minNesting)
         elseif ahead('-') then
-            return nil ----------------gather()
+            -- peek at gather nesting: absorb gathers at >= minNesting (inside this option),
+            -- stop for gathers at < minNesting (they belong to an outer scope)
+            local mark = newMark()
+            local n = 0
+            while ahead('-') and not ahead('->') do
+                consume('-')
+                n = n + 1
+                consumeWhitespace()
+            end
+            resetTo(mark)
+            if n >= minNesting then
+                return gather(n)
+            else
+                return nil
+            end
         elseif ahead('#') then
             return tag()
         elseif ahead('CONST') then -- TODO must be on new line?
