@@ -28,6 +28,10 @@ return function(globalTree)
     local turnAtVisit = {}
     local turnHadOutput = false -- true when at least one line of text was output this turn
     local threadChoicesAdded = false -- true when runThread added choices to s.currentChoices this turn
+    -- true when choices were collected inside an inline frame; must step out before presenting
+    local choicesNeedDrain = false
+    -- callstack depth after the most recent goTo; frames above this belong to the current knot context
+    local lastDivertDepth = 0
 
     local rootEnv = createBuiltins({
         getEnv = function(...)
@@ -327,6 +331,7 @@ return function(globalTree)
             if path == 'END' or #s.currentChoices == 0 then
                 callstack.clear()
             end
+            choicesNeedDrain = false
             return
         end
 
@@ -462,6 +467,7 @@ return function(globalTree)
         end
 
         -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
+        lastDivertDepth = callstack.size()
     end
 
     -- "run" the node and return the return value
@@ -708,6 +714,11 @@ return function(globalTree)
             stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
         tunnelreturn = function()
+            if choicesNeedDrain then
+                -- stop the drain here; don't exit the tunnel before the user picks a choice
+                choicesNeedDrain = false
+                return
+            end
             stepOut('tunnel')
         end,
 
@@ -808,7 +819,9 @@ return function(globalTree)
         local savedTree, savedPointer, savedEnv, savedAddr = tree, pointer, env, currentAddr
         local savedKnot, savedStitch = currentKnot, currentStitch
         local mainCallstack = callstack
+        local savedLastDivertDepth = lastDivertDepth
         callstack = newStack()
+        lastDivertDepth = 0
 
         goTo(n.target, n.args)
 
@@ -904,6 +917,7 @@ return function(globalTree)
 
         local threadFrames = callstack.clear()
         callstack = mainCallstack
+        lastDivertDepth = savedLastDivertDepth
 
         for _, c in ipairs(threadChoices) do
             if #threadFrames > 0 then
@@ -942,6 +956,14 @@ return function(globalTree)
         end
 
         if isNext('divert') then
+            if choicesNeedDrain then
+                local target = tree[pointer].target
+                if target ~= 'DONE' and target ~= 'END' then
+                    choicesNeedDrain = false
+                    s.canContinue = canContinue()
+                    return
+                end
+            end
             goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
             update()
             return
@@ -1005,7 +1027,16 @@ return function(globalTree)
                 end
             end
 
+            for i = lastDivertDepth + 1, callstack.size() do
+                if callstack.get(i).fn == 'inline' then
+                    choicesNeedDrain = true
+                    break
+                end
+            end
             next()
+            if choicesNeedDrain then
+                update()
+            end
             return
         end
 
@@ -1033,14 +1064,21 @@ return function(globalTree)
 
         if isEnd() then
             --FIXME refactor so we don't need this if
-            if #s.currentChoices == 0 then
-                if not callstack.isEmpty() then
+            if not callstack.isEmpty() then
+                local topFn = callstack.get(callstack.size()).fn
+                local aboveBoundary = callstack.size() > lastDivertDepth
+                local canStepOut = #s.currentChoices == 0
+                    or (choicesNeedDrain and aboveBoundary and topFn ~= 'fn' and topFn ~= 'tunnel')
+                if canStepOut then
                     stepOut()
                     _debug('step out at end')
                     next()
                     update()
                     return
                 end
+            end
+            if choicesNeedDrain then
+                choicesNeedDrain = false
             end
             next()
             s.canContinue = canContinue()
@@ -1098,8 +1136,8 @@ return function(globalTree)
         _debug('OUT:', res)
         s.currentTags = tags
         tags = {}
-        if #s.currentChoices == 0 then
-            update() -- advance to next output; skip if choices already populated
+        if #s.currentChoices == 0 or choicesNeedDrain then
+            update() -- advance to next output; skip if choices already populated (unless draining inline frames)
         end
         -- if update() added content to a truly empty buffer (no prior content this call),
         -- pop it now so it's returned as text rather than as a blank separator
@@ -1182,6 +1220,7 @@ return function(globalTree)
         turns = turns + 1
         turnHadOutput = false
         threadChoicesAdded = false
+        choicesNeedDrain = false
         update()
         -- canContinue() returns false when choices are present, even if the buffer has text
         -- to output. Force s.canContinue so continue() is called to drain pending output.
