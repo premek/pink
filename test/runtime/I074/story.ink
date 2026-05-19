@@ -1,11 +1,6 @@
+~ SEED_RANDOM(121)
 LIST l = A, (B), (C), (D), E
 {LIST_RANDOM(l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
 {LIST_RANDOM (l)}
 {LIST_RANDOM (l)}
 {LIST_RANDOM (l)}

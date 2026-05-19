@@ -501,6 +501,9 @@ node.listRandom = function(a)
     if #els == 0 then
         return node.list({})
     end
+    table.sort(els, function(x, y)
+        return x.listName .. '.' .. x.elName < y.listName .. '.' .. y.elName
+    end)
     return els[math.random(1, #els)]
 end
 
