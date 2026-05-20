@@ -7,13 +7,14 @@ local createBuiltins = require(base_path .. 'builtins')
 local compile = require(base_path .. 'compiler')
 local logging = require(base_path .. 'logging')
 local newStack = require(base_path .. 'stack')
+local random = require(base_path .. 'random')
 local err = logging.error
 local warn = logging.warn
 local _debug = logging.debug
 local requireType = node.requireType
 local is = node.is
 
-math.randomseed(os.time())
+random.seed(os.time())
 local unpack = table.unpack or unpack
 
 local noKnot = {} -- sentinel key for top-level content not inside any knot
@@ -654,7 +655,7 @@ return function(globalTree)
         end
         local perm = {}
         for i = shuffleLen, 1, -1 do
-            local j = math.random(i)
+            local j = random.int(1, i)
             table.insert(perm, table.remove(indices, j))
         end
         for _, idx in ipairs(indices) do

@@ -1,5 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local logging = require(base_path .. 'logging')
+local random = require(base_path .. 'random')
 local err = logging.error
 local _debug = logging.debug
 
@@ -504,7 +505,7 @@ node.listRandom = function(a)
     table.sort(els, function(x, y)
         return x.listName .. '.' .. x.elName < y.listName .. '.' .. y.elName
     end)
-    return els[math.random(1, #els)]
+    return els[random.int(1, #els)]
 end
 
 node.listIntersection = function(a, b)

@@ -2,9 +2,9 @@
 
 DIFF="colordiff  --side-by-side --suppress-common-lines"
 DIFF="cmp -s" #no diff output
-LUAS="lua5.3"
-#LUAS="lua5.1 lua5.3 lua5.4 luajit"
+
 # Override from env: LUAS="lua5.1 lua5.3 lua5.4 luajit" ./test/test.sh
+LUAS="${LUAS:-lua}"
 
 start=$(date +%s.%N)
 
@@ -64,17 +64,19 @@ for P in $PATTERNS; do
     done
 
   elif [ "$P" = "api" ]; then
-    TESTS=$((TESTS+1))
-    FAILED_VERS=""
-    for LUA in $LUAS; do
-      $LUA ./test/api.lua >/dev/null 2>&1 || FAILED_VERS="$FAILED_VERS $LUA"
+    for SUITE in api.lua random.lua; do
+      TESTS=$((TESTS+1))
+      FAILED_VERS=""
+      for LUA in $LUAS; do
+        $LUA "./test/$SUITE" >/dev/null 2>&1 || FAILED_VERS="$FAILED_VERS $LUA"
+      done
+      if [ -z "$FAILED_VERS" ]; then
+        PASSED="$PASSED\n$SUITE" && PASSES=$((PASSES+1))
+      else
+        printf "%s fail:%s\n" "$SUITE" "$FAILED_VERS"
+        RET=1
+      fi
     done
-    if [ -z "$FAILED_VERS" ]; then
-      PASSED="$PASSED\n$P" && PASSES=$((PASSES+1))
-    else
-      printf "api fail:%s\n" "$FAILED_VERS"
-      RET=1
-    fi
 
   else
     for D in "./$DIR/test/runtime/"$P; do
@@ -84,7 +86,9 @@ for P in $PATTERNS; do
       printf '%s ' "$TESTCASE"
       FAILED_VERS=""
       for LUA in $LUAS; do
-        $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$D/story.ink" < "$D/input.txt" 2>&1 \
+        STORY="$D/story.ink"
+        [ -f "$D/setup.ink" ] && STORY="$D/setup.ink"
+        $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
           | $DIFF "$D/transcript.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
       done
       if [ -z "$FAILED_VERS" ]; then

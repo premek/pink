@@ -4,7 +4,18 @@
 -- logging.debug(foo, bar, {foo=bar})
 -- note: every time it's required the same instance is used, so the 'enabled' flag is shared
 
-local dump = require('test/lib/luaunit').prettystr -- TODO optional dep
+local function dump(v, indent)
+    indent = indent or 0
+    local t = type(v)
+    if t == 'table' then
+        local s = '{\n'
+        for k, val in pairs(v) do
+            s = s .. string.rep('  ', indent + 1) .. tostring(k) .. ' = ' .. dump(val, indent + 1) .. ',\n'
+        end
+        return s .. string.rep('  ', indent) .. '}'
+    end
+    return tostring(v)
+end
 
 local logging = {
     debugEnabled = false,

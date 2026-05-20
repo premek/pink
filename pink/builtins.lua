@@ -1,6 +1,7 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local node = require(base_path .. 'node')
 local logging = require(base_path .. 'logging')
+local random = require(base_path .. 'random')
 local err = logging.error
 local _debug = logging.debug
 local requireType = node.requireType
@@ -38,12 +39,12 @@ return function(deps)
 
     local seedRandom = function(a)
         requireType(a, 'float', 'int')
-        math.randomseed(a.value)
+        random.seed(a.value)
     end
-    local random = function(minInclusive, maxInclusive)
+    local randomFn = function(minInclusive, maxInclusive)
         requireType(minInclusive, 'int')
         requireType(maxInclusive, 'int')
-        return node.int(math.random(minInclusive.value, maxInclusive.value))
+        return node.int(random.int(minInclusive.value, maxInclusive.value))
     end
 
     local add = function(a, b)
@@ -301,7 +302,7 @@ return function(deps)
     builtins.INT = node.native(int)
     builtins.FLOAT = node.native(float)
     builtins.SEED_RANDOM = node.native(seedRandom)
-    builtins.RANDOM = node.native(random)
+    builtins.RANDOM = node.native(randomFn)
     builtins.READ_COUNT = node.native(readCount)
     builtins.CHOICE_COUNT = node.native(choiceCount)
     builtins.TURNS = node.native(turnsFn)

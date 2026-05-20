@@ -1,4 +1,3 @@
-~SEED_RANDOM(10)
 -(loop)
 
 { shuffle stopping:
