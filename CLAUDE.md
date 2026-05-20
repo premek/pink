@@ -62,6 +62,7 @@ Run `stylua` before running tests.
 ./test/test.sh              # Run all tests, including linting
 ./test/test.sh I129         # Run a single test by name
 ./test/test.sh "W1.3.*"     # Run tests matching a pattern
+LUAS="lua5.1 lua5.3 lua5.4 luajit" ./test/test.sh   # Run against multiple Lua versions
 ```
 
 **Zero regressions policy:** a change is only acceptable if no previously-passing test starts failing.
