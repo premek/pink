@@ -31,6 +31,7 @@ return function(globalTree)
     local threadChoicesAdded = false -- true when runThread added choices to s.currentChoices this turn
     -- true when choices were collected inside an inline frame; must step out before presenting
     local choicesNeedDrain = false
+    local endedByDivert = false
     -- callstack depth after the most recent goTo; frames above this belong to the current knot context
     local lastDivertDepth = 0
 
@@ -320,12 +321,7 @@ return function(globalTree)
         _debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
-            -- ->END with buffered content: the nl that would follow was never reached,
-            -- so suppress the trailing '\n' that continue() would otherwise append.
-            -- ->DONE is a natural path end; keep the trailing '\n'.
-            if path == 'END' and #outputBuffer.buffer > 0 then
-                outputBuffer.midExpressionEnd = true
-            end
+            endedByDivert = true
             pointer = #tree + 1
             -- DONE with pending thread choices: leave callstack intact so thread
             -- continuations (e.g. ->-> tunnel returns) still work when a choice is made.
@@ -732,9 +728,10 @@ return function(globalTree)
         out = nodeUpdateOut,
 
         seq = function(n)
-            -- TODO not needed when continue stops on each end of line???
-            outputBuffer:instr('outBlockStart')
             local branch, branchIdx = seqPickBranch(n)
+            if branch then
+                outputBuffer:instr('outBlockStart')
+            end
             return branch, branch and seqBranchAddr(n, branchIdx)
         end,
 
@@ -1154,15 +1151,13 @@ return function(globalTree)
             s.canContinue = false
         end
         if res == '' then
-            if not bufferWasEmpty then
+            if not bufferWasEmpty and not endedByDivert then
                 return '\n' -- whitespace-only line → blank line
             elseif #s.currentChoices > 0 then
                 -- when thread choices are present and a turn has been taken with no text output,
                 -- emit an extra blank line (the thread transition creates a paragraph break)
                 local hasThreadChoices = turns > 0 and not turnHadOutput and threadChoicesAdded
                 return hasThreadChoices and '\n\n' or '\n'
-            elseif rawHadContent then
-                return '\n' -- buffer had nl-only content (e.g. loop ended at gather)
             else
                 return '' -- story ended with no output
             end
@@ -1170,8 +1165,8 @@ return function(globalTree)
             turnHadOutput = true
             return res .. '\n'
         elseif #s.currentChoices == 0 then
-            -- story ended; omit \n if the line was cut short (e.g. ->END mid-text)
-            return res .. (hadNl and '\n' or '')
+            -- story ended; natural EOF always gets \n; ->END/DONE only gets \n if buffer had one
+            return res .. ((hadNl or not endedByDivert) and '\n' or '')
         else
             turnHadOutput = true
             return res .. '\n\n'
@@ -1222,6 +1217,7 @@ return function(globalTree)
         turnHadOutput = false
         threadChoicesAdded = false
         choicesNeedDrain = false
+        endedByDivert = false
         update()
         -- canContinue() returns false when choices are present, even if the buffer has text
         -- to output. Force s.canContinue so continue() is called to drain pending output.

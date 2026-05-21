@@ -150,7 +150,7 @@ local collapseDoubleNewlines = function(buffer)
     return t
 end
 
-local joinToLines = function(buffer, midExpressionEnd)
+local joinToLines = function(buffer)
     local t = { '' }
     for _, e in ipairs(buffer) do
         if e ~= '\n' then
@@ -181,15 +181,9 @@ local joinToLines = function(buffer, midExpressionEnd)
             s = ''
         end
     end
-    local hadTrailingNl
-    if result[#result] == '\n' then
-        hadTrailingNl = true
+    local hadTrailingNl = result[#result] == '\n'
+    if hadTrailingNl then
         table.remove(result, #result)
-    else
-        -- no trailing '\n' means no natural paragraph break; suppress trailing '\n' only
-        -- when ->END explicitly cut the line short (midExpressionEnd), otherwise keep it
-        -- (e.g. ->DONE in option body, or source file without trailing newline)
-        hadTrailingNl = not midExpressionEnd
     end
     return result, hadTrailingNl
 end
@@ -201,8 +195,6 @@ return function()
         hadTrailingGlue = false,
         -- true when collect() found a trailing '\n' in the buffer (natural paragraph break)
         hadTrailingNl = false,
-        -- set by goTo('END') to suppress the trailing '\n' on the final line
-        midExpressionEnd = false,
         -- prevents a second collect() from re-running and overwriting hadTrailingNl
         needsCollect = false,
         instr = function(self, instr)
@@ -231,9 +223,8 @@ return function()
             buf = applyTrimEnd(buf)
             buf = removeEmptyTrim(buf)
             buf = collapseDoubleNewlines(buf)
-            buf, self.hadTrailingNl = joinToLines(buf, self.midExpressionEnd)
+            buf, self.hadTrailingNl = joinToLines(buf)
             self.buffer = buf
-            self.midExpressionEnd = false
             _debug('collect end', self.buffer)
         end,
         popLine = function(self)
@@ -260,7 +251,6 @@ return function()
             local snapshot = { buffer = self.buffer, needsCollect = self.needsCollect }
             self.buffer = {}
             self.hadTrailingNl = false
-            self.midExpressionEnd = false
             self.needsCollect = false
             return snapshot
         end,
