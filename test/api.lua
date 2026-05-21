@@ -46,6 +46,33 @@ function testRInclude()
     --luaunit.assertFalse(story.canContinue)
 end
 
+function testAbsoluteIncludePath()
+    local deepPath = os.tmpname() .. '.ink'
+    local midPath = os.tmpname() .. '.ink'
+    local mainPath = os.tmpname() .. '.ink'
+    local f = io.open(deepPath, 'w')
+    f:write('deep\n')
+    f:close()
+    f = io.open(midPath, 'w')
+    f:write('INCLUDE ' .. deepPath .. '\nmid\n')
+    f:close()
+    f = io.open(mainPath, 'w')
+    f:write('INCLUDE ' .. midPath .. '\nmain\n')
+    f:close()
+    local ok, result = pcall(function()
+        local story = pink(mainPath)
+        luaunit.assertEquals(story.continue(), 'deep\n')
+        luaunit.assertEquals(story.continue(), 'mid\n')
+        luaunit.assertEquals(story.continue(), 'main\n')
+    end)
+    os.remove(deepPath)
+    os.remove(midPath)
+    os.remove(mainPath)
+    if not ok then
+        error(result)
+    end
+end
+
 function testRTags()
     --local story = pink('test/tags.ink')
     --luaunit.assertEquals(story.globalTags, {"author: Joseph Humfrey", "title: My Wonderful Ink Story"})
