@@ -19,7 +19,7 @@ done
 shift $((OPTIND-1))
 
 PATTERNS="$*"
-test -z "$PATTERNS" && PATTERNS="I* W* P* api lua sh"
+test -z "$PATTERNS" && PATTERNS="I* W* P* X* api lua sh"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
