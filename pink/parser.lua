@@ -165,8 +165,7 @@ return function(input, source)
     end
 
     local currentText = function(startPos)
-        local result, _ = input:sub(startPos, current - 1):gsub('%s+', ' ')
-        return result
+        return input:sub(startPos, current - 1)
     end
 
     local singleLineComment = function()

@@ -164,7 +164,7 @@ local joinToLines = function(buffer)
     while t[#t] == '' do -- eh
         table.remove(t, #t) -- remove the last empty placeholder
     end
-    if t[#t] == ' ' then -- eh
+    if t[#t] and t[#t] ~= '\n' and trim(t[#t]) == '' then
         table.remove(t, #t)
     end
     local str = table.concat(t)
