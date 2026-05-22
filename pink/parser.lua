@@ -720,16 +720,16 @@ return function(input, source)
             end
         end
 
-        local t1 = optionText({ stopAt = { '[' } })
+        local sharedStartText = optionText({ stopAt = { '[' } })
 
-        local t2 = nil
+        local choiceOnlyText = nil
         if ahead('[') then
             consume('[')
-            t2 = optionText({ stopAt = { ']' } })
+            choiceOnlyText = optionText({ stopAt = { ']' } })
             consume(']')
         end
 
-        local t3 = optionText()
+        local bodyOnlyText = optionText()
 
         consumeWhitespace()
 
@@ -738,7 +738,19 @@ return function(input, source)
 
         local body = optionBody(nesting + 1) -- the parameter will come back to this function as minNesting
         -- TODO use named arguments or some other mechanism
-        return token(node.option(nesting, { t1 }, { t2 }, { t3 }, name, sticky, conditions, body, fallback))
+        return token(
+            node.option(
+                nesting,
+                { sharedStartText },
+                { choiceOnlyText },
+                { bodyOnlyText },
+                name,
+                sticky,
+                conditions,
+                body,
+                fallback
+            )
+        )
     end
 
     -- choice wraps multiple options + an optional gather

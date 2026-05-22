@@ -102,13 +102,23 @@ end
 node.nl = function()
     return { type = 'nl' }
 end
-node.option = function(nesting, t1, t2, t3, label, sticky, conditions, body, fallback)
+node.option = function(
+    nesting,
+    sharedStartText,
+    choiceOnlyText,
+    bodyOnlyText,
+    label,
+    sticky,
+    conditions,
+    body,
+    fallback
+)
     return {
         type = 'option',
         nesting = nesting,
-        t1 = t1,
-        t2 = t2,
-        t3 = t3,
+        sharedStartText = sharedStartText,
+        choiceOnlyText = choiceOnlyText,
+        bodyOnlyText = bodyOnlyText,
         label = label,
         sticky = sticky,
         conditions = conditions,

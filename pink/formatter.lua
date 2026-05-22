@@ -117,13 +117,13 @@ local nodeFormatters = {
         outNewLine(ctx.indent)
         out(string.rep('*', node.nesting))
         out('  ')
-        format(node.t1, ctx)
-        if #node.t2 > 0 then
+        format(node.sharedStartText, ctx)
+        if #node.choiceOnlyText > 0 then
             out('[')
-            format(node.t2, ctx)
+            format(node.choiceOnlyText, ctx)
             out(']')
         end
-        format(node.t3, ctx)
+        format(node.bodyOnlyText, ctx)
         format(node.body, ctx:with({ indent = ctx.indent + node.nesting + 2 }))
     end,
     gather = function(node, ctx)

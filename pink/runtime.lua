@@ -93,14 +93,14 @@ return function(globalTree)
     local nodesAddr = function(n)
         return addr(n, 'nodes')
     end
-    local t1Addr = function(n)
-        return addr(n, 't1')
+    local sharedStartTextAddr = function(n)
+        return addr(n, 'sharedStartText')
     end
-    local t2Addr = function(n)
-        return addr(n, 't2')
+    local choiceOnlyTextAddr = function(n)
+        return addr(n, 'choiceOnlyText')
     end
-    local t3Addr = function(n)
-        return addr(n, 't3')
+    local bodyOnlyTextAddr = function(n)
+        return addr(n, 'bodyOnlyText')
     end
     local seqBranchAddr = function(n, i)
         return addr(n, 'branches', i)
@@ -382,8 +382,8 @@ return function(globalTree)
                 local option = tree[pointer]
                 markOptionUsed(option)
                 returnTo(option.body, bodyAddr(option))
-                returnTo(option.t3, t3Addr(option))
-                stepInto(option.t1, nil, nil, t1Addr(option))
+                returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
+                stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
             end
         elseif knots[currentKnot] and knots[currentKnot][path] then
             local stitchEntry = knots[currentKnot][path]
@@ -430,8 +430,8 @@ return function(globalTree)
                 -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
                 markOptionUsed(option)
                 returnTo(option.body, bodyAddr(option))
-                returnTo(option.t3, t3Addr(option))
-                stepInto(option.t1, nil, nil, t1Addr(option))
+                returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
+                stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
             end
             if isNext('gather') then
                 tree = tree[pointer].body
@@ -799,13 +799,13 @@ return function(globalTree)
         -- Evaluate t1 and t2 directly without a boundary frame so the callstack
         -- is empty when each block ends, preventing update() from escaping into
         -- the parent story context via the stepOut path.
-        tree = option.t1
+        tree = option.sharedStartText
         pointer = 1
-        currentAddr = t1Addr(option)
+        currentAddr = sharedStartTextAddr(option)
         update()
-        tree = option.t2
+        tree = option.choiceOnlyText
         pointer = 1
-        currentAddr = t2Addr(option)
+        currentAddr = choiceOnlyTextAddr(option)
         update()
         local text = outputBuffer:popLine()
         tree, pointer, currentAddr = savedTree, savedPointer, savedAddr
@@ -1209,8 +1209,8 @@ return function(globalTree)
         end
 
         returnTo(choice.option.body, bodyAddr(choice.option))
-        returnTo(choice.option.t3, t3Addr(choice.option))
-        stepInto(choice.option.t1, nil, nil, t1Addr(choice.option))
+        returnTo(choice.option.bodyOnlyText, bodyOnlyTextAddr(choice.option))
+        stepInto(choice.option.sharedStartText, nil, nil, sharedStartTextAddr(choice.option))
 
         s.currentChoices = {}
         turns = turns + 1
