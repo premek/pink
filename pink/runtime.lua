@@ -796,7 +796,7 @@ return function(globalTree)
     local evaluateOptionText = function(option)
         local snapshot = clear()
         local savedTree, savedPointer, savedAddr = tree, pointer, currentAddr
-        -- Evaluate t1 and t2 directly without a boundary frame so the callstack
+        -- Evaluate sharedStartText and choiceOnlyText directly without a boundary frame so the callstack
         -- is empty when each block ends, preventing update() from escaping into
         -- the parent story context via the stepOut path.
         tree = option.sharedStartText
@@ -1022,6 +1022,16 @@ return function(globalTree)
                 if doUpdate then
                     update()
                     return
+                end
+                -- no gather and no fallback; if a gatherBody frame exists we're stranded
+                -- inside a chosen option that has nowhere to go
+                for i = 1, callstack.size() do
+                    if callstack.get(i).gatherBody then
+                        logging.runtimeError('ran out of content')
+                        goTo('END')
+                        update()
+                        return
+                    end
                 end
             end
 

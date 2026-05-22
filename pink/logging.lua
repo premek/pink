@@ -56,6 +56,10 @@ logging.error = function(message, token)
     error(getLogMessage(message, token))
 end
 
+logging.runtimeError = function(message, token)
+    io.write('RUNTIME ERROR: ' .. getLogMessage(message, token) .. '\n')
+end
+
 logging.info = function()
     -- TODO
 end
