@@ -58,18 +58,40 @@ local insertOutBlockGlue = function(buffer)
     local t = {}
     for i = 1, #buffer do
         if buffer[i]['outBlockStart'] then
-            for j = i - 1, 0, -1 do
-                if buffer[j] and buffer[j]['trim'] then -- FIXME eh?
-                    break
-                end
-                if buffer[j] and type(buffer[j]) == 'string' then
-                    if buffer[j] ~= '\n' then
-                        table.insert(t, { glue = true })
+            -- For seq blocks: look ahead for a matching outBlockEnd with no real content
+            -- between them (empty branch). If so, skip glue insertion.
+            -- If-blocks have no outBlockEnd, so they always take the glue path.
+            local hasOutBlockEnd = false
+            local hasContent = false
+            local depth = 1
+            for j = i + 1, #buffer do
+                if buffer[j]['outBlockStart'] then
+                    depth = depth + 1
+                elseif buffer[j]['outBlockEnd'] then
+                    depth = depth - 1
+                    if depth == 0 then
+                        hasOutBlockEnd = true
+                        break
                     end
+                elseif type(buffer[j]) == 'string' and trim(buffer[j]) ~= '' then
+                    hasContent = true
                     break
                 end
             end
-        else
+            if not hasOutBlockEnd or hasContent then
+                for j = #t, 1, -1 do
+                    if t[j] and t[j]['trim'] then -- FIXME eh?
+                        break
+                    end
+                    if t[j] and type(t[j]) == 'string' then
+                        if t[j] ~= '\n' then
+                            table.insert(t, { glue = true })
+                        end
+                        break
+                    end
+                end
+            end
+        elseif not buffer[i]['outBlockEnd'] then
             table.insert(t, buffer[i])
         end
     end

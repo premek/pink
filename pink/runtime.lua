@@ -912,7 +912,7 @@ return function(globalTree)
                 end
                 local nextStep, nextAddr = updateFn(tree[pointer])
                 if nextStep then
-                    local inlineFn = (nodeType == 'if' or nodeType == 'seq') and 'inline' or nil
+                    local inlineFn = nodeType == 'seq' and 'seq-inline' or (nodeType == 'if' and 'inline' or nil)
                     stepInto(nextStep, nil, inlineFn, nextAddr)
                 else
                     next()
@@ -1043,7 +1043,7 @@ return function(globalTree)
             end
 
             for i = lastDivertDepth + 1, callstack.size() do
-                if callstack.get(i).fn == 'inline' then
+                if callstack.get(i).fn == 'inline' or callstack.get(i).fn == 'seq-inline' then
                     choicesNeedDrain = true
                     break
                 end
@@ -1085,7 +1085,11 @@ return function(globalTree)
                 local canStepOut = #s.currentChoices == 0
                     or (choicesNeedDrain and aboveBoundary and topFn ~= 'fn' and topFn ~= 'tunnel')
                 if canStepOut then
+                    local wasSeqInline = topFn == 'seq-inline'
                     stepOut()
+                    if wasSeqInline then
+                        outputBuffer:instr('outBlockEnd')
+                    end
                     _debug('step out at end')
                     next()
                     update()
@@ -1108,7 +1112,7 @@ return function(globalTree)
         local nextStep, nextAddr = updateFn(tree[pointer])
         if nextStep then
             -- 'if' and 'seq' are the only nodeUpdate handlers that emit {outBlockStart} before stepping in
-            local inlineFn = (nodeType == 'if' or nodeType == 'seq') and 'inline' or nil
+            local inlineFn = nodeType == 'seq' and 'seq-inline' or (nodeType == 'if' and 'inline' or nil)
             stepInto(nextStep, nil, inlineFn, nextAddr)
         else
             next()

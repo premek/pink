@@ -1049,16 +1049,22 @@ return function(input, source)
 
         local afterOpeningBrace = newMark()
 
-        -- TODO I108
-        -- {a||b} is a sequence of 3 inktests, not a single expression
-        -- { x < 10 || x > 20: ... is an expression
+        -- {a||b} must parse as a 3-branch stopping sequence, not boolean OR.
+        -- {x < 10 || x > 20: ...} is an expression (`:` follows, not `}`).
+        -- Guard: if `||` was consumed by the expression parser, `|` was eaten —
+        -- fall through to re-parse the whole thing as a sequence instead.
         local firstExpressionParsed, first = pcall(expression)
         consumeWhitespaceAndNewlines()
 
         if firstExpressionParsed and ahead('}') then
-            -- variable printing: {expression}
-            consume('}')
-            return token(node.out(first, opts))
+            local exprText = input:sub(afterOpeningBrace.current, current - 1)
+            if not exprText:find('|', 1, true) then
+                -- variable printing: {expression}
+                consume('}')
+                return token(node.out(first, opts))
+            end
+            -- `|` was consumed as part of `||` — fall through to re-parse as sequence
+            resetTo(afterOpeningBrace)
         end
 
         if firstExpressionParsed and ahead(':') then
