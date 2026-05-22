@@ -112,6 +112,25 @@ return function(globalTree, env, noKnot, listDefinitions)
                 if n.gather then
                     n.gather = preProcess({ n.gather })[1]
                 end
+                -- Link the gather to labeled option knot entries so goTo can set up the
+                -- gather continuation when a divert jumps directly to an option label.
+                if n.gather then
+                    for _, option in ipairs(n.options) do
+                        if option.label then
+                            local optEntry
+                            if lastStitch then
+                                optEntry = knots[lastKnot]
+                                    and knots[lastKnot][lastStitch]
+                                    and knots[lastKnot][lastStitch][option.label]
+                            else
+                                optEntry = knots[lastKnot] and knots[lastKnot][option.label]
+                            end
+                            if optEntry then
+                                optEntry.gather = n.gather
+                            end
+                        end
+                    end
+                end
             end
 
             if is('knot', n) then

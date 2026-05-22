@@ -381,6 +381,9 @@ return function(globalTree)
             if isNext('option') then
                 local option = tree[pointer]
                 markOptionUsed(option)
+                if entry.gather then
+                    returnToGather(entry.gather.body, bodyAddr(entry.gather))
+                end
                 returnTo(option.body, bodyAddr(option))
                 returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
                 stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
@@ -419,8 +422,9 @@ return function(globalTree)
             end
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[noKnot] and knots[noKnot][path] then
-            tree = knots[noKnot][path].tree -- TODO this is not stepInto, we dont want to step back, right?
-            pointer = knots[noKnot][path].pointer
+            local noKnotEntry = knots[noKnot][path]
+            tree = noKnotEntry.tree -- TODO this is not stepInto, we dont want to step back, right?
+            pointer = noKnotEntry.pointer
             if is('stitch', tree[pointer]) then
                 currentStitch = path
             end
@@ -429,6 +433,9 @@ return function(globalTree)
                 local option = tree[pointer]
                 -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
                 markOptionUsed(option)
+                if noKnotEntry.gather then
+                    returnToGather(noKnotEntry.gather.body, bodyAddr(noKnotEntry.gather))
+                end
                 returnTo(option.body, bodyAddr(option))
                 returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
                 stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
