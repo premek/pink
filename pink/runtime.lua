@@ -444,6 +444,19 @@ return function(globalTree)
                 incrementSeenCounter(currentKnot .. '.' .. path)
             end
         elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
+            if tunnel then
+                local entryNode = knots[noKnot][currentStitch][path].tree[knots[noKnot][currentStitch][path].pointer]
+                callstack.push({
+                    tree = tree,
+                    pointer = pointer,
+                    fn = tunnel,
+                    env = env,
+                    addr = currentAddr,
+                    savedKnot = currentKnot,
+                    savedStitch = currentStitch,
+                    gatherEntry = is('gather', entryNode) and entryNode.body or nil,
+                })
+            end
             tree = knots[noKnot][currentStitch][path].tree
             pointer = knots[noKnot][currentStitch][path].pointer
             if isNext('gather') then
