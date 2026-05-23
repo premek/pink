@@ -454,6 +454,19 @@ return function(globalTree)
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[noKnot] and knots[noKnot][path] then
             local noKnotEntry = knots[noKnot][path]
+            if tunnel then
+                local entryNode = noKnotEntry.tree[noKnotEntry.pointer]
+                callstack.push({
+                    tree = tree,
+                    pointer = pointer,
+                    fn = tunnel,
+                    env = env,
+                    addr = currentAddr,
+                    savedKnot = currentKnot,
+                    savedStitch = currentStitch,
+                    gatherEntry = is('gather', entryNode) and entryNode.body or nil,
+                })
+            end
             tree = noKnotEntry.tree -- TODO this is not stepInto, we dont want to step back, right?
             pointer = noKnotEntry.pointer
             if is('stitch', tree[pointer]) then
