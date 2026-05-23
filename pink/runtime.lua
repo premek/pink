@@ -201,9 +201,18 @@ return function(globalTree)
         return val, e
     end
 
-    local stepInto = function(block, newEnv, fn, blockAddr)
+    local stepInto = function(block, newEnv, fn, blockAddr, gatherEntryBlock)
         _debug('step into')
-        callstack.push({ tree = tree, pointer = pointer, fn = fn, env = env, addr = currentAddr })
+        callstack.push({
+            tree = tree,
+            pointer = pointer,
+            fn = fn,
+            env = env,
+            addr = currentAddr,
+            gatherEntry = gatherEntryBlock,
+            savedKnot = currentKnot,
+            savedStitch = currentStitch,
+        })
         currentAddr = blockAddr
         if newEnv then
             newEnv._parent = env -- TODO make parent unaccessible from the script
@@ -247,6 +256,10 @@ return function(globalTree)
         tree = frame.tree
         env = frame.env
         currentAddr = frame.addr
+        if frame.fn == 'tunnel' then
+            currentKnot = frame.savedKnot
+            currentStitch = frame.savedStitch
+        end
     end
 
     local incrementSeenCounter = function(path)
@@ -307,7 +320,9 @@ return function(globalTree)
     local discardGatherContinuations = function(gatherBody)
         local popCount = 0
         for i = callstack.size(), 1, -1 do
-            if callstack.get(i).gatherBody == gatherBody then
+            local frame = callstack.get(i)
+            -- stop at a returnToGather continuation frame OR at the gather-entry frame itself
+            if frame.gatherBody == gatherBody or frame.gatherEntry == gatherBody then
                 break
             end
             popCount = popCount + 1
@@ -389,11 +404,24 @@ return function(globalTree)
                 stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
             end
         elseif knots[currentKnot] and knots[currentKnot][path] then
+            if tunnel then
+                callstack.push({
+                    tree = tree,
+                    pointer = pointer,
+                    fn = tunnel,
+                    env = env,
+                    addr = currentAddr,
+                    savedKnot = currentKnot,
+                    savedStitch = currentStitch,
+                })
+            end
             local stitchEntry = knots[currentKnot][path]
+            local incomingStitch = currentStitch
             currentStitch = path
             pointer = stitchEntry.pointer
             tree = stitchEntry.tree
-            if isNext('gather') then
+            local isGatherEntry = isNext('gather')
+            if isGatherEntry then
                 -- navigate into the gather body (not skip past it)
                 tree = tree[pointer].body
                 pointer = 1
@@ -411,7 +439,10 @@ return function(globalTree)
                 newEnv._parent = env
                 env = newEnv
             end
-            incrementSeenCounter(currentKnot .. '.' .. path)
+            -- gather labels always increment; skip only for self-recursive stitch diverts
+            if isGatherEntry or incomingStitch ~= path then
+                incrementSeenCounter(currentKnot .. '.' .. path)
+            end
         elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
             tree = knots[noKnot][currentStitch][path].tree
             pointer = knots[noKnot][currentStitch][path].pointer
@@ -454,12 +485,14 @@ return function(globalTree)
             local params = knots[path].params
             local body = knots[path].tree
             local newEnv = getArgumentsEnv(params, args)
+            local incomingKnot = currentKnot
             stepInto(body, newEnv, tunnel, bodyAddr(knots[path]))
-
-            incrementSeenCounter(path) -- TODO not just knots
 
             currentKnot = path
             currentStitch = nil
+            if incomingKnot ~= path then
+                incrementSeenCounter(path) -- TODO not just knots
+            end
             -- automatically go to the first stitch (only) if there is no other content in the knot
             if isNext('stitch') then
                 currentStitch = tree[pointer].name
@@ -913,7 +946,8 @@ return function(globalTree)
                 local nextStep, nextAddr = updateFn(tree[pointer])
                 if nextStep then
                     local inlineFn = nodeType == 'seq' and 'seq-inline' or (nodeType == 'if' and 'inline' or nil)
-                    stepInto(nextStep, nil, inlineFn, nextAddr)
+                    local gatherBodyMarker = nodeType == 'gather' and nextStep or nil
+                    stepInto(nextStep, nil, inlineFn, nextAddr, gatherBodyMarker)
                 else
                     next()
                 end
@@ -1113,7 +1147,9 @@ return function(globalTree)
         if nextStep then
             -- 'if' and 'seq' are the only nodeUpdate handlers that emit {outBlockStart} before stepping in
             local inlineFn = nodeType == 'seq' and 'seq-inline' or (nodeType == 'if' and 'inline' or nil)
-            stepInto(nextStep, nil, inlineFn, nextAddr)
+            -- mark the gather-body frame so discardGatherContinuations stops here (not at tunnel frames)
+            local gatherBodyMarker = nodeType == 'gather' and nextStep or nil
+            stepInto(nextStep, nil, inlineFn, nextAddr, gatherBodyMarker)
         else
             next()
         end
