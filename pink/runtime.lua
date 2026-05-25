@@ -234,11 +234,9 @@ return function(globalTree)
         pointer = 0
     end
 
-    -- like returnTo but marks the frame with gatherBody so discardGatherContinuations can find it
+    -- like returnTo but marks the frame with gatherEntry so discardGatherContinuations can find it
     local returnToGather = function(block, blockAddr)
-        callstack.push({ tree = tree, pointer = pointer, fn = nil, env = env, addr = currentAddr, gatherBody = block })
-        currentAddr = blockAddr
-        tree = block
+        stepInto(block, nil, nil, blockAddr, block)
         pointer = 0
     end
 
@@ -322,12 +320,11 @@ return function(globalTree)
 
     currentKnot = nil
     currentStitch = nil
-    local discardGatherContinuations = function(gatherBody)
+    local discardGatherContinuations = function(gatherEntry)
         local popCount = 0
         for i = callstack.size(), 1, -1 do
             local frame = callstack.get(i)
-            -- stop at a returnToGather continuation frame OR at the gather-entry frame itself
-            if frame.gatherBody == gatherBody or frame.gatherEntry == gatherBody then
+            if frame.gatherEntry == gatherEntry then
                 break
             end
             popCount = popCount + 1
@@ -974,8 +971,8 @@ return function(globalTree)
                 local nextStep, nextAddr = updateFn(tree[pointer])
                 if nextStep then
                     local inlineFn = nodeType == 'seq' and 'seq-inline' or (nodeType == 'if' and 'inline' or nil)
-                    local gatherBodyMarker = nodeType == 'gather' and nextStep or nil
-                    stepInto(nextStep, nil, inlineFn, nextAddr, gatherBodyMarker)
+                    local gatherEntryMarker = nodeType == 'gather' and nextStep or nil
+                    stepInto(nextStep, nil, inlineFn, nextAddr, gatherEntryMarker)
                 else
                     next()
                 end
@@ -1092,12 +1089,8 @@ return function(globalTree)
                     update()
                     return
                 end
-                -- no gather and no fallback; if a gatherBody/gatherEntry frame exists we're
-                -- stranded inside a chosen option that has nowhere to go.
-                -- only check frames above lastDivertDepth: frames below are pre-divert traversal
-                -- frames (e.g. an initial gather entry) that do not indicate a stranded option.
-                -- search top-to-bottom: gatherEntry (newer) is always above gatherBody (older),
-                -- so the innermost gather and its first content location are found first
+                -- no gather and no fallback; if a gatherEntry frame exists above lastDivertDepth
+                -- we're stranded inside a chosen option that has nowhere to go.
                 for i = callstack.size(), lastDivertDepth + 1, -1 do
                     local f = callstack.get(i)
                     if f.gatherEntry then
@@ -1114,11 +1107,6 @@ return function(globalTree)
                         end
                         pendingDie = function()
                             log.dieRanOutOfContent(loc)
-                        end
-                        return
-                    elseif f.gatherBody then
-                        pendingDie = function()
-                            log.dieRanOutOfContent(lastLocation)
                         end
                         return
                     end
@@ -1196,9 +1184,9 @@ return function(globalTree)
         if nextStep then
             -- 'if' and 'seq' are the only nodeUpdate handlers that emit {outBlockStart} before stepping in
             local inlineFn = nodeType == 'seq' and 'seq-inline' or (nodeType == 'if' and 'inline' or nil)
-            -- mark the gather-body frame so discardGatherContinuations stops here (not at tunnel frames)
-            local gatherBodyMarker = nodeType == 'gather' and nextStep or nil
-            stepInto(nextStep, nil, inlineFn, nextAddr, gatherBodyMarker)
+            -- mark the gather-entry frame so discardGatherContinuations stops here (not at tunnel frames)
+            local gatherEntryMarker = nodeType == 'gather' and nextStep or nil
+            stepInto(nextStep, nil, inlineFn, nextAddr, gatherEntryMarker)
         else
             next()
         end
