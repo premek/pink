@@ -2,13 +2,13 @@ local base_path = (...):match('(.-)[^%.]+$')
 local node = require(base_path .. 'node')
 local logging = require(base_path .. 'logging')
 local random = require(base_path .. 'random')
-local err = logging.error
-local _debug = logging.debug
+local log = logging.newLogger()
 local requireType = node.requireType
 local is = node.is
 
 return function(deps)
     local listDefinitions = deps.listDefinitions
+    local getLocation = deps.getLocation
     local builtins = {}
 
     local floor = function(a)
@@ -139,7 +139,7 @@ return function(deps)
     end
 
     local eq = function(a, b)
-        _debug('EQ', a, b)
+        log.debug('EQ', a, b)
         requireType(a, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
         requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el', 'divert')
 
@@ -181,14 +181,14 @@ return function(deps)
         end
 
         if (a.type == 'list' and b.type == 'str') or (b.type == 'list' and a.type == 'str') then
-            err('eq not supported for list and str')
+            log.dieListStringEquality(getLocation())
         end
 
         if (a.type == 'el' and b.type == 'str') or (b.type == 'el' and a.type == 'str') then
             -- TODO
-            err('eq not yet implemented for el and str')
+            log.die('eq not yet implemented for el and str')
         end
-        err('eq not yet implemented for: ' .. a.type .. ', ' .. b.type)
+        log.die('eq not yet implemented for: ' .. a.type .. ', ' .. b.type)
     end
 
     local notEq = function(a, b)
@@ -253,8 +253,8 @@ return function(deps)
         elseif is('list', a) and is('list', b) then
             return node.bool(node.listContainsAll(a, b))
         end
-        _debug(a, b)
-        err('unexpected type')
+        log.debug(a, b)
+        log.die('unexpected type')
     end
 
     local notContains = function(a, b)

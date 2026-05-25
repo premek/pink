@@ -1,8 +1,7 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local logging = require(base_path .. 'logging')
 local random = require(base_path .. 'random')
-local err = logging.error
-local _debug = logging.debug
+local log = logging.newLogger()
 
 local node = {}
 
@@ -16,7 +15,7 @@ node.float = function(n)
 end
 node.bool = function(b)
     if type(b) ~= 'boolean' then
-        err('node.bool requires a boolean, got ' .. type(b))
+        log.die('node.bool requires a boolean, got ' .. type(b))
     end
     return { type = 'bool', value = b }
 end
@@ -163,11 +162,11 @@ end
 
 node.requirePinkType = function(a)
     if a == nil then
-        err('null not allowed')
+        log.die('null not allowed')
     end
     if type(a) ~= 'table' then
-        _debug(a)
-        err('table expected, got ' .. type(a))
+        log.debug(a)
+        log.die('table expected, got ' .. type(a))
     end
     if type(a.type) ~= 'string' then
         error('pink type expected')
@@ -183,7 +182,7 @@ node.requireType = function(a, ...)
             return
         end
     end
-    err('unexpected type: ' .. t .. ', expected one of: ' .. table.concat({ ... }, ', '), a)
+    log.die('unexpected type: ' .. t .. ', expected one of: ' .. table.concat({ ... }, ', '), a)
 end
 
 -- ── Type conversions ──────────────────────────────────────────────────────────
@@ -209,7 +208,7 @@ node.toInt = function(a)
     elseif a.type == 'bool' then
         return node.int(a.value and 1 or 0)
     else
-        err('cannot convert to int', a)
+        log.die('cannot convert to int', a)
     end
 end
 
@@ -222,7 +221,7 @@ node.toFloat = function(a)
     elseif a.type == 'bool' then
         return node.float(a.value and 1 or 0)
     else
-        err('cannot convert to float', a)
+        log.die('cannot convert to float', a)
     end
 end
 
@@ -237,7 +236,7 @@ node.toStr = function(a)
     elseif a.type == 'bool' then
         return node.str(boolToStr(a))
     else
-        err('cannot convert to str', a)
+        log.die('cannot convert to str', a)
     end
 end
 
@@ -262,7 +261,7 @@ node.toBool = function(a)
     elseif a.type == 'el' then
         return node.bool(true)
     else
-        err('cannot convert to bool', a)
+        log.die('cannot convert to bool', a)
     end
 end
 
@@ -288,7 +287,7 @@ node.makeOutput = function(listDefinitions)
         elseif a.type == 'list' then
             return node.listOutput(a, listDefinitions)
         else
-            err('cannot output', a)
+            log.die('cannot output', a)
         end
     end
 end
@@ -309,7 +308,7 @@ local listValueInt = function(a, listDefinitions)
     if node.is('el', a) then
         local listName, elementName = a.listName, a.elName
         if not listName then
-            err('ambiguous list element: ' .. elementName)
+            log.die('ambiguous list element: ' .. elementName)
         end
         return listDefinitions[listName].byName[elementName]
     elseif node.is('list', a) then
@@ -344,7 +343,7 @@ local getListElements = function(els, knownListNames)
             elements[listName] = elements[listName] or {}
             elements[listName][elName] = 1
         else
-            err('ambiguous list element: ' .. elName)
+            log.die('ambiguous list element: ' .. elName)
         end
     end
     -- elements: {[listName1] = {elName1=1, elName2=1}, [listName2] = {...}, ...}

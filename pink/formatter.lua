@@ -1,7 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local logging = require(base_path .. 'logging')
-local _debug = logging.debug
-local err = logging.error
+local log = logging.newLogger()
 
 local output = { { indent = 0 } }
 
@@ -260,12 +259,12 @@ local nodeFormatters = {
 
 format = function(tree, ctx)
     for _, node in ipairs(tree) do
-        _debug(node)
+        log.debug(node)
 
         local nodeFormatter = nodeFormatters[node.type]
         if not nodeFormatter then
-            _debug(node)
-            err('unknown node')
+            log.debug(node)
+            log.die('unknown node')
         end
         nodeFormatter(node, ctx)
     end
@@ -298,8 +297,8 @@ local outputToString = function()
 end
 
 return function(globalTree)
-    _debug('in', globalTree)
+    log.debug('in', globalTree)
     format(globalTree, newCtx())
-    _debug('out', output)
+    log.debug('out', output)
     return outputToString()
 end

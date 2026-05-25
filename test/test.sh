@@ -85,11 +85,34 @@ for P in $PATTERNS; do
       echo
       printf '%s ' "$TESTCASE"
       FAILED_VERS=""
+      if [ "${TESTCASE#X}" = "$TESTCASE" ]; then
+        COMPAT_FLAG="--compat"
+      else
+        COMPAT_FLAG=""
+      fi
       for LUA in $LUAS; do
         STORY="$D/story.ink"
         [ -f "$D/setup.ink" ] && STORY="$D/setup.ink"
-        $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
-          | $DIFF "$D/transcript.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
+        if [ -z "$COMPAT_FLAG" ]; then
+          # X tests: separate stdout/stderr
+          $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" \
+            > "$TMP/stdout" 2> "$TMP/stderr"
+          $DIFF "$D/transcript.txt" "$TMP/stdout" || FAILED_VERS="$FAILED_VERS $LUA"
+          if [ -f "$D/stderr.txt" ]; then
+            $DIFF "$D/stderr.txt" "$TMP/stderr" || FAILED_VERS="$FAILED_VERS $LUA"
+          fi
+          if [ -f "$D/stderr_grep.txt" ]; then
+            grep -qF "$(cat "$D/stderr_grep.txt")" "$TMP/stderr" || FAILED_VERS="$FAILED_VERS $LUA"
+          fi
+          # Run again merged for ordering check
+          if [ -f "$D/stderr_stdout.txt" ]; then
+            $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
+              | $DIFF "$D/stderr_stdout.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
+          fi
+        else
+          $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$COMPAT_FLAG" "$STORY" < "$D/input.txt" 2>&1 \
+            | $DIFF "$D/transcript.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
+        fi
       done
       if [ -z "$FAILED_VERS" ]; then
         printf "OK" && PASSED="$PASSED\n$TESTCASE" && PASSES=$((PASSES+1))

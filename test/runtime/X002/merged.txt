@@ -1,0 +1,4 @@
+RUNTIME WARNING: variable not found: x, using default value of 0
+	somewhere around ././test/runtime/X002/story.ink, line 1, column 3, node type: ref
+0
+5

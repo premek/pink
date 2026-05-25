@@ -8,9 +8,6 @@ local compile = require(base_path .. 'compiler')
 local logging = require(base_path .. 'logging')
 local newStack = require(base_path .. 'stack')
 local random = require(base_path .. 'random')
-local err = logging.error
-local warn = logging.warn
-local _debug = logging.debug
 local requireType = node.requireType
 local is = node.is
 
@@ -20,10 +17,12 @@ local unpack = table.unpack or unpack
 local noKnot = {} -- sentinel key for top-level content not inside any knot
 
 return function(globalTree)
+    local log = logging.newLogger()
     local outputBuffer = newOutputBuffer()
     local listDefinitions = newListDefinitions()
     local nodeOutput = node.makeOutput(listDefinitions)
     local getEnv, s, nodeById -- forward declarations needed by createBuiltins closures
+    local lastLocation = nil
     local currentKnot, currentStitch -- forward declarations needed by getEnv for label lookup
     local turns = 0
     local turnAtVisit = {}
@@ -49,6 +48,9 @@ return function(globalTree)
             return turnAtVisit[path]
         end,
         listDefinitions = listDefinitions,
+        getLocation = function()
+            return lastLocation
+        end,
     })
     local env = rootEnv -- TODO should env be part of the callstack?
 
@@ -155,8 +157,8 @@ return function(globalTree)
     local getChildren = function(parentName, path, tbl, token)
         for _, part in ipairs(path) do
             if not tbl._children or not tbl._children[part] then
-                _debug(parentName, path, env)
-                err('error accessing "' .. part .. '" in "' .. parentName .. '"', token)
+                log.debug(parentName, path, env)
+                log.die('error accessing "' .. part .. '" in "' .. parentName .. '"', token)
             end
             tbl = tbl._children[part]
             parentName = parentName .. '.' .. part
@@ -193,7 +195,7 @@ return function(globalTree)
                 end
             end
             if val == nil then
-                warn('variable not found: ' .. name .. ', using default value of 0', token)
+                log.variableNotFound(name, token)
                 return node.int(0), env
             end
         end
@@ -202,7 +204,7 @@ return function(globalTree)
     end
 
     local stepInto = function(block, newEnv, fn, blockAddr, gatherEntryBlock)
-        _debug('step into')
+        log.debug('step into')
         callstack.push({
             tree = tree,
             pointer = pointer,
@@ -241,9 +243,9 @@ return function(globalTree)
     stepOut = function(fn)
         local frame = callstack.pop()
         if not frame then
-            return err('failed to step out')
+            return log.die('failed to step out')
         end
-        _debug('stepOut')
+        log.debug('stepOut')
 
         -- Step out of one (inner most) function
         -- keep stepping out until we get the frame marked as fn.
@@ -263,7 +265,7 @@ return function(globalTree)
     end
 
     local incrementSeenCounter = function(path)
-        _debug('increment seen counter: ' .. path)
+        log.debug('increment seen counter: ' .. path)
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var.value = var.value + 1
@@ -285,7 +287,7 @@ return function(globalTree)
     -- args: the actual values or expressions passed to the function/knot when calling it
     -- returns a new env with names of params set to argument values
     local getArgumentsEnv = function(params, args)
-        _debug('getArguments', 'params', params, 'args', args)
+        log.debug('getArguments', 'params', params, 'args', args)
         args = args or {}
         local newEnv = {}
         for i = 1, #params do
@@ -333,7 +335,7 @@ return function(globalTree)
     end
     local goTo
     goTo = function(path, args, tunnel)
-        _debug('go to', path, args)
+        log.debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
             endedByDivert = true
@@ -373,7 +375,7 @@ return function(globalTree)
                 end
             end
             if not entry then
-                err('unknown path: ' .. path)
+                log.die('unknown path: ' .. path)
                 return
             end
             pointer = entry.pointer
@@ -533,14 +535,14 @@ return function(globalTree)
     -- "run" the node and return the return value
     -- may return "nothing" (nil)
     getValue = function(val)
-        _debug('getValue', val)
+        log.debug('getValue', val)
 
         if val == nil then
             return nil --FIXME ???
-            --err('nil value')
+            --log.die('nil value')
             --print('get nil')
             --val = tree[pointer] --FIXME 111
-            --_debug(val)
+            --log.debug(val)
             --update()
         end
 
@@ -567,7 +569,7 @@ return function(globalTree)
             local args = val.args
 
             local target = getEnv(name, val)
-            _debug('CALL target', target)
+            log.debug('CALL target', target)
             -- FIXME detect unresolved function on compile time
 
             -- call divert as fn -- FIXME
@@ -595,14 +597,14 @@ return function(globalTree)
                 update()
                 local ret = returnValue.value
                 outputBuffer:instr('trimEnd')
-                _debug('RET', ret)
+                log.debug('RET', ret)
                 returnValue = { present = false, value = nil }
                 return ret
             elseif is('list', target) then
                 if #args == 0 then
                     return node.listEmpty()
                 elseif #args > 1 then
-                    err('too many arguments')
+                    log.die('too many arguments')
                 end
                 local index = getValue(args[1])
                 requireType(index, 'int')
@@ -634,7 +636,7 @@ return function(globalTree)
             end
             return node.str(result)
         else
-            _debug(val)
+            log.debug(val)
             error('getValue: unsupported type: ' .. tostring(val.type))
         end
     end
@@ -665,7 +667,7 @@ return function(globalTree)
     local nodeUpdateAssign = function(n)
         local name = n.name
         local oldValue, e = getEnv(name)
-        _debug('ASSIGN', oldValue, name, n.expr)
+        log.debug('ASSIGN', oldValue, name, n.expr)
 
         if is('ref', oldValue) then
             local referenced = getEnv(oldValue.name)
@@ -680,7 +682,7 @@ return function(globalTree)
             node.listSet(oldValue, newValue)
         else
             if newValue == nil then
-                err('cannot assign nil')
+                log.die('cannot assign nil')
             end
             if is('ref', oldValue) then
                 local refName = oldValue.name
@@ -690,7 +692,7 @@ return function(globalTree)
                 e[name] = newValue
             end
         end
-        _debug(env)
+        log.debug(env)
     end
 
     local nodeUpdateOutValue = function(n)
@@ -802,7 +804,7 @@ return function(globalTree)
             getValue(n)
         end, -- ~ fn() -- call but ignore the result
         todo = function(n)
-            logging.warn(n.text, n)
+            log.todo(n.text, n)
         end,
         glue = function()
             outputBuffer:instr('glue')
@@ -890,7 +892,7 @@ return function(globalTree)
 
         while true do
             if tree[pointer] and tree[pointer].location then
-                logging.lastLocation = tree[pointer].location
+                lastLocation = tree[pointer].location
             end
 
             if isEnd() then
@@ -964,7 +966,7 @@ return function(globalTree)
                 local nodeType = tree[pointer].type
                 local updateFn = nodeUpdate[nodeType]
                 if not updateFn then
-                    err('unexpected node in thread', tree[pointer])
+                    log.die('unexpected node in thread', tree[pointer])
                 end
                 local nextStep, nextAddr = updateFn(tree[pointer])
                 if nextStep then
@@ -994,7 +996,7 @@ return function(globalTree)
     end
 
     update = function()
-        _debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer].type or 'END'))
+        log.debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer].type or 'END'))
 
         if returnValue.present then
             -- do not proceed when returning from a (nested?) function call
@@ -1005,7 +1007,7 @@ return function(globalTree)
         -- TODO return when we can output a line? so we dont progress unnecesarilly far ahead?
 
         if tree[pointer] and tree[pointer].location then
-            logging.lastLocation = tree[pointer].location
+            lastLocation = tree[pointer].location
         end
 
         --local lastpointer=pointer
@@ -1091,10 +1093,7 @@ return function(globalTree)
                 -- inside a chosen option that has nowhere to go
                 for i = 1, callstack.size() do
                     if callstack.get(i).gatherBody then
-                        logging.runtimeError('ran out of content')
-                        goTo('END')
-                        update()
-                        return
+                        log.dieRanOutOfContent(lastLocation)
                     end
                 end
             end
@@ -1117,8 +1116,8 @@ return function(globalTree)
         --update()
         --            local rest = s.continue()
 
-        --            _debug(rest)
-        --            _debug(last)
+        --            log.debug(rest)
+        --            log.debug(last)
 
         --[[ if last output ended with a space and this one starts with one, we want just one space
         if (rest:sub(1,1) == ' ' or rest:sub(1,1) == '\n')
@@ -1147,7 +1146,7 @@ return function(globalTree)
                     if wasSeqInline then
                         outputBuffer:instr('outBlockEnd')
                     end
-                    _debug('step out at end')
+                    log.debug('step out at end')
                     next()
                     update()
                     return
@@ -1164,7 +1163,7 @@ return function(globalTree)
         local nodeType = tree[pointer].type
         local updateFn = nodeUpdate[nodeType]
         if not updateFn then
-            err('unexpected node', tree[pointer])
+            log.die('unexpected node', tree[pointer])
         end
         local nextStep, nextAddr = updateFn(tree[pointer])
         if nextStep then
@@ -1178,8 +1177,8 @@ return function(globalTree)
         end
         update()
         --[[if lastpointer == pointer and lasttree == tree then
-        _debug(tree, pointer)
-        err('nothing consumed in continue at pointer '..pointer)
+        log.debug(tree, pointer)
+        log.die('nothing consumed in continue at pointer '..pointer)
         end
         ]]
     end
@@ -1199,7 +1198,7 @@ return function(globalTree)
             update() -- first call: process story before popping
         end
 
-        _debug('out', outputBuffer.buffer)
+        log.debug('out', outputBuffer.buffer)
         local res = ''
         local trailingGlue = false
         local hadNl = true
@@ -1211,7 +1210,7 @@ return function(globalTree)
         if not bufferWasEmpty then
             res, trailingGlue, hadNl = outputBuffer:popLine()
         end
-        _debug('OUT:', res)
+        log.debug('OUT:', res)
         s.currentTags = tags
         tags = {}
         if #s.currentChoices == 0 or choicesNeedDrain then
@@ -1230,27 +1229,30 @@ return function(globalTree)
         elseif #s.currentChoices > 0 then
             s.canContinue = false
         end
-        if res == '' then
-            if not bufferWasEmpty and not endedByDivert then
-                return '\n' -- whitespace-only line → blank line
-            elseif #s.currentChoices > 0 then
-                -- when thread choices are present and a turn has been taken with no text output,
-                -- emit an extra blank line (the thread transition creates a paragraph break)
-                local hasThreadChoices = turns > 0 and not turnHadOutput and threadChoicesAdded
-                return hasThreadChoices and '\n\n' or '\n'
+        local function buildResult()
+            if res == '' then
+                if not bufferWasEmpty and not endedByDivert then
+                    return '\n' -- whitespace-only line → blank line
+                elseif #s.currentChoices > 0 then
+                    -- when thread choices are present and a turn has been taken with no text output,
+                    -- emit an extra blank line (the thread transition creates a paragraph break)
+                    local hasThreadChoices = turns > 0 and not turnHadOutput and threadChoicesAdded
+                    return hasThreadChoices and '\n\n' or '\n'
+                else
+                    return '' -- story ended with no output
+                end
+            elseif trailingGlue or s.canContinue then
+                turnHadOutput = true
+                return res .. '\n'
+            elseif #s.currentChoices == 0 then
+                -- story ended; natural EOF always gets \n; ->END/DONE only gets \n if buffer had one
+                return res .. ((hadNl or not endedByDivert) and '\n' or '')
             else
-                return '' -- story ended with no output
+                turnHadOutput = true
+                return res .. '\n\n'
             end
-        elseif trailingGlue or s.canContinue then
-            turnHadOutput = true
-            return res .. '\n'
-        elseif #s.currentChoices == 0 then
-            -- story ended; natural EOF always gets \n; ->END/DONE only gets \n if buffer had one
-            return res .. ((hadNl or not endedByDivert) and '\n' or '')
-        else
-            turnHadOutput = true
-            return res .. '\n\n'
         end
+        return buildResult() .. log.drainCompatWarnings()
     end
 
     s.chooseChoiceIndex = function(index)
@@ -1344,10 +1346,10 @@ return function(globalTree)
     while is('tag', tree[pointer]) do
         pointer = pointer + 1
     end
-    _debug(tree)
-    _debug('lists:', listDefinitions)
-    _debug('external:', externalDefs)
-    _debug('state:', s.variablesState)
+    log.debug(tree)
+    log.debug('lists:', listDefinitions)
+    log.debug('external:', externalDefs)
+    log.debug('state:', s.variablesState)
 
     return s
 end

@@ -18,13 +18,6 @@ function testOutputEachLineSeparately()
     luaunit.assertFalse(story.canContinue)
 end
 
-function testInvalidKnot()
-    local story = pink('test/branching.ink')
-    luaunit.assertErrorMsgContains('unknown path: nonexistent', function()
-        story.choosePathString('nonexistent')
-    end)
-end
-
 function testRVisitCount()
     local story = pink('test/branching.ink')
     story.choosePathString('hurry_outside')

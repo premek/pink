@@ -1,6 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local logging = require(base_path .. 'logging')
-local _debug = logging.debug
+local log = logging.newLogger()
 
 local rtrim = function(s)
     return s:match('(.-)%s*$')
@@ -224,7 +224,7 @@ return function()
             table.insert(self.buffer, { [instr] = true })
         end,
         add = function(self, text)
-            _debug('OUT add:', text)
+            log.debug('OUT add:', text)
             self.needsCollect = true
             table.insert(self.buffer, text)
         end,
@@ -237,7 +237,7 @@ return function()
                 return
             end
             self.needsCollect = false
-            _debug(self.buffer)
+            log.debug(self.buffer)
             local buf = self.buffer
             buf = resolveNlInstructions(buf)
             buf = insertOutBlockGlue(buf)
@@ -247,7 +247,7 @@ return function()
             buf = collapseDoubleNewlines(buf)
             buf, self.hadTrailingNl = joinToLines(buf)
             self.buffer = buf
-            _debug('collect end', self.buffer)
+            log.debug('collect end', self.buffer)
         end,
         popLine = function(self)
             self:collect()

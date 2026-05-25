@@ -1,11 +1,12 @@
 local base_path = (...):match('(.-)[^%.]+$')
-local _debug = require(base_path .. 'logging').debug
+local logging = require(base_path .. 'logging')
+local log = logging.newLogger()
 local node = require(base_path .. 'node')
 
 local unpack = table.unpack or unpack
 
 return function(input, source)
-    _debug(input)
+    log.debug(input)
 
     source = source or 'unknown source'
 
@@ -1603,6 +1604,6 @@ return function(input, source)
     end
 
     local statements = { inkText() }
-    --_debug(statements)
+    --log.debug(statements)
     return statements
 end

@@ -3,11 +3,30 @@ if not arg[1] then
     error('\nUsage: ' .. arg[0] .. ' [-v] [format] game.ink\n')
 end
 
+local verbose = false
+local compatMode = false
+if arg[1] == '-v' then
+    verbose = true
+    table.remove(arg, 1)
+end
+if arg[1] == '--compat' then
+    compatMode = true
+    table.remove(arg, 1)
+end
+
+local logging = require('pink.logging')
+if compatMode then
+    logging.compat = true
+end
+
 local parser = require('pink.parser')
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
-local logging = require('pink.logging')
 local resolveIncludes = require('pink.includes')
+
+if verbose then
+    logging.debugEnabled = true
+end
 
 local function read(file)
     local f = io.open(file, 'rb')
@@ -25,11 +44,6 @@ end
 
 local parse = function(file)
     return resolveIncludes(parser(read(file), file), basedir(file), read)
-end
-
-if arg[1] == '-v' then
-    logging.debugEnabled = true
-    table.remove(arg, 1)
 end
 
 local format = false
