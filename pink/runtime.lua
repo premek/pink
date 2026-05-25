@@ -57,6 +57,9 @@ return function(globalTree)
     -- set when interpreting a 'return' statement, read after stepping 'Out'
     -- TODO does it have to be a stack?
     local returnValue = { present = false, value = nil }
+    -- set to a die function when an error is detected inside update(); s.continue() returns
+    -- any buffered content (already popped into res) first, then calls this on the next turn
+    local pendingDie = nil
 
     -- story - this table will be passed to client code
     s = Story.new(rootEnv)
@@ -1089,11 +1092,35 @@ return function(globalTree)
                     update()
                     return
                 end
-                -- no gather and no fallback; if a gatherBody frame exists we're stranded
-                -- inside a chosen option that has nowhere to go
-                for i = 1, callstack.size() do
-                    if callstack.get(i).gatherBody then
-                        log.dieRanOutOfContent(lastLocation)
+                -- no gather and no fallback; if a gatherBody/gatherEntry frame exists we're
+                -- stranded inside a chosen option that has nowhere to go.
+                -- only check frames above lastDivertDepth: frames below are pre-divert traversal
+                -- frames (e.g. an initial gather entry) that do not indicate a stranded option.
+                -- search top-to-bottom: gatherEntry (newer) is always above gatherBody (older),
+                -- so the innermost gather and its first content location are found first
+                for i = callstack.size(), lastDivertDepth + 1, -1 do
+                    local f = callstack.get(i)
+                    if f.gatherEntry then
+                        -- gather body is {ink_node}; first content node gives inklecate's error line
+                        local loc = lastLocation
+                        local inkNode = f.gatherEntry[1]
+                        if inkNode and inkNode.nodes then
+                            for _, n in ipairs(inkNode.nodes) do
+                                if n.location and n.location[2] then
+                                    loc = n.location
+                                    break
+                                end
+                            end
+                        end
+                        pendingDie = function()
+                            log.dieRanOutOfContent(loc)
+                        end
+                        return
+                    elseif f.gatherBody then
+                        pendingDie = function()
+                            log.dieRanOutOfContent(lastLocation)
+                        end
+                        return
                     end
                 end
             end
@@ -1198,6 +1225,11 @@ return function(globalTree)
             update() -- first call: process story before popping
         end
 
+        -- flush a deferred error: the previous continue() returned buffered content first
+        if pendingDie then
+            pendingDie()
+        end
+
         log.debug('out', outputBuffer.buffer)
         local res = ''
         local trailingGlue = false
@@ -1251,6 +1283,10 @@ return function(globalTree)
                 turnHadOutput = true
                 return res .. '\n\n'
             end
+        end
+        if pendingDie then
+            -- the caller will get this content first; the error fires on the next continue() call
+            s.canContinue = true
         end
         return buildResult() .. log.drainCompatWarnings()
     end
