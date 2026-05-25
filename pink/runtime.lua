@@ -467,8 +467,8 @@ return function(globalTree)
             incrementSeenCounter(path) -- TODO full paths
         elseif knots[noKnot] and knots[noKnot][path] then
             local noKnotEntry = knots[noKnot][path]
+            local entryNode = noKnotEntry.tree[noKnotEntry.pointer]
             if tunnel then
-                local entryNode = noKnotEntry.tree[noKnotEntry.pointer]
                 callstack.push({
                     tree = tree,
                     pointer = pointer,
@@ -482,31 +482,28 @@ return function(globalTree)
             end
             tree = noKnotEntry.tree -- TODO this is not stepInto, we dont want to step back, right?
             pointer = noKnotEntry.pointer
-            if is('stitch', tree[pointer]) then
-                currentStitch = path
-            end
-            -- TODO messy
-            if isNext('option') then
-                local option = tree[pointer]
-                -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
-                markOptionUsed(option)
-                if noKnotEntry.gather then
-                    returnToGather(noKnotEntry.gather.body, bodyAddr(noKnotEntry.gather))
-                end
-                returnTo(option.body, bodyAddr(option))
-                returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
-                stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
-            end
-            if isNext('gather') then
-                tree = tree[pointer].body
+            if is('gather', entryNode) then
+                tree = entryNode.body
                 pointer = 1
                 -- discard orphaned returnTo frames for this gather body left by fallback setup
                 discardGatherContinuations(tree)
+            elseif is('stitch', entryNode) then
+                currentStitch = path
+                next() -- skip the stitch declaration node
+                if isNext('nl') then
+                    next() -- skip the newline that follows the stitch declaration in the source
+                end
+            elseif is('option', entryNode) then
+                -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
+                markOptionUsed(entryNode)
+                if noKnotEntry.gather then
+                    returnToGather(noKnotEntry.gather.body, bodyAddr(noKnotEntry.gather))
+                end
+                returnTo(entryNode.body, bodyAddr(entryNode))
+                returnTo(entryNode.bodyOnlyText, bodyOnlyTextAddr(entryNode))
+                stepInto(entryNode.sharedStartText, nil, nil, sharedStartTextAddr(entryNode))
             end
             incrementSeenCounter(path) -- TODO full paths
-            if isNext('stitch') then
-                next()
-            end
         elseif knots[path] then
             local params = knots[path].params
             local body = knots[path].tree
@@ -1306,6 +1303,11 @@ return function(globalTree)
         -- to output. Force s.canContinue so continue() is called to drain pending output.
         -- buffer empty: still need continue() if thread choices need a paragraph separator
         if not outputBuffer:isEmpty() or (not s.canContinue and threadChoicesAdded) then
+            s.canContinue = true
+        end
+        -- After a turn, if choices appeared with no text output, still call continue() so
+        -- it can emit the paragraph-break '\n' between turns.
+        if not s.canContinue and #s.currentChoices > 0 and turns > 0 then
             s.canContinue = true
         end
     end
