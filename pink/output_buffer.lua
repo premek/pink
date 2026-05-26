@@ -80,8 +80,8 @@ local insertOutBlockGlue = function(buffer)
             end
             if not hasOutBlockEnd or hasContent then
                 for j = #t, 1, -1 do
-                    if t[j] and t[j]['trim'] then -- FIXME eh?
-                        break
+                    if t[j] and t[j]['trim'] then
+                        break -- don't insert glue across function scope boundaries
                     end
                     if t[j] and type(t[j]) == 'string' then
                         if t[j] ~= '\n' then
@@ -210,6 +210,20 @@ local joinToLines = function(buffer)
     return result, hadTrailingNl
 end
 
+-- Returns true if buffer ends with a glue instruction (ignoring trailing '\n's).
+-- Must be called on the raw buffer before collect() consumes the glue instruction.
+local hasTrailingGlue = function(buffer)
+    for i = #buffer, 1, -1 do
+        local e = buffer[i]
+        if type(e) == 'string' and e ~= '\n' then
+            return false -- real content before any glue
+        elseif e['glue'] then
+            return true
+        end
+    end
+    return false
+end
+
 -- TODO refactor
 return function()
     return {
@@ -239,13 +253,14 @@ return function()
             self.needsCollect = false
             log.debug(self.buffer)
             local buf = self.buffer
-            buf = resolveNlInstructions(buf)
-            buf = insertOutBlockGlue(buf)
-            buf = applyGlue(buf)
-            buf = applyTrimEnd(buf)
-            buf = removeEmptyTrim(buf)
-            buf = collapseDoubleNewlines(buf)
-            buf, self.hadTrailingNl = joinToLines(buf)
+            self.hadTrailingGlue = hasTrailingGlue(buf)
+            buf = resolveNlInstructions(buf) -- convert {nl} markers to '\n'; must run first to establish line state
+            buf = insertOutBlockGlue(buf) -- insert glue before output blocks; needs resolved newlines
+            buf = applyGlue(buf) -- remove newlines before glued items; needs glue inserted
+            buf = applyTrimEnd(buf) -- rtrim at function scope exits; needs glue applied first
+            buf = removeEmptyTrim(buf) -- drop orphaned {trim} markers remaining after applyTrimEnd
+            buf = collapseDoubleNewlines(buf) -- prevent consecutive '\n\n'; final cleanup
+            buf, self.hadTrailingNl = joinToLines(buf) -- produce [string, '\n', ...] sequence for popLine()
             self.buffer = buf
             log.debug('collect end', self.buffer)
         end,
@@ -281,17 +296,6 @@ return function()
             self.needsCollect = snapshot.needsCollect
         end,
         isEmpty = function(self)
-            -- scan raw buffer for trailing glue before collect() consumes the instruction;
-            -- skip trailing '\n's since glue absorbs them
-            for i = #self.buffer, 1, -1 do
-                local e = self.buffer[i]
-                if type(e) == 'string' and e ~= '\n' then
-                    break -- real content before any glue: no trailing glue
-                elseif e['glue'] then
-                    self.hadTrailingGlue = true
-                    break
-                end
-            end
             self:collect()
             return #self.buffer == 0
         end,
