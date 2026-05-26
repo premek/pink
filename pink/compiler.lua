@@ -172,12 +172,17 @@ return function(globalTree, env, noKnot, listDefinitions)
                     end
                 end
             end
-            if is('option', n) and n.label then
-                env[n.label] = node.int(0)
-                if lastStitch then
-                    knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
-                else
-                    knots[lastKnot][n.label] = { pointer = p, tree = t }
+            if is('option', n) then
+                if n.body then
+                    n.body = preProcess(n.body)
+                end
+                if n.label then
+                    env[n.label] = node.int(0)
+                    if lastStitch then
+                        knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
+                    else
+                        knots[lastKnot][n.label] = { pointer = p, tree = t }
+                    end
                 end
             end
 

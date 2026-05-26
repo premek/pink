@@ -1302,6 +1302,7 @@ return function(globalTree)
             env = choice.threadEnv
         end
 
+        turns = turns + 1
         if choice.option.label then -- the option has a label
             incrementSeenCounter(choice.option.label) -- TODO full path??
         end
@@ -1320,7 +1321,6 @@ return function(globalTree)
         stepInto(choice.option.sharedStartText, nil, nil, sharedStartTextAddr(choice.option))
 
         s.currentChoices = {}
-        turns = turns + 1
         turnHadOutput = false
         threadChoicesAdded = false
         choicesNeedDrain = false
