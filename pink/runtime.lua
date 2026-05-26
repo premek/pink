@@ -206,18 +206,25 @@ return function(globalTree)
         return val, e
     end
 
-    local stepInto = function(block, newEnv, fn, blockAddr, gatherEntryBlock)
-        log.debug('step into')
-        callstack.push({
+    -- All callstack frames share this schema. Fields: tree/pointer/env/addr = saved execution state;
+    -- fn = frame type (nil=entry, 'fn'=function call, 'tunnel'=tunnel, 'inline'/'seq-inline'=inline block);
+    -- savedKnot/savedStitch = restored on tunnel step-out; gatherEntry = body block for discardGatherContinuations.
+    local newFrame = function(frameFn, frameGatherEntry)
+        return {
             tree = tree,
             pointer = pointer,
-            fn = fn,
+            fn = frameFn,
             env = env,
             addr = currentAddr,
-            gatherEntry = gatherEntryBlock,
             savedKnot = currentKnot,
             savedStitch = currentStitch,
-        })
+            gatherEntry = frameGatherEntry,
+        }
+    end
+
+    local stepInto = function(block, newEnv, fn, blockAddr, gatherEntryBlock)
+        log.debug('step into')
+        callstack.push(newFrame(fn, gatherEntryBlock))
         currentAddr = blockAddr
         if newEnv then
             newEnv._parent = env -- TODO make parent unaccessible from the script
@@ -333,19 +340,175 @@ return function(globalTree)
             callstack.pop()
         end
     end
+    local gotoTerminal = function(path)
+        endedByDivert = true
+        pointer = #tree + 1
+        -- DONE with pending thread choices: leave callstack intact so thread
+        -- continuations (e.g. ->-> tunnel returns) still work when a choice is made.
+        if path == 'END' or #s.currentChoices == 0 then
+            callstack.clear()
+        end
+        choicesNeedDrain = false
+    end
+
+    local gotoAbsolutePath = function(path)
+        local parts = {}
+        for part in path:gmatch('[^%.]+') do
+            table.insert(parts, part)
+        end
+        local entry
+        if #parts == 2 then
+            entry = knots[parts[1]] and knots[parts[1]][parts[2]]
+            if entry then
+                currentKnot = parts[1]
+                currentStitch = nil
+            end
+        elseif #parts == 3 then
+            entry = knots[parts[1]] and knots[parts[1]][parts[2]] and knots[parts[1]][parts[2]][parts[3]]
+            if entry then
+                currentKnot = parts[1]
+                currentStitch = parts[2]
+            end
+        end
+        if not entry then
+            log.die('unknown path: ' .. path)
+            return
+        end
+        pointer = entry.pointer
+        tree = entry.tree
+
+        if isNext('knot') then
+            next()
+        end
+        if #parts == 2 then
+            -- count the stitch visit; stitch node is skipped below so update() won't count it
+            incrementSeenCounter(path)
+        end
+        -- for 3-part (knot.stitch.gather), let the gather node update count the visit
+
+        -- automatically go to the first stitch (only) if there is no other content in the knot
+        if isNext('stitch') then
+            next()
+        end
+        if isNext('option') then
+            local option = tree[pointer]
+            markOptionUsed(option)
+            if entry.gather then
+                returnToGather(entry.gather.body, bodyAddr(entry.gather))
+            end
+            returnTo(option.body, bodyAddr(option))
+            returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
+            stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
+        end
+    end
+
+    local gotoRelativeStitch = function(path, args, tunnel)
+        if tunnel then
+            callstack.push(newFrame(tunnel))
+        end
+        local stitchEntry = knots[currentKnot][path]
+        local incomingStitch = currentStitch
+        currentStitch = path
+        pointer = stitchEntry.pointer
+        tree = stitchEntry.tree
+        local isGatherEntry = isNext('gather')
+        if isGatherEntry then
+            -- navigate into the gather body (not skip past it)
+            tree = tree[pointer].body
+            pointer = 1
+            discardGatherContinuations(tree)
+        else
+            next() -- skip the stitch declaration node
+            if isNext('nl') then
+                next() -- skip the newline that follows the stitch declaration in the source
+            end
+        end
+        -- bind stitch parameters (divert args) into the env
+        -- TODO: for non-thread callers this leaks env; currently only used via threads (runThread restores env)
+        if stitchEntry.params and #stitchEntry.params > 0 then
+            local newEnv = getArgumentsEnv(stitchEntry.params, args)
+            newEnv._parent = env
+            env = newEnv
+        end
+        -- gather labels always increment; skip only for self-recursive stitch diverts
+        if isGatherEntry or incomingStitch ~= path then
+            incrementSeenCounter(currentKnot .. '.' .. path)
+        end
+    end
+
+    local gotoRelativeStitchLabel = function(path, tunnel)
+        if tunnel then
+            local entryNode = knots[noKnot][currentStitch][path].tree[knots[noKnot][currentStitch][path].pointer]
+            callstack.push(newFrame(tunnel, is('gather', entryNode) and entryNode.body or nil))
+        end
+        tree = knots[noKnot][currentStitch][path].tree
+        pointer = knots[noKnot][currentStitch][path].pointer
+        if isNext('gather') then
+            tree = tree[pointer].body
+            pointer = 1
+            discardGatherContinuations(tree)
+        end
+        incrementSeenCounter(path) -- TODO full paths
+    end
+
+    local gotoTopLevelLabel = function(path, tunnel)
+        local noKnotEntry = knots[noKnot][path]
+        local entryNode = noKnotEntry.tree[noKnotEntry.pointer]
+        if tunnel then
+            callstack.push(newFrame(tunnel, is('gather', entryNode) and entryNode.body or nil))
+        end
+        tree = noKnotEntry.tree -- TODO this is not stepInto, we dont want to step back, right?
+        pointer = noKnotEntry.pointer
+        if is('gather', entryNode) then
+            tree = entryNode.body
+            pointer = 1
+            -- discard orphaned returnTo frames for this gather body left by fallback setup
+            discardGatherContinuations(tree)
+        elseif is('stitch', entryNode) then
+            currentStitch = path
+            next() -- skip the stitch declaration node
+            if isNext('nl') then
+                next() -- skip the newline that follows the stitch declaration in the source
+            end
+        elseif is('option', entryNode) then
+            -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
+            markOptionUsed(entryNode)
+            if noKnotEntry.gather then
+                returnToGather(noKnotEntry.gather.body, bodyAddr(noKnotEntry.gather))
+            end
+            returnTo(entryNode.body, bodyAddr(entryNode))
+            returnTo(entryNode.bodyOnlyText, bodyOnlyTextAddr(entryNode))
+            stepInto(entryNode.sharedStartText, nil, nil, sharedStartTextAddr(entryNode))
+        end
+        incrementSeenCounter(path) -- TODO full paths
+    end
+
+    local gotoKnot = function(path, args, tunnel)
+        local params = knots[path].params
+        local body = knots[path].tree
+        local newEnv = getArgumentsEnv(params, args)
+        local incomingKnot = currentKnot
+        stepInto(body, newEnv, tunnel, bodyAddr(knots[path]))
+
+        currentKnot = path
+        currentStitch = nil
+        if incomingKnot ~= path then
+            incrementSeenCounter(path) -- TODO not just knots
+        end
+        -- automatically go to the first stitch (only) if there is no other content in the knot
+        if isNext('stitch') then
+            currentStitch = tree[pointer].name
+            incrementSeenCounter(path .. '.' .. tree[pointer].name)
+            next()
+        end
+    end
+
     local goTo
     goTo = function(path, args, tunnel)
         log.debug('go to', path, args)
 
         if path == 'END' or path == 'DONE' then
-            endedByDivert = true
-            pointer = #tree + 1
-            -- DONE with pending thread choices: leave callstack intact so thread
-            -- continuations (e.g. ->-> tunnel returns) still work when a choice is made.
-            if path == 'END' or #s.currentChoices == 0 then
-                callstack.clear()
-            end
-            choicesNeedDrain = false
+            gotoTerminal(path)
             return
         end
 
@@ -356,179 +519,21 @@ return function(globalTree)
         end
 
         if path:find('%.') ~= nil then
-            local parts = {}
-            for part in path:gmatch('[^%.]+') do
-                table.insert(parts, part)
-            end
-            local entry
-            if #parts == 2 then
-                entry = knots[parts[1]] and knots[parts[1]][parts[2]]
-                if entry then
-                    currentKnot = parts[1]
-                    currentStitch = nil
-                end
-            elseif #parts == 3 then
-                entry = knots[parts[1]] and knots[parts[1]][parts[2]] and knots[parts[1]][parts[2]][parts[3]]
-                if entry then
-                    currentKnot = parts[1]
-                    currentStitch = parts[2]
-                end
-            end
-            if not entry then
-                log.die('unknown path: ' .. path)
-                return
-            end
-            pointer = entry.pointer
-            tree = entry.tree
-
-            if isNext('knot') then
-                next()
-            end
-
-            if #parts == 2 then
-                -- count the stitch visit; stitch node is skipped below so update() won't count it
-                incrementSeenCounter(path)
-            end
-            -- for 3-part (knot.stitch.gather), let the gather node update count the visit
-
-            -- automatically go to the first stitch (only) if there is no other content in the knot
-            if isNext('stitch') then
-                next()
-            end
-            if isNext('option') then
-                local option = tree[pointer]
-                markOptionUsed(option)
-                if entry.gather then
-                    returnToGather(entry.gather.body, bodyAddr(entry.gather))
-                end
-                returnTo(option.body, bodyAddr(option))
-                returnTo(option.bodyOnlyText, bodyOnlyTextAddr(option))
-                stepInto(option.sharedStartText, nil, nil, sharedStartTextAddr(option))
-            end
+            gotoAbsolutePath(path)
         elseif knots[currentKnot] and knots[currentKnot][path] then
-            if tunnel then
-                callstack.push({
-                    tree = tree,
-                    pointer = pointer,
-                    fn = tunnel,
-                    env = env,
-                    addr = currentAddr,
-                    savedKnot = currentKnot,
-                    savedStitch = currentStitch,
-                })
-            end
-            local stitchEntry = knots[currentKnot][path]
-            local incomingStitch = currentStitch
-            currentStitch = path
-            pointer = stitchEntry.pointer
-            tree = stitchEntry.tree
-            local isGatherEntry = isNext('gather')
-            if isGatherEntry then
-                -- navigate into the gather body (not skip past it)
-                tree = tree[pointer].body
-                pointer = 1
-                discardGatherContinuations(tree)
-            else
-                next() -- skip the stitch declaration node
-                if isNext('nl') then
-                    next() -- skip the newline that follows the stitch declaration in the source
-                end
-            end
-            -- bind stitch parameters (divert args) into the env
-            -- TODO: for non-thread callers this leaks env; currently only used via threads (runThread restores env)
-            if stitchEntry.params and #stitchEntry.params > 0 then
-                local newEnv = getArgumentsEnv(stitchEntry.params, args)
-                newEnv._parent = env
-                env = newEnv
-            end
-            -- gather labels always increment; skip only for self-recursive stitch diverts
-            if isGatherEntry or incomingStitch ~= path then
-                incrementSeenCounter(currentKnot .. '.' .. path)
-            end
+            gotoRelativeStitch(path, args, tunnel)
         elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
-            if tunnel then
-                local entryNode = knots[noKnot][currentStitch][path].tree[knots[noKnot][currentStitch][path].pointer]
-                callstack.push({
-                    tree = tree,
-                    pointer = pointer,
-                    fn = tunnel,
-                    env = env,
-                    addr = currentAddr,
-                    savedKnot = currentKnot,
-                    savedStitch = currentStitch,
-                    gatherEntry = is('gather', entryNode) and entryNode.body or nil,
-                })
-            end
-            tree = knots[noKnot][currentStitch][path].tree
-            pointer = knots[noKnot][currentStitch][path].pointer
-            if isNext('gather') then
-                tree = tree[pointer].body
-                pointer = 1
-                discardGatherContinuations(tree)
-            end
-            incrementSeenCounter(path) -- TODO full paths
+            gotoRelativeStitchLabel(path, tunnel)
         elseif knots[noKnot] and knots[noKnot][path] then
-            local noKnotEntry = knots[noKnot][path]
-            local entryNode = noKnotEntry.tree[noKnotEntry.pointer]
-            if tunnel then
-                callstack.push({
-                    tree = tree,
-                    pointer = pointer,
-                    fn = tunnel,
-                    env = env,
-                    addr = currentAddr,
-                    savedKnot = currentKnot,
-                    savedStitch = currentStitch,
-                    gatherEntry = is('gather', entryNode) and entryNode.body or nil,
-                })
-            end
-            tree = noKnotEntry.tree -- TODO this is not stepInto, we dont want to step back, right?
-            pointer = noKnotEntry.pointer
-            if is('gather', entryNode) then
-                tree = entryNode.body
-                pointer = 1
-                -- discard orphaned returnTo frames for this gather body left by fallback setup
-                discardGatherContinuations(tree)
-            elseif is('stitch', entryNode) then
-                currentStitch = path
-                next() -- skip the stitch declaration node
-                if isNext('nl') then
-                    next() -- skip the newline that follows the stitch declaration in the source
-                end
-            elseif is('option', entryNode) then
-                -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
-                markOptionUsed(entryNode)
-                if noKnotEntry.gather then
-                    returnToGather(noKnotEntry.gather.body, bodyAddr(noKnotEntry.gather))
-                end
-                returnTo(entryNode.body, bodyAddr(entryNode))
-                returnTo(entryNode.bodyOnlyText, bodyOnlyTextAddr(entryNode))
-                stepInto(entryNode.sharedStartText, nil, nil, sharedStartTextAddr(entryNode))
-            end
-            incrementSeenCounter(path) -- TODO full paths
+            gotoTopLevelLabel(path, tunnel)
         elseif knots[path] then
-            local params = knots[path].params
-            local body = knots[path].tree
-            local newEnv = getArgumentsEnv(params, args)
-            local incomingKnot = currentKnot
-            stepInto(body, newEnv, tunnel, bodyAddr(knots[path]))
-
-            currentKnot = path
-            currentStitch = nil
-            if incomingKnot ~= path then
-                incrementSeenCounter(path) -- TODO not just knots
-            end
-            -- automatically go to the first stitch (only) if there is no other content in the knot
-            if isNext('stitch') then
-                currentStitch = tree[pointer].name
-                incrementSeenCounter(path .. '.' .. tree[pointer].name)
-                next()
-            end
+            gotoKnot(path, args, tunnel)
         else
             error('unknown path: ' .. path) -- TODO check at compile time?
         end
 
         -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
+        -- frames above this depth belong to the current knot context (vs thread continuations)
         lastDivertDepth = callstack.size()
     end
 
@@ -996,6 +1001,137 @@ return function(globalTree)
         currentKnot, currentStitch = savedKnot, savedStitch
     end
 
+    local handleDivert = function()
+        if choicesNeedDrain then
+            local target = tree[pointer].target
+            if target ~= 'DONE' and target ~= 'END' then
+                choicesNeedDrain = false
+                s.canContinue = canContinue()
+                return
+            end
+        end
+        goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
+        update()
+    end
+
+    local handleChoice = function()
+        s.canContinue = canContinue()
+        if s.canContinue then
+            -- output buffer first
+            return
+        end
+
+        local options = tree[pointer].options
+        local gather = tree[pointer].gather
+        local fallbacks = {}
+
+        -- preserve any thread choices already added by fork nodes earlier this turn
+        for _, option in ipairs(options) do
+            local sticky = option.sticky == 'sticky' -- TODO
+            local fallback = option.fallback == 'fallback'
+            local displayOption = sticky or not isOptionUsed(option) -- TODO seen counter
+
+            if fallback then
+                table.insert(fallbacks, option)
+                displayOption = false
+            end
+
+            if displayOption and not getOptionConditionsResult(option) then
+                displayOption = false
+            end
+
+            if displayOption then
+                local text = evaluateOptionText(option)
+                table.insert(s.currentChoices, { text = text, option = option, gather = gather })
+            end
+        end
+
+        s.canContinue = canContinue()
+
+        if #s.currentChoices == 0 then
+            local doUpdate = false
+            if gather then
+                stepInto(gather.body, nil, nil, bodyAddr(gather))
+                doUpdate = true
+            end
+            for _, fallback in ipairs(fallbacks) do
+                local sticky = fallback.sticky == 'sticky'
+                if (sticky or not isOptionUsed(fallback)) and getOptionConditionsResult(fallback) then
+                    markOptionUsed(fallback)
+                    if gather then
+                        returnToGather(gather.body, bodyAddr(gather))
+                    end
+                    stepInto(fallback.body, nil, nil, bodyAddr(fallback))
+                    doUpdate = true
+                    break
+                end
+            end
+            if doUpdate then
+                update()
+                return
+            end
+            -- no gather and no fallback; if a gatherEntry frame exists above lastDivertDepth
+            -- we're stranded inside a chosen option that has nowhere to go.
+            for i = callstack.size(), lastDivertDepth + 1, -1 do
+                local f = callstack.get(i)
+                if f.gatherEntry then
+                    -- gather body is {ink_node}; first content node gives inklecate's error line
+                    local loc = lastLocation
+                    local inkNode = f.gatherEntry[1]
+                    if inkNode and inkNode.nodes then
+                        for _, n in ipairs(inkNode.nodes) do
+                            if n.location and n.location[2] then
+                                loc = n.location
+                                break
+                            end
+                        end
+                    end
+                    pendingDie = function()
+                        log.dieRanOutOfContent(loc)
+                    end
+                    return
+                end
+            end
+        end
+
+        for i = lastDivertDepth + 1, callstack.size() do
+            if callstack.get(i).fn == 'inline' or callstack.get(i).fn == 'seq-inline' then
+                choicesNeedDrain = true
+                break
+            end
+        end
+        next()
+        if choicesNeedDrain then
+            update()
+        end
+    end
+
+    local handleEndOfTree = function()
+        --FIXME refactor so we don't need this if
+        if not callstack.isEmpty() then
+            local topFn = callstack.get(callstack.size()).fn
+            local aboveBoundary = callstack.size() > lastDivertDepth
+            local canStepOut = #s.currentChoices == 0
+                or (choicesNeedDrain and aboveBoundary and topFn ~= 'fn' and topFn ~= 'tunnel')
+            if canStepOut then
+                local wasSeqInline = topFn == 'seq-inline'
+                stepOut()
+                if wasSeqInline then
+                    outputBuffer:instr('outBlockEnd')
+                end
+                log.debug('step out at end')
+                next()
+                update()
+                return
+            end
+        end
+        if choicesNeedDrain then
+            choicesNeedDrain = false
+        end
+        next()
+        s.canContinue = canContinue()
+    end
+
     update = function()
         log.debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer].type or 'END'))
 
@@ -1005,14 +1141,9 @@ return function(globalTree)
             return
         end
 
-        -- TODO return when we can output a line? so we dont progress unnecesarilly far ahead?
-
         if tree[pointer] and tree[pointer].location then
             lastLocation = tree[pointer].location
         end
-
-        --local lastpointer=pointer
-        --local lasttree=tree -- TODO is this needed?
 
         if not storyStarted and #getNotBindExternalFunctionNames() > 0 then
             -- first update call before the first continue is called
@@ -1021,158 +1152,17 @@ return function(globalTree)
         end
 
         if isNext('divert') then
-            if choicesNeedDrain then
-                local target = tree[pointer].target
-                if target ~= 'DONE' and target ~= 'END' then
-                    choicesNeedDrain = false
-                    s.canContinue = canContinue()
-                    return
-                end
-            end
-            goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
-            update()
+            handleDivert()
             return
         end
 
         if isNext('choice') then
-            s.canContinue = canContinue()
-            if s.canContinue then
-                -- output buffer first
-                return
-            end
-
-            local options = tree[pointer].options
-            local gather = tree[pointer].gather
-            local fallbacks = {}
-
-            -- preserve any thread choices already added by fork nodes earlier this turn
-            for _, option in ipairs(options) do
-                local sticky = option.sticky == 'sticky' -- TODO
-                local fallback = option.fallback == 'fallback'
-                local displayOption = sticky or not isOptionUsed(option) -- TODO seen counter
-
-                if fallback then
-                    table.insert(fallbacks, option)
-                    displayOption = false
-                end
-
-                if displayOption and not getOptionConditionsResult(option) then
-                    displayOption = false
-                end
-
-                if displayOption then
-                    local text = evaluateOptionText(option)
-                    table.insert(s.currentChoices, { text = text, option = option, gather = gather })
-                end
-            end
-
-            s.canContinue = canContinue()
-
-            if #s.currentChoices == 0 then
-                local doUpdate = false
-                if gather then
-                    stepInto(gather.body, nil, nil, bodyAddr(gather))
-                    doUpdate = true
-                end
-                for _, fallback in ipairs(fallbacks) do
-                    local sticky = fallback.sticky == 'sticky'
-                    if (sticky or not isOptionUsed(fallback)) and getOptionConditionsResult(fallback) then
-                        markOptionUsed(fallback)
-                        if gather then
-                            returnToGather(gather.body, bodyAddr(gather))
-                        end
-                        stepInto(fallback.body, nil, nil, bodyAddr(fallback))
-                        doUpdate = true
-                        break
-                    end
-                end
-                if doUpdate then
-                    update()
-                    return
-                end
-                -- no gather and no fallback; if a gatherEntry frame exists above lastDivertDepth
-                -- we're stranded inside a chosen option that has nowhere to go.
-                for i = callstack.size(), lastDivertDepth + 1, -1 do
-                    local f = callstack.get(i)
-                    if f.gatherEntry then
-                        -- gather body is {ink_node}; first content node gives inklecate's error line
-                        local loc = lastLocation
-                        local inkNode = f.gatherEntry[1]
-                        if inkNode and inkNode.nodes then
-                            for _, n in ipairs(inkNode.nodes) do
-                                if n.location and n.location[2] then
-                                    loc = n.location
-                                    break
-                                end
-                            end
-                        end
-                        pendingDie = function()
-                            log.dieRanOutOfContent(loc)
-                        end
-                        return
-                    end
-                end
-            end
-
-            for i = lastDivertDepth + 1, callstack.size() do
-                if callstack.get(i).fn == 'inline' or callstack.get(i).fn == 'seq-inline' then
-                    choicesNeedDrain = true
-                    break
-                end
-            end
-            next()
-            if choicesNeedDrain then
-                update()
-            end
+            handleChoice()
             return
         end
 
-        -- TODO tidy up
-        --local last = #out > 0 and out[#out] or lastOut -- FIXME when the whole ink starts with glue
-        --update()
-        --            local rest = s.continue()
-
-        --            log.debug(rest)
-        --            log.debug(last)
-
-        --[[ if last output ended with a space and this one starts with one, we want just one space
-        if (rest:sub(1,1) == ' ' or rest:sub(1,1) == '\n')
-        and last
-        and (last:sub(-1) == ' ' or last:sub(-1) == '\n') then
-
-        rest = ltrim(rest)
-        end
-        --]]
-        -- TODO whitespace when printing, not just here
-        -- https://github.com/inkle/ink/blob/
-        -- 6a512190365002f54bd501b0863ded40123cb8e5/ink-engine-runtime/StoryState.cs#L894
-
-        --table.insert(out, rest)
-
         if isEnd() then
-            --FIXME refactor so we don't need this if
-            if not callstack.isEmpty() then
-                local topFn = callstack.get(callstack.size()).fn
-                local aboveBoundary = callstack.size() > lastDivertDepth
-                local canStepOut = #s.currentChoices == 0
-                    or (choicesNeedDrain and aboveBoundary and topFn ~= 'fn' and topFn ~= 'tunnel')
-                if canStepOut then
-                    local wasSeqInline = topFn == 'seq-inline'
-                    stepOut()
-                    if wasSeqInline then
-                        outputBuffer:instr('outBlockEnd')
-                    end
-                    log.debug('step out at end')
-                    next()
-                    update()
-                    return
-                end
-            end
-            if choicesNeedDrain then
-                choicesNeedDrain = false
-            end
-            next()
-            s.canContinue = canContinue()
+            handleEndOfTree()
             return
         end
 
@@ -1192,11 +1182,6 @@ return function(globalTree)
             next()
         end
         update()
-        --[[if lastpointer == pointer and lasttree == tree then
-        log.debug(tree, pointer)
-        log.die('nothing consumed in continue at pointer '..pointer)
-        end
-        ]]
     end
 
     s.continue = function()
