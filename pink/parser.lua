@@ -782,10 +782,10 @@ return function(input, source)
         return token(node.choice(options, gatherNode))
     end
 
-    local tag = function()
+    local tag = function(opts)
         consume('#')
         consumeWhitespace()
-        return token(node.tag(text()))
+        return token(node.tag(text(opts)))
     end
 
     local constant = function()
@@ -1344,7 +1344,7 @@ return function(input, source)
         elseif ahead('-') then
             return nil ----------------gather()
         elseif ahead('#') then
-            return tag()
+            return tag(opts)
         elseif ahead('CONST') then -- TODO must be on new line?
             return constant()
         elseif ahead('VAR') then

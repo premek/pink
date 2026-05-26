@@ -19,10 +19,13 @@
 | `I*` |  From the [ink-proof](https://github.com/inkle/ink-proof) test suite — numbered sequentially |
 | `W*` |  From the official WritingWithInk spec — numbered `W<chapter>.<section>.<seq>` to track origin |
 | `P*` |  Pink — tests added specifically for this implementation (edge cases, regressions) |
+| `X*` |  Pink extensions and improvements incompatible with the original Ink/inklecate behaviour |
 | `L*` |  Long tests (stories that take a while to run) |
 | `api` |  Lua API tests (`test/api.lua`) via luaunit |
 | `lua` |  Linting: luacheck, selene (Lua 5.2 + LÖVE configs), stylua |
 | `sh` |  shellcheck on shell scripts |
+
+All tests except `X*` run with `--compat` (inklecate-compatible output). `X*` tests run without `--compat`, enabling Pink's improvements and extensions that differ from the original Ink behaviour.
 
 ## Runtime transcript tests (I, W, P, L)
 
@@ -36,10 +39,23 @@ transcript.txt  expected stdout output
 
 The runner does:
 ```sh
-pink-cli story.ink < input.txt | cmp transcript.txt -
+pink-cli --compat story.ink < input.txt | cmp transcript.txt -
 ```
 
 A test passes if stdout matches `transcript.txt` exactly (byte-for-byte, via `cmp -s`).
+
+## Extension/improvement tests (X*)
+
+`X*` tests cover Pink behaviour that intentionally diverges from inklecate. They run without `--compat` and can check stdout, stderr, and their ordering independently. Files:
+
+```
+story.ink           ink source
+input.txt           choice indices
+transcript.txt      expected stdout (required)
+stderr.txt          expected stderr, exact match (optional)
+stderr_grep.txt     substring that must appear in stderr — use for fragile content like stack traces (optional)
+stderr_stdout.txt   expected stdout+stderr merged — use to verify ordering (optional)
+```
 
 ### Creating a new transcript test
 

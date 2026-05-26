@@ -765,7 +765,7 @@ return function(globalTree)
         option = nodeSkip,
 
         tag = function(n)
-            table.insert(tags, n.text)
+            table.insert(tags, (n.text:gsub('%s+$', '')))
         end,
         tempvar = function(n)
             env[n.name] = getValue(n.value)
@@ -860,7 +860,8 @@ return function(globalTree)
 
     local evaluateOptionText = function(option)
         local snapshot = clear()
-        local savedTree, savedPointer, savedAddr = tree, pointer, currentAddr
+        local savedTree, savedPointer, savedAddr, savedTags = tree, pointer, currentAddr, tags
+        tags = {}
         -- Evaluate sharedStartText and choiceOnlyText directly without a boundary frame so the callstack
         -- is empty when each block ends, preventing update() from escaping into
         -- the parent story context via the stepOut path.
@@ -873,7 +874,7 @@ return function(globalTree)
         currentAddr = choiceOnlyTextAddr(option)
         update()
         local text = outputBuffer:popLine()
-        tree, pointer, currentAddr = savedTree, savedPointer, savedAddr
+        tree, pointer, currentAddr, tags = savedTree, savedPointer, savedAddr, savedTags
         reset(snapshot)
         return text
     end

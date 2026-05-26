@@ -6,6 +6,7 @@ Minimal layers of indirection but properly structured.
 Prefer direct, obvious code over clever patterns.
 Short functions with meaningful names, descriptive names for variables (no need to keep them extra short).
 Prefer designs that are easier to reason about during development over ones that minimize data storage.
+Parser is faithful: it produces an AST that reflects the source text as-is. Normalization (trimming whitespace, coercing values, etc.) belongs in the runtime or output layer, not the parser.
 
 ## Project Overview
 
@@ -84,7 +85,9 @@ Fix all newly failing tests before declaring the change done.
 Each test case in `test/runtime/{Name}/` contains:
 - `story.ink` — Input story
 - `input.txt` — Choice sequence (one per line)
-- `transcript.txt` — Expected output
+- `transcript.txt` — Expected output (stdout)
+
+`X*` tests cover Pink extensions and improvements incompatible with inklecate; they run without `--compat` and may include `stderr.txt`, `stderr_grep.txt`, and/or `stderr_stdout.txt`. See [`docs/testing.md`](docs/testing.md) for details.
 
 To add a test, create a directory and run `./test/test.sh {Name}` (See [`docs/testing.md`](docs/testing.md)).
 
