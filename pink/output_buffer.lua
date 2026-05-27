@@ -224,7 +224,6 @@ local hasTrailingGlue = function(buffer)
     return false
 end
 
--- TODO refactor
 return function()
     return {
         buffer = {},
@@ -233,6 +232,20 @@ return function()
         hadTrailingNl = false,
         -- prevents a second collect() from re-running and overwriting hadTrailingNl
         needsCollect = false,
+        -- set when a terminalDivert instruction (->END/DONE) was seen during collect()
+        terminalDivert = false,
+        -- set when a threadChoice instruction is collected; cleared by onNewChoice()
+        threadChoiceAdded = false,
+        -- true once any text is produced since the last onNewChoice() call
+        hadOutput = false,
+        -- true after at least one onNewChoice() call; guards first-interaction paragraph breaks
+        pastFirstChoice = false,
+        -- pre-pop state: captured by prePop() before the second update() in continue()
+        preRes = '',
+        preTrailingGlue = false,
+        preHadNl = true,
+        preBufferWasEmpty = true,
+        preRawHadContent = false,
         instr = function(self, instr)
             self.needsCollect = true
             table.insert(self.buffer, { [instr] = true })
@@ -253,6 +266,18 @@ return function()
             self.needsCollect = false
             log.debug(self.buffer)
             local buf = self.buffer
+            -- extract meta-instructions before the pipeline
+            local cleaned = {}
+            for _, e in ipairs(buf) do
+                if type(e) == 'table' and e['terminalDivert'] then
+                    self.terminalDivert = true
+                elseif type(e) == 'table' and e['threadChoice'] then
+                    self.threadChoiceAdded = true
+                else
+                    table.insert(cleaned, e)
+                end
+            end
+            buf = cleaned
             self.hadTrailingGlue = hasTrailingGlue(buf)
             buf = resolveNlInstructions(buf) -- convert {nl} markers to '\n'; must run first to establish line state
             buf = insertOutBlockGlue(buf) -- insert glue before output blocks; needs resolved newlines
@@ -284,20 +309,106 @@ return function()
             self.hadTrailingGlue = false
             return result, trailingGlue, hadNl
         end,
+        -- Resets per-choice tracking state; called from chooseChoiceIndex().
+        onNewChoice = function(self)
+            self.hadOutput = false
+            self.threadChoiceAdded = false
+            self.terminalDivert = false
+            self.pastFirstChoice = true
+        end,
+        -- Captures buffer state before the second update() in continue(); must be called
+        -- before update() so that handleChoice() sees an empty buffer and processes choices.
+        prePop = function(self)
+            self.preRawHadContent = #self.buffer > 0
+            self.preBufferWasEmpty = self:isEmpty() -- calls collect()
+            self.preRes, self.preTrailingGlue, self.preHadNl = '', false, true
+            if not self.preBufferWasEmpty then
+                self.preRes, self.preTrailingGlue, self.preHadNl = self:popLine()
+            end
+        end,
+        -- Formats one continue() result using pre-pop state (from prePop()) and current buffer.
+        -- ctx: { hasChoices }
+        -- Returns (formattedText, producedOutput, canContinue).
+        popTurnLine = function(self, ctx)
+            local res, trailingGlue, hadNl, bufferWasEmpty =
+                self.preRes, self.preTrailingGlue, self.preHadNl, self.preBufferWasEmpty
+            -- if update() added content to a truly empty buffer, pop it now
+            if res == '' and not self.preRawHadContent and not self:isEmpty() then
+                res, trailingGlue, hadNl = self:popLine()
+                bufferWasEmpty = false
+            end
+            local endedByDivert = self.terminalDivert
+            local canContinue = not self:isEmpty()
+            if res == '' then
+                if not bufferWasEmpty and not endedByDivert then
+                    return '\n', false, canContinue -- whitespace-only line → blank line
+                elseif ctx.hasChoices then
+                    -- when thread choices are present and a turn has been taken with no text output,
+                    -- emit an extra blank line (the thread transition creates a paragraph break)
+                    local hasThreadChoices = self.pastFirstChoice and not self.hadOutput and self.threadChoiceAdded
+                    return hasThreadChoices and '\n\n' or '\n', false, canContinue
+                else
+                    return '', false, canContinue -- story ended with no output
+                end
+            elseif trailingGlue or canContinue then
+                self.hadOutput = true
+                return res .. '\n', true, canContinue
+            elseif not ctx.hasChoices then
+                -- story ended; natural EOF always gets \n; ->END/DONE only gets \n if buffer had one
+                self.hadOutput = true
+                return res .. ((hadNl or not endedByDivert) and '\n' or ''), true, canContinue
+            else
+                self.hadOutput = true
+                return res .. '\n\n', true, canContinue
+            end
+        end,
         clear = function(self)
-            local snapshot = { buffer = self.buffer, needsCollect = self.needsCollect }
+            local snapshot = {
+                buffer = self.buffer,
+                needsCollect = self.needsCollect,
+                terminalDivert = self.terminalDivert,
+                threadChoiceAdded = self.threadChoiceAdded,
+                hadOutput = self.hadOutput,
+                pastFirstChoice = self.pastFirstChoice,
+                preRes = self.preRes,
+                preTrailingGlue = self.preTrailingGlue,
+                preHadNl = self.preHadNl,
+                preBufferWasEmpty = self.preBufferWasEmpty,
+                preRawHadContent = self.preRawHadContent,
+            }
             self.buffer = {}
             self.hadTrailingNl = false
             self.needsCollect = false
+            self.terminalDivert = false
+            self.threadChoiceAdded = false
+            -- hadOutput and pastFirstChoice intentionally NOT cleared:
+            -- option text evaluation snapshots are within a single choice period
+            self.preRes, self.preTrailingGlue, self.preHadNl = '', false, true
+            self.preBufferWasEmpty = true
+            self.preRawHadContent = false
             return snapshot
         end,
         reset = function(self, snapshot)
             self.buffer = snapshot.buffer
             self.needsCollect = snapshot.needsCollect
+            self.terminalDivert = snapshot.terminalDivert
+            self.threadChoiceAdded = snapshot.threadChoiceAdded
+            self.hadOutput = snapshot.hadOutput
+            self.pastFirstChoice = snapshot.pastFirstChoice
+            self.preRes = snapshot.preRes
+            self.preTrailingGlue = snapshot.preTrailingGlue
+            self.preHadNl = snapshot.preHadNl
+            self.preBufferWasEmpty = snapshot.preBufferWasEmpty
+            self.preRawHadContent = snapshot.preRawHadContent
         end,
         isEmpty = function(self)
             self:collect()
             return #self.buffer == 0
+        end,
+        -- Returns true if continue() must be called after chooseChoiceIndex() to drain
+        -- pending output or emit a paragraph break before presenting choices.
+        needsContinue = function(self, hasChoices)
+            return not self:isEmpty() or self.threadChoiceAdded or hasChoices
         end,
     }
 end

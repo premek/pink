@@ -26,11 +26,8 @@ return function(globalTree)
     local currentKnot, currentStitch -- forward declarations needed by getEnv for label lookup
     local turns = 0
     local turnAtVisit = {}
-    local turnHadOutput = false -- true when at least one line of text was output this turn
-    local threadChoicesAdded = false -- true when runThread added choices to s.currentChoices this turn
     -- true when choices were collected inside an inline frame; must step out before presenting
     local choicesNeedDrain = false
-    local endedByDivert = false
     -- callstack depth after the most recent goTo; frames above this belong to the current knot context
     local lastDivertDepth = 0
 
@@ -341,7 +338,7 @@ return function(globalTree)
         end
     end
     local gotoTerminal = function(path)
-        endedByDivert = true
+        outputBuffer:instr('terminalDivert')
         pointer = #tree + 1
         -- DONE with pending thread choices: leave callstack intact so thread
         -- continuations (e.g. ->-> tunnel returns) still work when a choice is made.
@@ -994,7 +991,7 @@ return function(globalTree)
                 c.threadFrames = threadFrames
             end
             table.insert(s.currentChoices, c)
-            threadChoicesAdded = true
+            outputBuffer:instr('threadChoice')
         end
 
         tree, pointer, env, currentAddr = savedTree, savedPointer, savedEnv, savedAddr
@@ -1205,64 +1202,23 @@ return function(globalTree)
         end
 
         log.debug('out', outputBuffer.buffer)
-        local res = ''
-        local trailingGlue = false
-        local hadNl = true
-        -- rawHadContent: was there anything to potentially collect (before processing)?
-        -- bufferWasEmpty: did anything survive after collect() reduced the buffer?
-        -- A buffer with only {nl=true} has rawHadContent=true but bufferWasEmpty=true.
-        local rawHadContent = #outputBuffer.buffer > 0
-        local bufferWasEmpty = outputBuffer:isEmpty()
-        if not bufferWasEmpty then
-            res, trailingGlue, hadNl = outputBuffer:popLine()
-        end
-        log.debug('OUT:', res)
+        -- prePop() captures buffer state and pops any existing line before update() runs.
+        -- Must happen first: handleChoice() checks isEmpty() to decide whether to defer choices.
+        outputBuffer:prePop()
         s.currentTags = tags
         tags = {}
         if #s.currentChoices == 0 or choicesNeedDrain then
             update() -- advance to next output; skip if choices already populated (unless draining inline frames)
         end
-        -- if update() added content to a truly empty buffer (no prior content this call),
-        -- pop it now so it's returned as text rather than as a blank separator
-        if res == '' and not rawHadContent and not outputBuffer:isEmpty() then
-            res, trailingGlue, hadNl = outputBuffer:popLine()
-            bufferWasEmpty = false
-        end
-        -- drain thread output before showing choices:
-        -- if buffer still has content, keep going; once empty with choices ready, stop
-        if not outputBuffer:isEmpty() then
-            s.canContinue = true
-        elseif #s.currentChoices > 0 then
-            s.canContinue = false
-        end
-        local function buildResult()
-            if res == '' then
-                if not bufferWasEmpty and not endedByDivert then
-                    return '\n' -- whitespace-only line → blank line
-                elseif #s.currentChoices > 0 then
-                    -- when thread choices are present and a turn has been taken with no text output,
-                    -- emit an extra blank line (the thread transition creates a paragraph break)
-                    local hasThreadChoices = turns > 0 and not turnHadOutput and threadChoicesAdded
-                    return hasThreadChoices and '\n\n' or '\n'
-                else
-                    return '' -- story ended with no output
-                end
-            elseif trailingGlue or s.canContinue then
-                turnHadOutput = true
-                return res .. '\n'
-            elseif #s.currentChoices == 0 then
-                -- story ended; natural EOF always gets \n; ->END/DONE only gets \n if buffer had one
-                return res .. ((hadNl or not endedByDivert) and '\n' or '')
-            else
-                turnHadOutput = true
-                return res .. '\n\n'
-            end
-        end
+        local result, _, newCanContinue = outputBuffer:popTurnLine({
+            hasChoices = #s.currentChoices > 0,
+        })
+        s.canContinue = newCanContinue
         if pendingDie then
             -- the caller will get this content first; the error fires on the next continue() call
             s.canContinue = true
         end
-        return buildResult() .. log.drainCompatWarnings()
+        return result .. log.drainCompatWarnings()
     end
 
     s.chooseChoiceIndex = function(index)
@@ -1306,20 +1262,12 @@ return function(globalTree)
         stepInto(choice.option.sharedStartText, nil, nil, sharedStartTextAddr(choice.option))
 
         s.currentChoices = {}
-        turnHadOutput = false
-        threadChoicesAdded = false
         choicesNeedDrain = false
-        endedByDivert = false
+        outputBuffer:onNewChoice()
         update()
-        -- canContinue() returns false when choices are present, even if the buffer has text
-        -- to output. Force s.canContinue so continue() is called to drain pending output.
-        -- buffer empty: still need continue() if thread choices need a paragraph separator
-        if not outputBuffer:isEmpty() or (not s.canContinue and threadChoicesAdded) then
-            s.canContinue = true
-        end
-        -- After a turn, if choices appeared with no text output, still call continue() so
-        -- it can emit the paragraph-break '\n' between turns.
-        if not s.canContinue and #s.currentChoices > 0 and turns > 0 then
+        -- canContinue() returns false when choices are present; force it so continue()
+        -- is called to drain pending output or emit a paragraph break before choices.
+        if outputBuffer:needsContinue(#s.currentChoices > 0) then
             s.canContinue = true
         end
     end
