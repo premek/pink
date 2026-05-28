@@ -351,9 +351,9 @@ async function runTest() {
     const lines = data.diff.split('\n');
     bodyEl.innerHTML = lines.map(l => {
       let cls = '';
-      if (l.startsWith('+')) cls = 'diff-add';
-      else if (l.startsWith('-')) cls = 'diff-del';
-      else if (l.startsWith('@@') || l.startsWith('---') || l.startsWith('+++')) cls = 'diff-info';
+      if (l.startsWith('+ ')) cls = 'diff-add';
+      else if (l.startsWith('- ')) cls = 'diff-del';
+      else if (l.startsWith('? ')) cls = 'diff-info';
       return `<div class="diff-line ${cls}">${escHtml(l)}</div>`;
     }).join('');
   } else if (data.pass) {
@@ -522,11 +522,9 @@ def run_test(name):
     diff = ""
     if not passed:
         diff = "".join(
-            difflib.unified_diff(
+            difflib.ndiff(
                 expected.splitlines(keepends=True),
                 actual.splitlines(keepends=True),
-                fromfile="expected (transcript.txt)",
-                tofile="actual",
             )
         )
     return {"pass": passed, "output": actual, "diff": diff}
