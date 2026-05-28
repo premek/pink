@@ -1019,6 +1019,7 @@ return function(input, source)
         -- Sequence: go through alternatives and stick on last (stopping), cycle, once-only, shuffle.
         -- Any order/combination of keywords, e.g. {stopping shuffle:} = {shuffle stopping:}.
         if ahead('stopping') or ahead('shuffle') or ahead('once') or ahead('cycle') then
+            local seqStartLine = line
             while ahead('stopping') or ahead('shuffle') or ahead('once') or ahead('cycle') do
                 if ahead('stopping') then
                     consume('stopping')
@@ -1034,6 +1035,22 @@ return function(input, source)
                     opts.cycle = true
                 end
                 consumeWhitespaceAndNewlines()
+            end
+            local nonShuffleNames = {}
+            if opts.stopping then
+                nonShuffleNames[#nonShuffleNames + 1] = 'Stopping'
+            end
+            if opts.once then
+                nonShuffleNames[#nonShuffleNames + 1] = 'Once'
+            end
+            if opts.cycle then
+                nonShuffleNames[#nonShuffleNames + 1] = 'Cycle'
+            end
+            if #nonShuffleNames > 1 then
+                log.die(
+                    'Sequence type combination not supported: ' .. table.concat(nonShuffleNames, ', '),
+                    { source, seqStartLine, 1 }
+                )
             end
             if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
                 opts.cycle = true -- plain {shuffle:} defaults to cycle

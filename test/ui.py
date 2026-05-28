@@ -21,7 +21,7 @@ HTML = r"""<!DOCTYPE html>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: monospace; font-size: 13px; display: flex; height: 100vh; overflow: hidden; background: #f5f5f5; color: #1a1a1a; }
-#left { width: 240px; min-width: 240px; display: flex; flex-direction: column; border-right: 1px solid #ccc; background: #fafafa; }
+#left { width: 260px; min-width: 240px; display: flex; flex-direction: column; border-right: 1px solid #ccc; background: #fafafa; }
 #left-toolbar { padding: 8px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid #ccc; }
 #search { background: #fff; color: #1a1a1a; border: 1px solid #ccc; padding: 4px 6px; width: 100%; }
 #filters { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -88,8 +88,9 @@ textarea { background: #fff; color: #1a1a1a; border: 1px solid #ccc; padding: 6p
       <button class="filter-btn" id="git-filter-btn" onclick="toggleGitFilter()">M</button>
     </div>
     <div id="left-actions">
-      <button onclick="showNewTest()">New Test</button>
+      <button onclick="showNewTest()">New</button>
       <button onclick="runAll()">Run All</button>
+      <div id="pass-count" style="font-size:11px;color:#555;margin-left:auto;align-self:center;"></div>
     </div>
   </div>
   <div id="test-list"></div>
@@ -103,7 +104,10 @@ textarea { background: #fff; color: #1a1a1a; border: 1px solid #ccc; padding: 6p
       <span id="status-badge" class="badge"></span>
       <button class="primary" onclick="runTest()">Run</button>
     </div>
-    <div id="run-all-output"></div>
+    <div id="run-all-output">
+      <div style="position:sticky;top:0;display:flex;justify-content:flex-end;background:#fafafa;padding-bottom:4px"><button onclick="document.getElementById('run-all-output').style.display='none'">✕</button></div>
+      <div id="run-all-output-text"></div>
+    </div>
     <div id="run-result" style="display:none">
       <h3 id="run-result-title"></h3>
       <div id="run-result-body"></div>
@@ -143,6 +147,8 @@ async function init() {
 }
 
 function renderList() {
+  const pass = tests.filter(t => t.status === 'pass').length;
+  document.getElementById('pass-count').textContent = `${pass}/${tests.length} passing`;
   const q = document.getElementById('search').value.toLowerCase();
   const list = document.getElementById('test-list');
   list.innerHTML = '';
@@ -368,11 +374,12 @@ async function regenTranscript() {
 
 async function runAll() {
   const out = document.getElementById('run-all-output');
+  const text = document.getElementById('run-all-output-text');
   out.style.display = 'block';
-  out.textContent = 'Running all tests…\n';
+  text.textContent = 'Running all tests…\n';
   const resp = await fetch('/api/run-all', {method: 'POST'});
   const data = await resp.json();
-  out.textContent = data.output;
+  text.textContent = data.output;
   const testsResp = await fetch('/api/tests');
   tests = await testsResp.json();
   renderList();
