@@ -177,11 +177,25 @@ return function(globalTree, env, noKnot, listDefinitions)
                     n.body = preProcess(n.body)
                 end
                 if n.label then
-                    env[n.label] = node.int(0)
                     if lastStitch then
                         knots[lastKnot][lastStitch][n.label] = { pointer = p, tree = t }
+                        if lastKnot ~= noKnot then
+                            env[lastKnot]._children = env[lastKnot]._children or {}
+                            env[lastKnot]._children[lastStitch] = env[lastKnot]._children[lastStitch] or node.int(0)
+                            local stitchEntry = env[lastKnot]._children[lastStitch]
+                            stitchEntry._children = stitchEntry._children or {}
+                            stitchEntry._children[n.label] = node.int(0)
+                        else
+                            env[n.label] = node.int(0)
+                        end
                     else
                         knots[lastKnot][n.label] = { pointer = p, tree = t }
+                        if lastKnot ~= noKnot then
+                            env[lastKnot]._children = env[lastKnot]._children or {}
+                            env[lastKnot]._children[n.label] = node.int(0)
+                        else
+                            env[n.label] = node.int(0)
+                        end
                     end
                 end
             end

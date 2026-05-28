@@ -269,6 +269,16 @@ return function(globalTree)
         end
     end
 
+    local labelPath = function(knot, stitch, label)
+        if knot and stitch then
+            return knot .. '.' .. stitch .. '.' .. label
+        elseif knot then
+            return knot .. '.' .. label
+        else
+            return label
+        end
+    end
+
     local incrementSeenCounter = function(path)
         log.debug('increment seen counter: ' .. path)
         local var = getEnv(path, nil, rootEnv)
@@ -823,13 +833,7 @@ return function(globalTree)
         end,
         gather = function(n)
             if n.label then
-                if currentKnot and currentStitch then
-                    incrementSeenCounter(currentKnot .. '.' .. currentStitch .. '.' .. n.label)
-                elseif currentKnot then
-                    incrementSeenCounter(currentKnot .. '.' .. n.label)
-                else
-                    incrementSeenCounter(n.label)
-                end
+                incrementSeenCounter(labelPath(currentKnot, currentStitch, n.label))
             end
             return n.body, bodyAddr(n)
         end,
@@ -933,11 +937,15 @@ return function(globalTree)
                         local text = evaluateOptionText(option)
                         -- save thread env so divert parameters (e.g. -> go_back_to) remain
                         -- accessible when the choice body and gather execute after selection;
-                        -- save threadKnot so we can increment labeled gather counters correctly
-                        table.insert(
-                            visible,
-                            { text = text, option = option, gather = gather, threadEnv = env, threadKnot = currentKnot }
-                        )
+                        -- save threadKnot/threadStitch so we can increment labeled counters correctly
+                        table.insert(visible, {
+                            text = text,
+                            option = option,
+                            gather = gather,
+                            threadEnv = env,
+                            threadKnot = currentKnot,
+                            threadStitch = currentStitch,
+                        })
                     end
                 end
 
@@ -1039,7 +1047,13 @@ return function(globalTree)
 
             if displayOption then
                 local text = evaluateOptionText(option)
-                table.insert(s.currentChoices, { text = text, option = option, gather = gather })
+                table.insert(s.currentChoices, {
+                    text = text,
+                    option = option,
+                    gather = gather,
+                    threadKnot = currentKnot,
+                    threadStitch = currentStitch,
+                })
             end
         end
 
@@ -1244,8 +1258,14 @@ return function(globalTree)
         end
 
         turns = turns + 1
-        if choice.option.label then -- the option has a label
-            incrementSeenCounter(choice.option.label) -- TODO full path??
+        if choice.option.label then
+            local knot = choice.threadKnot
+            local stitch = choice.threadStitch
+            incrementSeenCounter(labelPath(knot, stitch, choice.option.label))
+            -- TURNS_SINCE(-> label) uses bare label as the lookup key
+            if knot then
+                turnAtVisit[choice.option.label] = turns
+            end
         end
         markOptionUsed(choice.option)
 
