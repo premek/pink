@@ -240,6 +240,8 @@ return function()
         hadOutput = false,
         -- true after at least one onNewChoice() call; guards first-interaction paragraph breaks
         pastFirstChoice = false,
+        -- set by collect() when an outBlockStart (if-conditional entry) is in the buffer this turn
+        hadOutBlockThisTurn = false,
         -- pre-pop state: captured by prePop() before the second update() in continue()
         preRes = '',
         preTrailingGlue = false,
@@ -278,6 +280,20 @@ return function()
                 end
             end
             buf = cleaned
+            -- detect if-block entry: if has unmatched outBlockStart (seq always has matching outBlockEnd)
+            local outBlockDepth = 0
+            for _, e in ipairs(buf) do
+                if type(e) == 'table' then
+                    if e['outBlockStart'] then
+                        outBlockDepth = outBlockDepth + 1
+                    elseif e['outBlockEnd'] then
+                        outBlockDepth = outBlockDepth - 1
+                    end
+                end
+            end
+            if outBlockDepth > 0 then
+                self.hadOutBlockThisTurn = true
+            end
             self.hadTrailingGlue = hasTrailingGlue(buf)
             buf = resolveNlInstructions(buf) -- convert {nl} markers to '\n'; must run first to establish line state
             buf = insertOutBlockGlue(buf) -- insert glue before output blocks; needs resolved newlines
@@ -315,6 +331,7 @@ return function()
             self.threadChoiceAdded = false
             self.terminalDivert = false
             self.pastFirstChoice = true
+            self.hadOutBlockThisTurn = false
         end,
         -- Captures buffer state before the second update() in continue(); must be called
         -- before update() so that handleChoice() sees an empty buffer and processes choices.
@@ -359,7 +376,7 @@ return function()
                 return res .. ((hadNl or not endedByDivert) and '\n' or ''), true, canContinue
             else
                 self.hadOutput = true
-                return res .. '\n\n', true, canContinue
+                return res .. ((hadNl or self.hadOutBlockThisTurn) and '\n\n' or '\n'), true, canContinue
             end
         end,
         clear = function(self)
@@ -370,6 +387,7 @@ return function()
                 threadChoiceAdded = self.threadChoiceAdded,
                 hadOutput = self.hadOutput,
                 pastFirstChoice = self.pastFirstChoice,
+                hadOutBlockThisTurn = self.hadOutBlockThisTurn,
                 preRes = self.preRes,
                 preTrailingGlue = self.preTrailingGlue,
                 preHadNl = self.preHadNl,
@@ -383,6 +401,7 @@ return function()
             self.threadChoiceAdded = false
             -- hadOutput and pastFirstChoice intentionally NOT cleared:
             -- option text evaluation snapshots are within a single choice period
+            self.hadOutBlockThisTurn = false
             self.preRes, self.preTrailingGlue, self.preHadNl = '', false, true
             self.preBufferWasEmpty = true
             self.preRawHadContent = false
@@ -395,6 +414,7 @@ return function()
             self.threadChoiceAdded = snapshot.threadChoiceAdded
             self.hadOutput = snapshot.hadOutput
             self.pastFirstChoice = snapshot.pastFirstChoice
+            self.hadOutBlockThisTurn = snapshot.hadOutBlockThisTurn
             self.preRes = snapshot.preRes
             self.preTrailingGlue = snapshot.preTrailingGlue
             self.preHadNl = snapshot.preHadNl
