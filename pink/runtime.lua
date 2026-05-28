@@ -914,6 +914,10 @@ return function(globalTree)
                 end
             elseif isNext('divert') and (tree[pointer].target == 'DONE' or tree[pointer].target == 'END') then
                 break
+            elseif isNext('tunnelreturnto') then
+                local rtn = tree[pointer]
+                stepOut('tunnel')
+                goTo(rtn.target, rtn.args, nil)
             elseif isNext('divert') then
                 goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
             elseif isNext('choice') then
@@ -1016,6 +1020,13 @@ return function(globalTree)
             end
         end
         goTo(tree[pointer].target, tree[pointer].args, tree[pointer].tunnel)
+        update()
+    end
+
+    local handleTunnelReturnTo = function()
+        local n = tree[pointer]
+        stepOut('tunnel')
+        goTo(n.target, n.args)
         update()
     end
 
@@ -1164,6 +1175,11 @@ return function(globalTree)
 
         if isNext('divert') then
             handleDivert()
+            return
+        end
+
+        if isNext('tunnelreturnto') then
+            handleTunnelReturnTo()
             return
         end
 

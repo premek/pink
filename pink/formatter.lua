@@ -246,6 +246,9 @@ local nodeFormatters = {
     tunnelreturn = function(_node, _ctx)
         out('->->')
     end,
+    tunnelreturnto = function(n, _ctx)
+        out('->-> ', n.target)
+    end,
     tag = function(node, _ctx)
         out('#', node.text)
     end,

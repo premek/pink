@@ -530,17 +530,18 @@ return function(input, source)
             return
         end
         consume('->')
-        consumeWhitespace()
         if ahead('->') then
-            -- ->-> return from a tunnel -- TODO should be a different token?
             consume('->')
             consumeWhitespace()
             if eolAhead() then
-                return token(node.tunnelreturn()) -- FIXME name, could it be the same as normal return?
+                return token(node.tunnelreturn())
             end
-            -- ->-> return_to -- return as normal divert?
-            -- TODO it should step out and then divert
+            local targetName = identifier()
+            consumeWhitespace()
+            local args = listOf(argument)
+            return token(node.tunnelreturnto(targetName, args))
         end
+        consumeWhitespace()
         local targetName = identifier()
         consumeWhitespace()
         local args = listOf(argument)

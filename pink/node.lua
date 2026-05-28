@@ -98,6 +98,9 @@ end
 node.tunnelreturn = function()
     return { type = 'tunnelreturn' }
 end
+node.tunnelreturnto = function(target, args)
+    return { type = 'tunnelreturnto', target = target, args = args }
+end
 node.nl = function()
     return { type = 'nl' }
 end
