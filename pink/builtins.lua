@@ -48,7 +48,7 @@ return function(deps)
     end
 
     local add = function(a, b)
-        requireType(a, 'bool', 'str', 'float', 'int', 'list')
+        requireType(a, 'bool', 'str', 'float', 'int', 'list', 'el')
         requireType(b, 'bool', 'str', 'float', 'int', 'list', 'el')
 
         if a.type == 'str' or b.type == 'str' then
@@ -60,6 +60,9 @@ return function(deps)
         end
         if a.type == 'list' and b.type == 'int' then
             return node.listInc(a, b.value, listDefinitions)
+        end
+        if a.type == 'el' and b.type == 'int' then
+            return node.listElInc(a, b.value, listDefinitions)
         end
 
         if a.type == 'bool' then

@@ -566,8 +566,13 @@ node.listInc = function(lst, a, listDefinitions)
     return new
 end
 
+node.listElInc = function(el, a, listDefinitions)
+    node.requireType(el, 'el')
+    local value = listValueInt(el, listDefinitions) + a
+    return node.listElByValue(el.listName, value, listDefinitions)
+end
+
 node.listAll = function(a, listDefinitions)
-    node.requireType(a, 'el', 'list') -- TODO is 'el' just a 'list' with one element?
     local listNames = {}
     if a.type == 'el' then
         table.insert(listNames, a.listName)
