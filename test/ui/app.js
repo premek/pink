@@ -82,7 +82,7 @@ async function loadFiles(name, files) {
   const gs = await gsResp.json();
   const gitFiles = gs.files || {};
   for (const f of ordered) {
-    appendFileSection(container, name, f, gitFiles[f] || null);
+    await appendFileSection(container, name, f, gitFiles[f] || null);
   }
 }
 
