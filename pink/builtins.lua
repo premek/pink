@@ -55,8 +55,11 @@ return function(deps)
             return node.str(node.toStr(a).value .. node.toStr(b).value)
         end
 
-        if a.type == 'list' and (b.type == 'list' or b.type == 'el') then -- FIXME
+        if a.type == 'list' and (b.type == 'list' or b.type == 'el') then
             return node.listPlus(a, b)
+        end
+        if a.type == 'el' and (b.type == 'el' or b.type == 'list') then
+            return node.listPlus(node.listFromEls({ a }, {}), b)
         end
         if a.type == 'list' and b.type == 'int' then
             return node.listInc(a, b.value, listDefinitions)
@@ -81,11 +84,14 @@ return function(deps)
     end
 
     local sub = function(a, b)
-        requireType(a, 'float', 'int', 'bool', 'list')
+        requireType(a, 'float', 'int', 'bool', 'list', 'el')
         requireType(b, 'float', 'int', 'bool', 'list', 'el')
 
         if a.type == 'list' then
             return node.listMinus(a, b)
+        end
+        if a.type == 'el' then
+            return node.listMinus(node.listFromEls({ a }, {}), b)
         end
 
         if b.type == 'bool' then
@@ -164,7 +170,11 @@ return function(deps)
             end
         end
 
-        -- TODO all combinations
+        if a.type == 'list' and b.type == 'list' then
+            local aCount = node.listCount(a).value
+            local bCount = node.listCount(b).value
+            return node.bool(aCount == bCount and (aCount == 0 or node.listContainsAll(a, b)))
+        end
         if a.type == 'list' and b.type == 'el' then
             return node.bool(node.listContains(a, b))
         elseif a.type == 'el' and b.type == 'list' then
