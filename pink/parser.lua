@@ -169,16 +169,14 @@ return function(input, source)
         return input:sub(startPos, current - 1)
     end
 
+    local text -- forward declaration; defined below after singleLineComment
+
     local singleLineComment = function()
         consume('//')
         consumeWhitespace()
-        local s = current
-        while not eolAhead() do
-            next()
-        end
-        local text = currentText(s)
+        local commentText = text({ onlyStopAt = {} })
         consumeWhitespace()
-        return token(node.comment(text))
+        return token(node.comment(commentText))
     end
 
     local multiLineComment = function()
@@ -194,14 +192,13 @@ return function(input, source)
             end
             next()
         end
-        local text = currentText(s)
+        local commentText = currentText(s)
         consume('*/')
         consumeWhitespaceAndNewlines()
         -- we have to return something so the caller does not stop here
-        return token(node.comment(text))
+        return token(node.comment(commentText))
     end
 
-    local text
     text = function(opts)
         local s = current
         local result = ''
@@ -209,11 +206,20 @@ return function(input, source)
         -- FIXME this is wierd
         --
         --
-        while
-            not aheadAnyOf('#', '->', '<-', '==', '<>', '//', '{', '}', '|', '/*', '\n')
-            and not isAtEnd()
-            and not (opts and opts.stopAt and aheadAnyOf(unpack(opts.stopAt)))
-        do -- FIXME hack or not?
+        while not eolAhead() do
+            -- opts.onlyStopAt replaces the default stop list entirely (eol always stops)
+            if opts and opts.onlyStopAt then
+                if aheadAnyOf(unpack(opts.onlyStopAt)) then
+                    break
+                end
+            else
+                if aheadAnyOf('#', '->', '<-', '==', '<>', '//', '{', '}', '|', '/*') then
+                    break
+                end
+                if opts and opts.stopAt and aheadAnyOf(unpack(opts.stopAt)) then
+                    break
+                end
+            end
             if not ahead('\\') then
                 next()
             else
@@ -522,7 +528,7 @@ return function(input, source)
         end
         consume('TODO:')
         consumeWhitespace()
-        return token(node.todo(textLine()))
+        return token(node.todo(text({ onlyStopAt = { '//' } })))
     end
 
     divert = function()

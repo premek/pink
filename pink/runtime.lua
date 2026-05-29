@@ -769,6 +769,7 @@ return function(globalTree)
         var = nodeSkip,
         const = nodeSkip,
         comment = nodeSkip,
+        todo = nodeSkip,
         knot = nodeSkip,
         fndef = nodeSkip,
         external = nodeSkip,
@@ -815,9 +816,6 @@ return function(globalTree)
         call = function(n)
             getValue(n)
         end, -- ~ fn() -- call but ignore the result
-        todo = function(n)
-            log.todo(n.text, n)
-        end,
         glue = function()
             outputBuffer:instr('glue')
         end,
@@ -1336,6 +1334,10 @@ return function(globalTree)
     nodeById = compiled.nodeById
     externalDefs = compiled.externalDefs
     s.globalTags = compiled.globalTags
+    -- emit TODO warnings before story execution (matches inklecate compile-time behavior)
+    for _, todoNode in ipairs(compiled.todos) do
+        log.todo(todoNode.text, todoNode)
+    end
     -- skip leading tags already collected into globalTags by compiler
     while is('tag', tree[pointer]) do
         pointer = pointer + 1

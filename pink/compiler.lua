@@ -13,6 +13,7 @@ return function(globalTree, env, noKnot, listDefinitions)
     local nodeById = {} -- [nodeId] = node, for callstack frame reconstruction on save/load
     local nodeIdCounter = 0
 
+    local todos = {}
     local assignNode, assignIds
 
     -- Assigns a stable nodeId to every AST node reachable from the given array.
@@ -29,6 +30,9 @@ return function(globalTree, env, noKnot, listDefinitions)
     assignNode = function(n)
         if type(n) ~= 'table' or not n.type then
             return
+        end
+        if is('todo', n) then
+            table.insert(todos, n)
         end
         nodeIdCounter = nodeIdCounter + 1
         n.nodeId = nodeIdCounter
@@ -234,5 +238,6 @@ return function(globalTree, env, noKnot, listDefinitions)
         nodeById = nodeById,
         externalDefs = externalDefs,
         globalTags = globalTags,
+        todos = todos,
     }
 end

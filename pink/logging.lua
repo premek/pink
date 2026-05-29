@@ -117,7 +117,7 @@ logging.newLogger = function()
         io.stderr:write('TODO: ' .. getLogMessage(message, token) .. '\n')
     end
     local function todoCompat(message, token)
-        table.insert(pendingCompatWarnings, 'TODO: ' .. compatLocation(token) .. message .. '\n')
+        io.stderr:write('TODO: ' .. compatLocation(token) .. message .. '\n')
     end
 
     return {
