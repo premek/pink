@@ -102,7 +102,7 @@ async function appendFileSection(container, name, f, gitStatus) {
     <summary>${escHtml(f)}${modBadge}</summary>
     <div class="file-body">
       <div class="file-actions">
-        <button onclick="saveFile('${escHtml(name)}','${escHtml(f)}',this)">Save</button>
+        <button onclick="saveFile('${escHtml(name)}','${escHtml(f)}',this)" title="Ctrl-S">Save</button>
         ${restoreBtn}
         ${f === 'transcript.txt' ? `<button id="regen-btn" onclick="regenTranscript()">Regenerate</button>` : ''}
         <span class="save-status"></span>
@@ -144,7 +144,7 @@ function escHtml(s) {
 async function saveFile(name, file, btn) {
   const det = btn.closest('.file-body');
   const ta = det.querySelector('textarea');
-  const statusEl = btn.nextElementSibling;
+  const statusEl = det.querySelector('.save-status');
   const resp = await fetch(`/api/tests/${name}/files/${file}`, {
     method: 'PUT',
     headers: {'Content-Type': 'text/plain'},
@@ -201,8 +201,19 @@ async function addFile() {
   input.value = '';
 }
 
+async function saveAllFiles() {
+  if (!selected) return;
+  const tasks = [];
+  document.querySelectorAll('#file-sections textarea').forEach(ta => {
+    const btn = ta.closest('.file-body').querySelector('button');
+    tasks.push(saveFile(selected, ta.dataset.file, btn));
+  });
+  await Promise.all(tasks);
+}
+
 async function runTest() {
   if (!selected) return;
+  await saveAllFiles();
   const resultDiv = document.getElementById('run-result');
   const titleEl = document.getElementById('run-result-title');
   const bodyEl = document.getElementById('run-result-body');
@@ -290,6 +301,23 @@ async function createTest() {
   renderList();
   selectTest(name);
 }
+
+document.getElementById('file-sections').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    const ta = e.target.closest('textarea');
+    if (!ta || !selected) return;
+    const btn = ta.closest('.file-body').querySelector('button');
+    saveFile(selected, ta.dataset.file, btn);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runTest();
+  }
+}, true);
 
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) hideNewTest();
