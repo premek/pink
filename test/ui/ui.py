@@ -81,20 +81,20 @@ def list_tests(passed_set):
     return tests
 
 
-def run_test(name):
+def run_test(name, compat=True):
     d = RUNTIME / name
     story = d / "setup.ink" if (d / "setup.ink").exists() else d / "story.ink"
     inp = d / "input.txt"
     transcript = d / "transcript.txt"
 
     is_x = name.startswith("X")
-    compat = [] if is_x else ["--compat"]
+    compat_flag = [] if is_x or not compat else ["--compat"]
 
     with open(inp, encoding="utf-8") as f:
         stdin_data = f.read()
 
     result = subprocess.run(
-        ["lua", str(ROOT / "pink-cli")] + compat + [str(story)],
+        ["lua", str(ROOT / "pink-cli")] + compat_flag + [str(story)],
         input=stdin_data,
         capture_output=True,
         text=True,
@@ -280,7 +280,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json(200, git_restore_file(name, fname))
         elif self.path.startswith("/api/tests/") and self.path.endswith("/run"):
             name = self.safe_name(self.path[len("/api/tests/"):-len("/run")])
-            self.send_json(200, run_test(name))
+            req = json.loads(body) if body else {}
+            self.send_json(200, run_test(name, compat=req.get("compat", True)))
 
         elif self.path.startswith("/api/tests/") and self.path.endswith("/regenerate"):
             name = self.safe_name(self.path[len("/api/tests/"):-len("/regenerate")])

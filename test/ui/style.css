@@ -30,6 +30,7 @@ button:hover { background: #e0e0e0; }
 button:disabled { opacity: 0.4; cursor: default; }
 button.primary { background: #0078d4; color: #fff; border-color: #0078d4; }
 button.primary:hover { background: #006bbf; }
+.compat-label { font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
 #placeholder { color: #aaa; padding: 40px; text-align: center; }
 #right-content { display: none; }
 #run-all-output { background: #fafafa; border: 1px solid #ddd; padding: 8px; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto; display: none; }
