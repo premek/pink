@@ -259,7 +259,6 @@ return function(input, source)
     end
     local identifierChars = {}
     charsRange(identifierChars, '_')
-    charsRange(identifierChars, '.')
     charsRange(identifierChars, 'A', 'Z')
     charsRange(identifierChars, 'a', 'z')
     charsRange(identifierChars, '0', '9')
@@ -283,31 +282,11 @@ return function(input, source)
         return currentText(s)
     end
 
-    local pathSegmentCharAhead = function()
-        local char = peek(1)
-        if char == '.' then
-            return false
-        end
-        return char ~= nil and (identifierChars[char] or string.byte(char) > 127)
-    end
-
     local path = function()
-        local parts = {}
-        if not pathSegmentCharAhead() then
-            errorAt('identifier expected')
-        end
-        local s = current
-        while pathSegmentCharAhead() do
-            next()
-        end
-        table.insert(parts, currentText(s))
+        local parts = { identifier() }
         while ahead('.') do
             next()
-            s = current
-            while pathSegmentCharAhead() do
-                next()
-            end
-            table.insert(parts, currentText(s))
+            table.insert(parts, identifier())
         end
         return parts
     end
@@ -571,13 +550,13 @@ return function(input, source)
             if eolAhead() then
                 return token(node.tunnelreturn())
             end
-            local targetName = identifier()
+            local targetName = path()
             consumeWhitespace()
             local args = listOf(argument)
             return token(node.tunnelreturnto(targetName, args))
         end
         consumeWhitespace()
-        local targetName = identifier()
+        local targetName = path()
         consumeWhitespace()
         local args = listOf(argument)
         local tunnel = nil
@@ -605,7 +584,7 @@ return function(input, source)
         end
         consume('<-')
         consumeWhitespace()
-        local targetName = identifier()
+        local targetName = path()
         consumeWhitespace()
         local args = listOf(argument)
         return token(node.fork(targetName, args))

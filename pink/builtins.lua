@@ -184,7 +184,7 @@ return function(deps)
         end
 
         if a.type == 'divert' and b.type == 'divert' then
-            return node.bool(a.target == b.target) -- TODO resolve path when comparing diverts?
+            return node.bool(table.concat(a.target, '.') == table.concat(b.target, '.'))
         end
 
         if

@@ -8,6 +8,7 @@ local compile = require(base_path .. 'compiler')
 local logging = require(base_path .. 'logging')
 local newStack = require(base_path .. 'stack')
 local random = require(base_path .. 'random')
+local Path = require(base_path .. 'path')
 local requireType = node.requireType
 local is = node.is
 
@@ -21,10 +22,11 @@ return function(globalTree)
     local outputBuffer = newOutputBuffer()
     local listDefinitions = newListDefinitions()
     local nodeOutput = node.makeOutput(listDefinitions)
-    local getEnv, s, nodeById -- forward declarations needed by createBuiltins closures
+    local getEnv, s, nodeById, turnAtVisitGet -- forward declarations needed by createBuiltins closures
     local lastLocation = nil
     local currentKnot, currentStitch -- forward declarations needed by getEnv for label lookup
     local turns = 0
+    -- Each node has `.turn` (recorded turn number) and `.children` (subtable keyed by path segment).
     local turnAtVisit = {}
     -- true when choices were collected inside an inline frame; must step out before presenting
     local choicesNeedDrain = false
@@ -42,7 +44,7 @@ return function(globalTree)
             return turns
         end,
         getTurnsSince = function(path)
-            return turnAtVisit[path]
+            return turnAtVisitGet(path)
         end,
         listDefinitions = listDefinitions,
         getLocation = function()
@@ -141,23 +143,10 @@ return function(globalTree)
         return is(what, tree[pointer])
     end
 
-    local splitName = function(name)
-        local first
-        local rest = {}
-        for token in name:gmatch('[^.]+') do
-            if first == nil then
-                first = token
-            else
-                table.insert(rest, token)
-            end
-        end
-        return first, rest
-    end
-
-    local getChildren = function(parentName, path, tbl, token)
-        for _, part in ipairs(path) do
+    local getChildren = function(parentName, segments, tbl, token)
+        for _, part in ipairs(segments) do
             if not tbl._children or not tbl._children[part] then
-                log.debug(parentName, path, env)
+                log.debug(parentName, segments, env)
                 log.die('error accessing "' .. part .. '" in "' .. parentName .. '"', token)
             end
             tbl = tbl._children[part]
@@ -177,24 +166,17 @@ return function(globalTree)
         end
     end
 
-    getEnv = function(nameOrPath, token, startingEnv)
-        local first, rest, name
-        if type(nameOrPath) == 'table' then
-            first = nameOrPath[1]
-            rest = { unpack(nameOrPath, 2) }
-            name = table.concat(nameOrPath, '.')
-        else
-            name = nameOrPath
-            first, rest = splitName(name)
-        end
+    getEnv = function(path, token, startingEnv)
+        local first = path[1]
+        local rest = { unpack(path, 2) }
         local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
             if currentKnot then
                 local knotEntry = getEnvOptional(currentKnot, rootEnv)
                 if knotEntry and knotEntry._children then
-                    if #rest == 0 and knotEntry._children[name] then
+                    if #rest == 0 and knotEntry._children[first] then
                         -- bare label directly under current knot (e.g. 'done' inside 'review_case_notes')
-                        return knotEntry._children[name], rootEnv
+                        return knotEntry._children[first], rootEnv
                     elseif #rest > 0 and knotEntry._children[first] then
                         -- stitch.label path relative to current knot (e.g. 'stitch_one.gatherpoint')
                         val = knotEntry._children[first]
@@ -203,7 +185,7 @@ return function(globalTree)
                 end
             end
             if val == nil then
-                log.variableNotFound(name, token)
+                log.variableNotFound(Path.toString(path), token)
                 return node.int(0), env
             end
         end
@@ -277,22 +259,36 @@ return function(globalTree)
         end
     end
 
-    local labelPath = function(knot, stitch, label)
-        if knot and stitch then
-            return knot .. '.' .. stitch .. '.' .. label
-        elseif knot then
-            return knot .. '.' .. label
-        else
-            return label
+    local turnAtVisitSet = function(path, value)
+        local t = turnAtVisit
+        for _, segment in ipairs(path) do
+            t.children = t.children or {}
+            t.children[segment] = t.children[segment] or {}
+            t = t.children[segment]
         end
+        t.turn = value
+    end
+
+    turnAtVisitGet = function(path)
+        local t = turnAtVisit
+        for _, segment in ipairs(path) do
+            if not t.children then
+                return nil
+            end
+            t = t.children[segment]
+            if not t then
+                return nil
+            end
+        end
+        return t.turn
     end
 
     local incrementSeenCounter = function(path)
-        log.debug('increment seen counter: ' .. path)
+        log.debug('increment seen counter: ' .. Path.toString(path))
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var.value = var.value + 1
-        turnAtVisit[path] = turns
+        turnAtVisitSet(path, turns)
     end
 
     local update, getValue, seqPickBranch, runThread
@@ -325,7 +321,7 @@ return function(globalTree)
                     -- (the parameter has a different name than what's used when calling the fn)
                     -- we will point to the same value
                     -- but when assigning to it we cannot just replace it in the local env
-                    newEnv[paramName] = node.ref({ refName })
+                    newEnv[paramName] = node.ref(Path.of(refName))
                 end
                 -- if the name is the same in and out-side the function:
                 -- do not create a local variable that would reference to itself and create a loop
@@ -355,38 +351,34 @@ return function(globalTree)
             callstack.pop()
         end
     end
-    local gotoTerminal = function(path)
+    local gotoTerminal = function(name)
         outputBuffer:instr('terminalDivert')
         pointer = #tree + 1
         -- DONE with pending thread choices: leave callstack intact so thread
         -- continuations (e.g. ->-> tunnel returns) still work when a choice is made.
-        if path == 'END' or #s.currentChoices == 0 then
+        if name == 'END' or #s.currentChoices == 0 then
             callstack.clear()
         end
         choicesNeedDrain = false
     end
 
     local gotoAbsolutePath = function(path)
-        local parts = {}
-        for part in path:gmatch('[^%.]+') do
-            table.insert(parts, part)
-        end
         local entry
-        if #parts == 2 then
-            entry = knots[parts[1]] and knots[parts[1]][parts[2]]
+        if #path == 2 then
+            entry = knots[path[1]] and knots[path[1]][path[2]]
             if entry then
-                currentKnot = parts[1]
+                currentKnot = path[1]
                 currentStitch = nil
             end
-        elseif #parts == 3 then
-            entry = knots[parts[1]] and knots[parts[1]][parts[2]] and knots[parts[1]][parts[2]][parts[3]]
+        elseif #path == 3 then
+            entry = knots[path[1]] and knots[path[1]][path[2]] and knots[path[1]][path[2]][path[3]]
             if entry then
-                currentKnot = parts[1]
-                currentStitch = parts[2]
+                currentKnot = path[1]
+                currentStitch = path[2]
             end
         end
         if not entry then
-            log.die('unknown path: ' .. path)
+            log.die('unknown path: ' .. Path.toString(path))
             return
         end
         pointer = entry.pointer
@@ -395,7 +387,7 @@ return function(globalTree)
         if isNext('knot') then
             next()
         end
-        if #parts == 2 then
+        if #path == 2 then
             -- count the stitch visit; stitch node is skipped below so update() won't count it
             incrementSeenCounter(path)
         end
@@ -417,13 +409,13 @@ return function(globalTree)
         end
     end
 
-    local gotoRelativeStitch = function(path, args, tunnel)
+    local gotoRelativeStitch = function(name, args, tunnel)
         if tunnel then
             callstack.push(newFrame(tunnel))
         end
-        local stitchEntry = knots[currentKnot][path]
+        local stitchEntry = knots[currentKnot][name]
         local incomingStitch = currentStitch
-        currentStitch = path
+        currentStitch = name
         pointer = stitchEntry.pointer
         tree = stitchEntry.tree
         local isGatherEntry = isNext('gather')
@@ -446,28 +438,28 @@ return function(globalTree)
             env = newEnv
         end
         -- gather labels always increment; skip only for self-recursive stitch diverts
-        if isGatherEntry or incomingStitch ~= path then
-            incrementSeenCounter(currentKnot .. '.' .. path)
+        if isGatherEntry or incomingStitch ~= name then
+            incrementSeenCounter(Path.of(currentKnot, name))
         end
     end
 
-    local gotoRelativeStitchLabel = function(path, tunnel)
+    local gotoRelativeStitchLabel = function(name, tunnel)
         if tunnel then
-            local entryNode = knots[noKnot][currentStitch][path].tree[knots[noKnot][currentStitch][path].pointer]
+            local entryNode = knots[noKnot][currentStitch][name].tree[knots[noKnot][currentStitch][name].pointer]
             callstack.push(newFrame(tunnel, is('gather', entryNode) and entryNode.body or nil))
         end
-        tree = knots[noKnot][currentStitch][path].tree
-        pointer = knots[noKnot][currentStitch][path].pointer
+        tree = knots[noKnot][currentStitch][name].tree
+        pointer = knots[noKnot][currentStitch][name].pointer
         if isNext('gather') then
             tree = tree[pointer].body
             pointer = 1
             discardGatherContinuations(tree)
         end
-        incrementSeenCounter(path) -- TODO full paths
+        incrementSeenCounter(Path.of(name)) -- TODO full paths
     end
 
-    local gotoTopLevelLabel = function(path, tunnel)
-        local noKnotEntry = knots[noKnot][path]
+    local gotoTopLevelLabel = function(name, tunnel)
+        local noKnotEntry = knots[noKnot][name]
         local entryNode = noKnotEntry.tree[noKnotEntry.pointer]
         if tunnel then
             callstack.push(newFrame(tunnel, is('gather', entryNode) and entryNode.body or nil))
@@ -480,7 +472,7 @@ return function(globalTree)
             -- discard orphaned returnTo frames for this gather body left by fallback setup
             discardGatherContinuations(tree)
         elseif is('stitch', entryNode) then
-            currentStitch = path
+            currentStitch = name
             next() -- skip the stitch declaration node
             if isNext('nl') then
                 next() -- skip the newline that follows the stitch declaration in the source
@@ -495,25 +487,25 @@ return function(globalTree)
             returnTo(entryNode.bodyOnlyText, bodyOnlyTextAddr(entryNode))
             stepInto(entryNode.sharedStartText, nil, nil, sharedStartTextAddr(entryNode))
         end
-        incrementSeenCounter(path) -- TODO full paths
+        incrementSeenCounter(Path.of(name)) -- TODO full paths
     end
 
-    local gotoKnot = function(path, args, tunnel)
-        local params = knots[path].params
-        local body = knots[path].tree
+    local gotoKnot = function(name, args, tunnel)
+        local params = knots[name].params
+        local body = knots[name].tree
         local newEnv = getArgumentsEnv(params, args)
         local incomingKnot = currentKnot
-        stepInto(body, newEnv, tunnel, bodyAddr(knots[path]))
+        stepInto(body, newEnv, tunnel, bodyAddr(knots[name]))
 
-        currentKnot = path
+        currentKnot = name
         currentStitch = nil
-        if incomingKnot ~= path then
-            incrementSeenCounter(path) -- TODO not just knots
+        if incomingKnot ~= name then
+            incrementSeenCounter(Path.of(name)) -- TODO not just knots
         end
         -- automatically go to the first stitch (only) if there is no other content in the knot
         if isNext('stitch') then
             currentStitch = tree[pointer].name
-            incrementSeenCounter(path .. '.' .. tree[pointer].name)
+            incrementSeenCounter(Path.of(name, tree[pointer].name))
             next()
         end
     end
@@ -522,29 +514,29 @@ return function(globalTree)
     goTo = function(path, args, tunnel)
         log.debug('go to', path, args)
 
-        if path == 'END' or path == 'DONE' then
-            gotoTerminal(path)
+        if path[1] == 'END' or path[1] == 'DONE' then
+            gotoTerminal(path[1])
             return
         end
 
-        local val = getEnvOptional(path)
+        local val = getEnvOptional(path[1])
         if is('divert', val) then
             goTo(val.target, args, tunnel)
             return
         end
 
-        if path:find('%.') ~= nil then
+        if #path > 1 then
             gotoAbsolutePath(path)
-        elseif knots[currentKnot] and knots[currentKnot][path] then
-            gotoRelativeStitch(path, args, tunnel)
-        elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path] then
-            gotoRelativeStitchLabel(path, tunnel)
-        elseif knots[noKnot] and knots[noKnot][path] then
-            gotoTopLevelLabel(path, tunnel)
-        elseif knots[path] then
-            gotoKnot(path, args, tunnel)
+        elseif knots[currentKnot] and knots[currentKnot][path[1]] then
+            gotoRelativeStitch(path[1], args, tunnel)
+        elseif knots[noKnot] and knots[noKnot][currentStitch] and knots[noKnot][currentStitch][path[1]] then
+            gotoRelativeStitchLabel(path[1], tunnel)
+        elseif knots[noKnot] and knots[noKnot][path[1]] then
+            gotoTopLevelLabel(path[1], tunnel)
+        elseif knots[path[1]] then
+            gotoKnot(path[1], args, tunnel)
         else
-            error('unknown path: ' .. path) -- TODO check at compile time?
+            error('unknown path: ' .. Path.toString(path)) -- TODO check at compile time?
         end
 
         -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
@@ -582,19 +574,20 @@ return function(globalTree)
             local var = getEnv(val.path, val)
             return getValue(var)
         elseif is('listlit', val) then
-            return getValue(node.listFromLit(val, getEnv))
+            return getValue(node.listFromLit(val, function(n)
+                return getEnv(Path.of(n))
+            end))
         elseif is('call', val) then
-            local name = val.name
             local args = val.args
 
-            local target = getEnv(name, val)
+            local target = getEnv(Path.of(val.name), val)
             log.debug('CALL target', target)
             -- FIXME detect unresolved function on compile time
 
             -- call divert as fn -- FIXME
             if is('divert', target) then
-                local path = target.target
-                local divertTarget = getEnv(path)
+                local divertPath = target.target
+                local divertTarget = getEnv(divertPath)
                 if is('fn', divertTarget) then
                     target = divertTarget
                 end
@@ -627,7 +620,7 @@ return function(globalTree)
                 end
                 local index = getValue(args[1])
                 requireType(index, 'int')
-                return node.listElByValue(name, assert(index).value, listDefinitions)
+                return node.listElByValue(val.name, assert(index).value, listDefinitions)
             else
                 error('invalid call target: ' .. target.type)
             end
@@ -684,12 +677,11 @@ return function(globalTree)
     end
 
     local nodeUpdateAssign = function(n)
-        local name = n.name
-        local oldValue, e = getEnv(name)
-        log.debug('ASSIGN', oldValue, name, n.expr)
+        local oldValue, e = getEnv(Path.of(n.name))
+        log.debug('ASSIGN', oldValue, n.name, n.expr)
 
         if is('ref', oldValue) then
-            local referenced = getEnv(oldValue.path[1])
+            local referenced = getEnv(Path.of(oldValue.path[1]))
 
             if is('list', referenced) then
                 oldValue = referenced
@@ -705,10 +697,10 @@ return function(globalTree)
             end
             if is('ref', oldValue) then
                 local refName = oldValue.path[1]
-                local _, refEnv = getEnv(refName)
+                local _, refEnv = getEnv(Path.of(refName))
                 refEnv[refName] = newValue
             else
-                e[name] = newValue
+                e[n.name] = newValue
             end
         end
         log.debug(env)
@@ -831,14 +823,14 @@ return function(globalTree)
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
             currentStitch = n.name
-            incrementSeenCounter(n.name)
+            incrementSeenCounter(Path.of(n.name))
         end,
         ink = function(n)
             return n.nodes, nodesAddr(n)
         end,
         gather = function(n)
             if n.label then
-                incrementSeenCounter(labelPath(currentKnot, currentStitch, n.label))
+                incrementSeenCounter(Path.label(currentKnot, currentStitch, n.label))
             end
             return n.body, bodyAddr(n)
         end,
@@ -917,7 +909,7 @@ return function(globalTree)
                 else
                     break
                 end
-            elseif isNext('divert') and (tree[pointer].target == 'DONE' or tree[pointer].target == 'END') then
+            elseif isNext('divert') and (tree[pointer].target[1] == 'DONE' or tree[pointer].target[1] == 'END') then
                 break
             elseif isNext('tunnelreturnto') then
                 local rtn = tree[pointer]
@@ -1018,7 +1010,7 @@ return function(globalTree)
     local handleDivert = function()
         if choicesNeedDrain then
             local target = tree[pointer].target
-            if target ~= 'DONE' and target ~= 'END' then
+            if target[1] ~= 'DONE' and target[1] ~= 'END' then
                 choicesNeedDrain = false
                 s.canContinue = canContinue()
                 return
@@ -1282,10 +1274,10 @@ return function(globalTree)
         if choice.option.label then
             local knot = choice.threadKnot
             local stitch = choice.threadStitch
-            incrementSeenCounter(labelPath(knot, stitch, choice.option.label))
+            incrementSeenCounter(Path.label(knot, stitch, choice.option.label))
             -- TURNS_SINCE(-> label) uses bare label as the lookup key
             if knot then
-                turnAtVisit[choice.option.label] = turns
+                turnAtVisitSet(Path.of(choice.option.label), turns)
             end
         end
         markOptionUsed(choice.option)
@@ -1293,7 +1285,7 @@ return function(globalTree)
         if choice.gather then
             -- thread choices bypass the gather node dispatch, so increment its label counter here
             if choice.gather.label and choice.threadKnot then
-                incrementSeenCounter(choice.threadKnot .. '.' .. choice.gather.label)
+                incrementSeenCounter(Path.of(choice.threadKnot, choice.gather.label))
             end
             returnToGather(choice.gather.body, bodyAddr(choice.gather))
         end
@@ -1314,7 +1306,7 @@ return function(globalTree)
     end
 
     s.choosePathString = function(knotName)
-        goTo(knotName)
+        goTo({ knotName })
         update()
     end
 
