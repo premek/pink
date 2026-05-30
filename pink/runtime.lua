@@ -177,8 +177,16 @@ return function(globalTree)
         end
     end
 
-    getEnv = function(name, token, startingEnv)
-        local first, rest = splitName(name)
+    getEnv = function(nameOrPath, token, startingEnv)
+        local first, rest, name
+        if type(nameOrPath) == 'table' then
+            first = nameOrPath[1]
+            rest = { unpack(nameOrPath, 2) }
+            name = table.concat(nameOrPath, '.')
+        else
+            name = nameOrPath
+            first, rest = splitName(name)
+        end
         local val, e = getEnvOptional(first, startingEnv)
         if val == nil then
             if currentKnot then
@@ -311,13 +319,13 @@ return function(globalTree)
             local arg = args[i]
             if paramType == 'ref' then -- TODO supported for knots?
                 requireType(arg, 'ref')
-                local refName = arg.name
+                local refName = arg.path[1]
                 if paramName ~= refName then
                     -- the referenced variable has different name inside the function
                     -- (the parameter has a different name than what's used when calling the fn)
                     -- we will point to the same value
                     -- but when assigning to it we cannot just replace it in the local env
-                    newEnv[paramName] = node.ref(refName)
+                    newEnv[paramName] = node.ref({ refName })
                 end
                 -- if the name is the same in and out-side the function:
                 -- do not create a local variable that would reference to itself and create a loop
@@ -571,8 +579,7 @@ return function(globalTree)
         elseif is('out', val) then
             return getValue(val.content)
         elseif is('ref', val) then
-            local name = val.name
-            local var = getEnv(name, val)
+            local var = getEnv(val.path, val)
             return getValue(var)
         elseif is('listlit', val) then
             return getValue(node.listFromLit(val, getEnv))
@@ -682,7 +689,7 @@ return function(globalTree)
         log.debug('ASSIGN', oldValue, name, n.expr)
 
         if is('ref', oldValue) then
-            local referenced = getEnv(oldValue.name)
+            local referenced = getEnv(oldValue.path[1])
 
             if is('list', referenced) then
                 oldValue = referenced
@@ -697,7 +704,7 @@ return function(globalTree)
                 log.die('cannot assign nil')
             end
             if is('ref', oldValue) then
-                local refName = oldValue.name
+                local refName = oldValue.path[1]
                 local _, refEnv = getEnv(refName)
                 refEnv[refName] = newValue
             else

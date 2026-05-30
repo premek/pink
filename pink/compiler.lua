@@ -69,11 +69,11 @@ return function(globalTree, env, noKnot, listDefinitions)
 
     local evalVarInit = function(val)
         if is('ref', val) then
-            if #val.parts > 1 then
-                local head = env[val.parts[1]]
-                val = head and head._children and head._children[val.parts[2]]
+            if #val.path > 1 then
+                local head = env[val.path[1]]
+                val = head and head._children and head._children[val.path[2]]
             else
-                val = env[val.name]
+                val = env[val.path[1]]
             end
         end
         if is('el', val) then

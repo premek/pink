@@ -195,7 +195,7 @@ local nodeFormatters = {
         out('}')
     end,
     ref = function(node, _ctx)
-        out(node.name) --FIXME ref?
+        out(table.concat(node.path, '.'))
     end,
     bool = function(node, _ctx)
         out(tostring(node.value))

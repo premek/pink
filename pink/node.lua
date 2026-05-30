@@ -25,12 +25,8 @@ end
 node.divert = function(target, args, tunnel)
     return { type = 'divert', target = target, args = args, tunnel = tunnel }
 end
-node.ref = function(name)
-    local parts = {}
-    for p in name:gmatch('[^.]+') do
-        table.insert(parts, p)
-    end
-    return { type = 'ref', name = name, parts = parts }
+node.ref = function(path)
+    return { type = 'ref', path = path }
 end
 node.el = function(listName, elName)
     return { type = 'el', listName = listName, elName = elName }

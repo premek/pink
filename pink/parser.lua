@@ -283,6 +283,35 @@ return function(input, source)
         return currentText(s)
     end
 
+    local pathSegmentCharAhead = function()
+        local char = peek(1)
+        if char == '.' then
+            return false
+        end
+        return char ~= nil and (identifierChars[char] or string.byte(char) > 127)
+    end
+
+    local path = function()
+        local parts = {}
+        if not pathSegmentCharAhead() then
+            errorAt('identifier expected')
+        end
+        local s = current
+        while pathSegmentCharAhead() do
+            next()
+        end
+        table.insert(parts, currentText(s))
+        while ahead('.') do
+            next()
+            s = current
+            while pathSegmentCharAhead() do
+                next()
+            end
+            table.insert(parts, currentText(s))
+        end
+        return parts
+    end
+
     -- cross dependency, must be defined earlier
     local term, expression, divert, inkText, knotBody, functionBody, optionText, optionBody, gatherBody, branchInkText
 
@@ -319,7 +348,7 @@ return function(input, source)
         end
         if identifierCharAhead() then
             resetTo(mark)
-            return token(node.ref(identifier()))
+            return token(node.ref(path()))
         end
         return token(node.int(tonumber(val)))
     end
@@ -438,10 +467,10 @@ return function(input, source)
             return token(node.call('not', { expression() }))
         end
 
-        local id = identifier()
+        local id = path()
         consumeWhitespace()
         if ahead('(') then
-            return functionCall(id)
+            return functionCall(id[1]) -- function names are always simple (no dots)
         end
         return token(node.ref(id)) -- FIXME same name as function argument passed as a reference
     end
@@ -1173,7 +1202,7 @@ return function(input, source)
         elseif ahead('temp') then
             return tempVariable()
         else
-            local id = identifier()
+            local id = path()[1] -- assignment targets and function names are always simple
             consumeWhitespace()
             if ahead('(') then
                 return functionCall(id)
@@ -1182,23 +1211,23 @@ return function(input, source)
                 consumeWhitespaceAndNewlines()
                 -- TODO do not generate code here, formatter needs the original representation
                 -- and ++ does not return a value in ink
-                return token(node.assign(id, token(node.call('+', { token(node.ref(id)), token(node.int(1)) }))))
+                return token(node.assign(id, token(node.call('+', { token(node.ref({ id })), token(node.int(1)) }))))
             elseif ahead('--') then
                 consume('--')
                 consumeWhitespaceAndNewlines()
-                return token(node.assign(id, token(node.call('-', { token(node.ref(id)), token(node.int(1)) }))))
+                return token(node.assign(id, token(node.call('-', { token(node.ref({ id })), token(node.int(1)) }))))
             elseif ahead('-=') then
                 consume('-=')
                 consumeWhitespace()
                 local expr = expression()
                 consumeWhitespaceAndNewlines()
-                return token(node.assign(id, token(node.call('-', { token(node.ref(id)), expr }))))
+                return token(node.assign(id, token(node.call('-', { token(node.ref({ id })), expr }))))
             elseif ahead('+=') then
                 consume('+=')
                 consumeWhitespace()
                 local expr = expression()
                 consumeWhitespaceAndNewlines()
-                return token(node.assign(id, token(node.call('+', { token(node.ref(id)), expr }))))
+                return token(node.assign(id, token(node.call('+', { token(node.ref({ id })), expr }))))
             elseif ahead('=') then
                 consume('=')
                 consumeWhitespace()
