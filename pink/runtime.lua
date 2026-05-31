@@ -59,6 +59,8 @@ return function(globalTree)
     -- set to a die function when an error is detected inside update(); s.continue() returns
     -- any buffered content (already popped into res) first, then calls this on the next turn
     local pendingDie = nil
+    local hadCleanEnd = false
+    local lastOutputLocation = nil
 
     -- story - this table will be passed to client code
     s = Story.new(rootEnv)
@@ -352,6 +354,7 @@ return function(globalTree)
         end
     end
     local gotoTerminal = function(name)
+        hadCleanEnd = true
         outputBuffer:instr('terminalDivert')
         pointer = #tree + 1
         -- DONE with pending thread choices: leave callstack intact so thread
@@ -710,6 +713,9 @@ return function(globalTree)
         local val = getValue(n)
         if val ~= nil then
             outputBuffer:add(nodeOutput(val))
+            if n.location then
+                lastOutputLocation = n.location
+            end
         end
     end
     local nodeUpdateOut = function(n)
@@ -1241,6 +1247,12 @@ return function(globalTree)
             hasChoices = #s.currentChoices > 0,
         })
         s.canContinue = newCanContinue
+        if not newCanContinue and #s.currentChoices == 0 and not hadCleanEnd and currentKnot and lastOutputLocation then
+            local loc = lastOutputLocation
+            pendingDie = function()
+                log.dieRanOutOfContent(loc)
+            end
+        end
         if pendingDie then
             -- the caller will get this content first; the error fires on the next continue() call
             s.canContinue = true
@@ -1333,10 +1345,6 @@ return function(globalTree)
     nodeById = compiled.nodeById
     externalDefs = compiled.externalDefs
     s.globalTags = compiled.globalTags
-    -- emit TODO warnings before story execution (matches inklecate compile-time behavior)
-    for _, todoNode in ipairs(compiled.todos) do
-        log.todo(todoNode.text, todoNode)
-    end
     -- skip leading tags already collected into globalTags by compiler
     while is('tag', tree[pointer]) do
         pointer = pointer + 1

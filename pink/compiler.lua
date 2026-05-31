@@ -1,6 +1,8 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local node = require(base_path .. 'node')
 local is = node.is
+local logging = require(base_path .. 'logging')
+local log = logging.newLogger()
 
 -- TODO(save/load): compiled output is the static half; reload from source on restore
 
@@ -86,6 +88,23 @@ return function(globalTree, env, noKnot, listDefinitions)
         return val
     end
 
+    local function findLooseEnd(body)
+        for i = #body, 1, -1 do
+            local n = body[i]
+            if is('divert', n) or is('choice', n) then
+                return nil
+            end
+            local t = n.type
+            if t ~= 'nl' and t ~= 'comment' and t ~= 'tag' then
+                if is('str', n) or is('out', n) then
+                    return n.location
+                end
+                return nil
+            end
+        end
+        return nil
+    end
+
     local preProcess
     preProcess = function(t)
         -- collect leading global tags at the top of each included tree
@@ -143,11 +162,22 @@ return function(globalTree, env, noKnot, listDefinitions)
             end
 
             if is('knot', n) then
+                if #n.body == 0 then
+                    log.die('Expected at least one line within the knot but saw end of line', n)
+                end
                 knots[n.name] = { tree = n.body, params = n.params, nodeId = n.nodeId }
                 env[n.name] = node.int(0)
                 lastKnot = n.name
                 lastStitch = nil
                 n.body = preProcess(n.body)
+                local looseEnd = findLooseEnd(n.body)
+                if looseEnd then
+                    log.warn(
+                        'Apparent loose end exists where the flow runs out.'
+                            .. " Do you need a '-> DONE' statement, choice or divert?",
+                        looseEnd
+                    )
+                end
             end
             if is('stitch', n) then
                 knots[lastKnot][n.name] = { pointer = p, tree = t, params = n.args }
@@ -238,11 +268,14 @@ return function(globalTree, env, noKnot, listDefinitions)
 
     preProcess(globalTree)
 
+    for _, todoNode in ipairs(todos) do
+        log.todo(todoNode.text, todoNode)
+    end
+
     return {
         knots = knots,
         nodeById = nodeById,
         externalDefs = externalDefs,
         globalTags = globalTags,
-        todos = todos,
     }
 end

@@ -109,9 +109,10 @@ async function appendFileSection(container, name, f, gitStatus) {
       </div>
       <div class="editor-wrap">
         <div class="line-nums"></div>
-        <textarea data-file="${escHtml(f)}" rows="${Math.min(Math.max(content.split('\n').length + 1, 3), 30)}">${escHtml(content)}</textarea>
+        <textarea data-file="${escHtml(f)}" rows="${Math.min(Math.max(content.split('\n').length + 1, 3), 30)}"></textarea>
       </div>
     </div>`;
+  det.querySelector('textarea').value = content;
   container.appendChild(det);
   initEditor(det.querySelector('textarea'));
 }
