@@ -342,15 +342,19 @@ return function(globalTree)
     currentStitch = nil
     local discardGatherContinuations = function(gatherEntry)
         local popCount = 0
+        local found = false
         for i = callstack.size(), 1, -1 do
             local frame = callstack.get(i)
             if frame.gatherEntry == gatherEntry then
+                found = true
                 break
             end
             popCount = popCount + 1
         end
-        for _ = 1, popCount do
-            callstack.pop()
+        if found then
+            for _ = 1, popCount do
+                callstack.pop()
+            end
         end
     end
     local gotoTerminal = function(name)
