@@ -15,13 +15,15 @@ async function init() {
 function renderList() {
   const pass = tests.filter(t => t.status === 'pass').length;
   document.getElementById('pass-count').textContent = `${pass}/${tests.length} passing`;
-  const q = document.getElementById('search').value.toLowerCase();
+  const q = document.getElementById('search').value;
+  let searchRe = null;
+  if (q) { try { searchRe = new RegExp(q, 'i'); } catch { searchRe = null; } }
   const list = document.getElementById('test-list');
   list.innerHTML = '';
   for (const t of tests) {
     if (statusFilter !== 'all' && t.status !== statusFilter) continue;
     if (gitFilter && !t.gitModified) continue;
-    if (q && !t.name.toLowerCase().includes(q)) continue;
+    if (q && !(searchRe ? searchRe.test(t.name) : t.name.toLowerCase().includes(q.toLowerCase()))) continue;
     const el = document.createElement('div');
     el.className = 'test-item' + (selected === t.name ? ' selected' : '');
     el.dataset.name = t.name;
@@ -251,6 +253,7 @@ async function runTest() {
 
 async function regenTranscript() {
   if (!selected) return;
+  await saveAllFiles();
   const resp = await fetch(`/api/tests/${selected}/regenerate`, {method: 'POST'});
   const data = await resp.json();
   if (data.ok) {

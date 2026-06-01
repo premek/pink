@@ -1076,7 +1076,11 @@ return function(input, source)
         end
 
         if ahead('-') and not ahead('->') then
+            local beforeMinus = newMark()
             consume('-')
+            if not whitespaceAhead() then
+                resetTo(beforeMinus) -- unary minus or negative literal; let expression parser handle it
+            end
         end
         consumeWhitespaceAndNewlines()
 

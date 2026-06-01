@@ -194,10 +194,35 @@ local intToStr = function(a)
     node.requireType(a, 'int')
     return tostring(math.floor(a.value))
 end
+-- Round a float64 to float32 precision using IEEE 754 single-precision rules.
+-- Equivalent to C#'s (float)x cast.
+local toFloat32 = function(x)
+    if x ~= x or x == math.huge or x == -math.huge or x == 0 then
+        return x
+    end
+    local s = x < 0 and -1 or 1
+    local ax = math.abs(x)
+    local log2 = math.floor(math.log(ax) / math.log(2))
+    if log2 > 127 then
+        return s * math.huge
+    end
+    if log2 < -126 then
+        log2 = -126
+    end
+    local scale = 2 ^ (log2 - 23)
+    return s * math.floor(ax / scale + 0.5) * scale
+end
+
+-- Emulate C# float.ToString(): use G7; if G7 doesn't round-trip back to the
+-- same float32 value, use G8 (the shortest round-trip for single-precision).
 local floatToStr = function(a)
     node.requireType(a, 'float')
-    local formatted, _ = string.format('%.7f', a.value):gsub('%.?0+$', '')
-    return formatted
+    local v = toFloat32(a.value)
+    local g7 = string.format('%.7g', v)
+    if toFloat32(tonumber(g7)) == v then
+        return g7
+    end
+    return string.format('%.8g', v)
 end
 local boolToStr = function(a)
     node.requireType(a, 'bool')
