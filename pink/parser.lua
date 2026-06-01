@@ -1377,8 +1377,6 @@ return function(input, source)
             return nil ------------------------
         elseif ahead('*') or ahead('+') then
             return nil -- choice(minNesting)
-        elseif ahead('-') then
-            return nil ----------------gather()
         elseif ahead('#') then
             return tag(opts)
         elseif ahead('CONST') then -- TODO must be on new line?
