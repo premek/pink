@@ -55,7 +55,7 @@ return function(globalTree)
 
     -- set when interpreting a 'return' statement, read after stepping 'Out'
     -- TODO does it have to be a stack?
-    local returnValue = { present = false, value = nil }
+    local returnValue = { active = false, value = nil }
     -- set to a die function when an error is detected inside update(); s.continue() returns
     -- any buffered content (already popped into res) first, then calls this on the next turn
     local pendingDie = nil
@@ -115,6 +115,7 @@ return function(globalTree)
         return addr(n, 'branches', i, 'body')
     end
     -- Reconstructs a block from a saved address. Used by future save/load.
+    ---@diagnostic disable-next-line: unused-local, unused-function
     local _blockFromAddr = function(a)
         if not a then
             return nil
@@ -330,9 +331,11 @@ return function(globalTree)
             elseif paramType == '->' then
                 local argValue = getValue(arg)
                 requireType(argValue, 'divert')
-                local qualifiedPath =
-                    Path.qualify(argValue.target, currentKnot, currentKnot and knots[currentKnot], currentStitch)
-                newEnv[paramName] = node.divert(qualifiedPath, argValue.args, argValue.tunnel)
+                if argValue ~= nil then -- for lsp warning
+                    local qualifiedPath =
+                        Path.qualify(argValue.target, currentKnot, currentKnot and knots[currentKnot], currentStitch)
+                    newEnv[paramName] = node.divert(qualifiedPath, argValue.args, argValue.tunnel)
+                end
             else
                 -- get values from old env, set new env only after all vars are resolved from the old one
                 newEnv[paramName] = getValue(arg)
@@ -406,6 +409,9 @@ return function(globalTree)
         -- automatically go to the first stitch (only) if there is no other content in the knot
         if isNext('stitch') then
             next()
+            if isNext('nl') then
+                next() -- skip the newline that follows the stitch declaration in the source
+            end
         end
         if isNext('option') then
             local option = tree[pointer]
@@ -558,16 +564,6 @@ return function(globalTree)
     -- may return "nothing" (nil)
     getValue = function(val)
         log.debug('getValue', val)
-
-        if val == nil then
-            return nil --FIXME ???
-            --log.die('nil value')
-            --print('get nil')
-            --val = tree[pointer] --FIXME 111
-            --log.debug(val)
-            --update()
-        end
-
         if
             is('str', val)
             or is('int', val)
@@ -620,7 +616,7 @@ return function(globalTree)
                 local ret = returnValue.value
                 outputBuffer:instr('trimEnd')
                 log.debug('RET', ret)
-                returnValue = { present = false, value = nil }
+                returnValue = { active = false, value = nil }
                 return ret
             elseif is('list', target) then
                 if #args == 0 then
@@ -699,7 +695,7 @@ return function(globalTree)
         end
 
         local newValue = getValue(n.expr)
-        if is('divert', n.expr) and is('divert', newValue) then
+        if newValue ~= nil and is('divert', n.expr) and is('divert', newValue) then
             newValue = node.divert(
                 Path.qualify(newValue.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
                 newValue.args,
@@ -801,7 +797,7 @@ return function(globalTree)
         end,
         tempvar = function(n)
             local val = getValue(n.value)
-            if is('divert', n.value) and is('divert', val) then
+            if val and is('divert', n.value) and is('divert', val) then
                 val = node.divert(
                     Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
                     val.args,
@@ -812,15 +808,18 @@ return function(globalTree)
         end,
         assign = nodeUpdateAssign,
         ['return'] = function(n)
-            local val = getValue(n.value)
-            if n.value and is('divert', n.value) and is('divert', val) then
-                val = node.divert(
-                    Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
-                    val.args,
-                    val.tunnel
-                )
+            local val = nil
+            if n.value then
+                val = getValue(n.value)
+                if val and is('divert', n.value) and is('divert', val) then
+                    val = node.divert(
+                        Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
+                        val.args,
+                        val.tunnel
+                    )
+                end
             end
-            returnValue = { present = true, value = val }
+            returnValue = { active = true, value = val }
             stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
         tunnelreturn = function()
@@ -1194,7 +1193,7 @@ return function(globalTree)
     update = function()
         log.debug('upd: ' .. pointer .. (tree[pointer] and tree[pointer].type or 'END'))
 
-        if returnValue.present then
+        if returnValue.active then
             -- do not proceed when returning from a (nested?) function call
             pointer = pointer - 1 -- FIXME what's going on here
             return

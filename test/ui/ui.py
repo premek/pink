@@ -161,13 +161,17 @@ def regen_transcript(name):
     transcript = d / "transcript.txt"
     with open(inp, encoding="utf-8") as f:
         stdin_data = f.read()
-    result = subprocess.run(
-        [str(INKLECATE), "-p", str(story)],
-        input=stdin_data,
-        capture_output=True,
-        text=True,
-        cwd=ROOT,
-    )
+    try:
+        result = subprocess.run(
+            [str(INKLECATE), "-p", str(story)],
+            input=stdin_data,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=5,
+        )
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": "inklecate timed out — story may require more input than input.txt provides"}
     if result.returncode != 0 and not result.stdout:
         return {"ok": False, "error": result.stderr}
     with open(transcript, "w", encoding="utf-8") as f:
