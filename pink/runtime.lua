@@ -328,10 +328,11 @@ return function(globalTree)
                 -- if the name is the same in and out-side the function:
                 -- do not create a local variable that would reference to itself and create a loop
             elseif paramType == '->' then
-                requireType(arg, 'divert')
+                local argValue = getValue(arg)
+                requireType(argValue, 'divert')
                 local qualifiedPath =
-                    Path.qualify(arg.target, currentKnot, currentKnot and knots[currentKnot], currentStitch)
-                newEnv[paramName] = node.divert(qualifiedPath, arg.args, arg.tunnel)
+                    Path.qualify(argValue.target, currentKnot, currentKnot and knots[currentKnot], currentStitch)
+                newEnv[paramName] = node.divert(qualifiedPath, argValue.args, argValue.tunnel)
             else
                 -- get values from old env, set new env only after all vars are resolved from the old one
                 newEnv[paramName] = getValue(arg)
@@ -698,6 +699,13 @@ return function(globalTree)
         end
 
         local newValue = getValue(n.expr)
+        if is('divert', n.expr) and is('divert', newValue) then
+            newValue = node.divert(
+                Path.qualify(newValue.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
+                newValue.args,
+                newValue.tunnel
+            )
+        end
         if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
             node.listSet(oldValue, newValue)
         else
@@ -792,11 +800,27 @@ return function(globalTree)
             table.insert(tags, (n.text:gsub('%s+$', '')))
         end,
         tempvar = function(n)
-            env[n.name] = getValue(n.value)
+            local val = getValue(n.value)
+            if is('divert', n.value) and is('divert', val) then
+                val = node.divert(
+                    Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
+                    val.args,
+                    val.tunnel
+                )
+            end
+            env[n.name] = val
         end,
         assign = nodeUpdateAssign,
         ['return'] = function(n)
-            returnValue = { present = true, value = getValue(n.value) }
+            local val = getValue(n.value)
+            if n.value and is('divert', n.value) and is('divert', val) then
+                val = node.divert(
+                    Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
+                    val.args,
+                    val.tunnel
+                )
+            end
+            returnValue = { present = true, value = val }
             stepOut('fn') -- step out of the function, not just the last block we stepped into
         end,
         tunnelreturn = function()
@@ -843,6 +867,10 @@ return function(globalTree)
         gather = function(n)
             if n.label then
                 incrementSeenCounter(Path.label(currentKnot, currentStitch, n.label))
+                -- TURNS_SINCE(-> label) uses bare label as the lookup key
+                if currentKnot then
+                    turnAtVisitSet(Path.of(n.label), turns)
+                end
             end
             return n.body, bodyAddr(n)
         end,
@@ -1304,6 +1332,8 @@ return function(globalTree)
             -- thread choices bypass the gather node dispatch, so increment its label counter here
             if choice.gather.label and choice.threadKnot then
                 incrementSeenCounter(Path.of(choice.threadKnot, choice.gather.label))
+                -- TURNS_SINCE(-> label) uses bare label as the lookup key
+                turnAtVisitSet(Path.of(choice.gather.label), turns)
             end
             returnToGather(choice.gather.body, bodyAddr(choice.gather))
         end
