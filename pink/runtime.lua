@@ -1328,11 +1328,13 @@ return function(globalTree)
         markOptionUsed(choice.option)
 
         if choice.gather then
-            -- thread choices bypass the gather node dispatch, so increment its label counter here
-            if choice.gather.label and choice.threadKnot then
-                incrementSeenCounter(Path.of(choice.threadKnot, choice.gather.label))
+            -- choices bypass the gather node dispatch, so increment its label counter here
+            if choice.gather.label then
+                incrementSeenCounter(Path.label(choice.threadKnot, choice.threadStitch, choice.gather.label))
                 -- TURNS_SINCE(-> label) uses bare label as the lookup key
-                turnAtVisitSet(Path.of(choice.gather.label), turns)
+                if choice.threadKnot then
+                    turnAtVisitSet(Path.of(choice.gather.label), turns)
+                end
             end
             returnToGather(choice.gather.body, bodyAddr(choice.gather))
         end

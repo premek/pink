@@ -1,0 +1,4 @@
+- (opts)
++ nice
+{ ->opts | }
+end

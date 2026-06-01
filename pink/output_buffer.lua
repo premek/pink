@@ -16,16 +16,33 @@ end
 local resolveNlInstructions = function(buffer)
     local t = {}
     local lineHasContent = false
+    local lineHadEmptyBlock = false
     local trimStack = {} -- {savedLineHasContent, hadOutput}
+    local outBlockContentStack = {} -- tracks whether each nested seq block had content
     for _, e in ipairs(buffer) do
         if e == '\n' then
             table.insert(t, e)
             lineHasContent = false
+            lineHadEmptyBlock = false
         elseif e['nl'] then
             if lineHasContent then
                 table.insert(t, '\n')
                 lineHasContent = false
+                lineHadEmptyBlock = false
+            elseif lineHadEmptyBlock then
+                -- standalone empty seq block on this line: emit a blank-line marker
+                table.insert(t, { blankLine = true })
+                lineHadEmptyBlock = false
             end
+        elseif e['outBlockStart'] then
+            table.insert(outBlockContentStack, false)
+            table.insert(t, e)
+        elseif e['outBlockEnd'] then
+            local hadContent = table.remove(outBlockContentStack)
+            if not hadContent and not lineHasContent then
+                lineHadEmptyBlock = true
+            end
+            table.insert(t, e)
         elseif e['trim'] then
             table.insert(trimStack, { saved = lineHasContent, hadOutput = false })
             lineHasContent = false
@@ -43,8 +60,14 @@ local resolveNlInstructions = function(buffer)
             table.insert(t, e)
         elseif type(e) == 'string' then
             lineHasContent = true
-            if trim(e) ~= '' and #trimStack > 0 then
-                trimStack[#trimStack].hadOutput = true
+            lineHadEmptyBlock = false
+            if trim(e) ~= '' then
+                if #trimStack > 0 then
+                    trimStack[#trimStack].hadOutput = true
+                end
+                if #outBlockContentStack > 0 then
+                    outBlockContentStack[#outBlockContentStack] = true
+                end
             end
             table.insert(t, e)
         else
@@ -174,11 +197,30 @@ end
 
 local joinToLines = function(buffer)
     local t = { '' }
-    for _, e in ipairs(buffer) do
-        if e ~= '\n' then
+    for i, e in ipairs(buffer) do
+        if type(e) == 'table' and e['blankLine'] then
+            -- Only emit when this is the sole blankLine between two pieces of content.
+            -- Adjacent blankLines (multiple consecutive empty seq branches, e.g. once-seq
+            -- with empty middle items) must be suppressed entirely.
+            local prevIsBlank = i > 1 and type(buffer[i - 1]) == 'table' and buffer[i - 1]['blankLine']
+            local nextIsBlank = i < #buffer and type(buffer[i + 1]) == 'table' and buffer[i + 1]['blankLine']
+            if not prevIsBlank and not nextIsBlank then
+                local hasContentAfter = false
+                for j = i + 1, #buffer do
+                    if type(buffer[j]) == 'string' and trim(buffer[j]) ~= '' then
+                        hasContentAfter = true
+                        break
+                    end
+                end
+                if hasContentAfter then
+                    table.insert(t, '\n')
+                    table.insert(t, '')
+                end
+            end
+        elseif e ~= '\n' then
             t[#t] = t[#t] .. e
         else
-            t[#t], _ = t[#t]:gsub(' +', ' '):gsub('\n +', '\n')
+            t[#t] = (t[#t]:gsub(' +', ' '):gsub('\n +', '\n'))
             table.insert(t, e)
             table.insert(t, '')
         end
