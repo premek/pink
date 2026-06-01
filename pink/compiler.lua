@@ -105,6 +105,18 @@ return function(globalTree, env, noKnot, listDefinitions)
         return nil
     end
 
+    local function hasLogic(n)
+        if not is('ink', n) then
+            return false
+        end
+        for _, child in ipairs(n.nodes) do
+            if not is('str', child) then
+                return true
+            end
+        end
+        return false
+    end
+
     local preProcess
     preProcess = function(t)
         -- collect leading global tags at the top of each included tree
@@ -117,9 +129,15 @@ return function(globalTree, env, noKnot, listDefinitions)
         -- 1st pass: register vars/consts/lists so they can reference each other in any order
         for _, n in ipairs(t) do
             if is('var', n) then
+                if hasLogic(n.value) then
+                    log.die('Constant strings cannot contain any logic.', n.value)
+                end
                 env[n.name] = n.value
             end
             if is('const', n) then
+                if hasLogic(n.value) then
+                    log.die('Constant strings cannot contain any logic.', n.value)
+                end
                 env[n.name] = n.value
             end
             if is('listdef', n) then
