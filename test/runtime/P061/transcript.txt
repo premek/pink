@@ -1,0 +1,9 @@
+test gather start
+inside go
+test gather done
+test stitch label start
+inside go
+test stitch label done
+test knot start
+inside go
+test knot done

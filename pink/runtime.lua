@@ -329,7 +329,9 @@ return function(globalTree)
                 -- do not create a local variable that would reference to itself and create a loop
             elseif paramType == '->' then
                 requireType(arg, 'divert')
-                newEnv[paramName] = arg
+                local qualifiedPath =
+                    Path.qualify(arg.target, currentKnot, currentKnot and knots[currentKnot], currentStitch)
+                newEnv[paramName] = node.divert(qualifiedPath, arg.args, arg.tunnel)
             else
                 -- get values from old env, set new env only after all vars are resolved from the old one
                 newEnv[paramName] = getValue(arg)
