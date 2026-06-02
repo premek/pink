@@ -30,6 +30,9 @@ return function(globalTree)
     local turnAtVisit = {}
     -- true when choices were collected inside an inline frame; must step out before presenting
     local choicesNeedDrain = false
+    -- true during evaluateOptionText; allows handleEndOfTree to step out of seq-inline frames
+    -- even when s.currentChoices is non-empty (choices from the outer evaluation)
+    local evaluatingOptionText = false
     -- callstack depth after the most recent goTo; frames above this belong to the current knot context
     local lastDivertDepth = 0
 
@@ -904,6 +907,7 @@ return function(globalTree)
         local snapshot = clear()
         local savedTree, savedPointer, savedAddr, savedTags = tree, pointer, currentAddr, tags
         tags = {}
+        evaluatingOptionText = true
         -- Evaluate sharedStartText and choiceOnlyText directly without a boundary frame so the callstack
         -- is empty when each block ends, preventing update() from escaping into
         -- the parent story context via the stepOut path.
@@ -915,6 +919,7 @@ return function(globalTree)
         pointer = 1
         currentAddr = choiceOnlyTextAddr(option)
         update()
+        evaluatingOptionText = false
         local text = outputBuffer:popLine()
         tree, pointer, currentAddr, tags = savedTree, savedPointer, savedAddr, savedTags
         reset(snapshot)
@@ -1170,6 +1175,7 @@ return function(globalTree)
             local topFn = callstack.get(callstack.size()).fn
             local aboveBoundary = callstack.size() > lastDivertDepth
             local canStepOut = #s.currentChoices == 0
+                or evaluatingOptionText
                 or (choicesNeedDrain and aboveBoundary and topFn ~= 'fn' and topFn ~= 'tunnel')
             if canStepOut then
                 local wasSeqInline = topFn == 'seq-inline'
