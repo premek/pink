@@ -152,10 +152,17 @@ return function(globalTree)
     local getChildren = function(parentName, segments, tbl, token)
         for _, part in ipairs(segments) do
             if not tbl._children or not tbl._children[part] then
-                log.debug(parentName, segments, env)
-                log.die('error accessing "' .. part .. '" in "' .. parentName .. '"', token)
+                -- list type variable may have been reassigned to a non-list value, but
+                -- listName.elementName always refers to the list definition, not the current value
+                if listDefinitions[parentName] and listDefinitions[parentName].byName[part] then
+                    tbl = node.el(parentName, part)
+                else
+                    log.debug(parentName, segments, env)
+                    log.die('error accessing "' .. part .. '" in "' .. parentName .. '"', token)
+                end
+            else
+                tbl = tbl._children[part]
             end
-            tbl = tbl._children[part]
             parentName = parentName .. '.' .. part
         end
         return tbl
