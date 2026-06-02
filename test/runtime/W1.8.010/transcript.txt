@@ -13,9 +13,4 @@ The nasty creature is hiding somewhere. But this time he won't escape!
 2: Hammer middle
 3: Bosh bottom-left
 4: Thump bottom-right
-?> Nothing!
-The mole is still at large.
-1: Whack top-right
-2: Blast middle
-3: Clobber bottom-left
 ?> Ah-ha! Got him!

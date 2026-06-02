@@ -15,7 +15,7 @@ if [ -z "$TESTNAME" ]; then
 fi
 
 DIR="test/runtime/$TESTNAME"
-INKLECATE="${INKLECATE:-inklecate}"
+INKLECATE="${INKLECATE:-$HOME/app/inklecate/inklecate}"
 
 SEED_FILE="$DIR/_seed.ink"
 FOUND=""
