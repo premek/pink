@@ -75,9 +75,14 @@ return function(globalTree)
     -- Updated by stepInto/stepOut. Enables callstack frame serialization for save/load.
     local currentAddr = nil
     local knots
-    local tags = {}
     local externalDefs
     local storyStarted = false
+    -- Tags are collected in pendingTags as update() runs. When an nl node fires and
+    -- the current line had output, the pending tags are committed to tagLines (a queue
+    -- parallel to the output buffer's lines). continue() pops one entry per real output line.
+    local pendingTags = {}
+    local lineHadContent = false
+    local tagLines = {}
 
     local markOptionUsed = function(option)
         s.state.usedOptions[option.nodeId] = true
@@ -723,7 +728,11 @@ return function(globalTree)
     local nodeUpdateOutValue = function(n)
         local val = getValue(n)
         if val ~= nil then
-            outputBuffer:add(nodeOutput(val))
+            local text = nodeOutput(val)
+            outputBuffer:add(text)
+            if text:match('%S') then
+                lineHadContent = true
+            end
             if n.location then
                 lastOutputLocation = n.location
             end
@@ -794,7 +803,7 @@ return function(globalTree)
         option = nodeSkip,
 
         tag = function(n)
-            table.insert(tags, (n.text:gsub('%s+$', '')))
+            table.insert(pendingTags, (n.text:gsub('%s+$', '')))
         end,
         tempvar = function(n)
             local val = getValue(n.value)
@@ -856,6 +865,11 @@ return function(globalTree)
         end,
         nl = function()
             outputBuffer:nl()
+            if lineHadContent then
+                table.insert(tagLines, pendingTags)
+                pendingTags = {}
+                lineHadContent = false
+            end
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
             currentStitch = n.name
@@ -903,8 +917,9 @@ return function(globalTree)
 
     local evaluateOptionText = function(option)
         local snapshot = clear()
-        local savedTree, savedPointer, savedAddr, savedTags = tree, pointer, currentAddr, tags
-        tags = {}
+        local savedTree, savedPointer, savedAddr = tree, pointer, currentAddr
+        local savedPendingTags, savedLineHadContent, savedTagLines = pendingTags, lineHadContent, tagLines
+        pendingTags, lineHadContent, tagLines = {}, false, {}
         evaluatingOptionText = true
         -- Evaluate sharedStartText and choiceOnlyText directly without a boundary frame so the callstack
         -- is empty when each block ends, preventing update() from escaping into
@@ -919,7 +934,8 @@ return function(globalTree)
         update()
         evaluatingOptionText = false
         local text = outputBuffer:popLine()
-        tree, pointer, currentAddr, tags = savedTree, savedPointer, savedAddr, savedTags
+        tree, pointer, currentAddr = savedTree, savedPointer, savedAddr
+        pendingTags, lineHadContent, tagLines = savedPendingTags, savedLineHadContent, savedTagLines
         reset(snapshot)
         return text
     end
@@ -929,6 +945,8 @@ return function(globalTree)
         local savedKnot, savedStitch = currentKnot, currentStitch
         local mainCallstack = callstack
         local savedLastDivertDepth = lastDivertDepth
+        local savedPendingTags, savedLineHadContent, savedTagLines = pendingTags, lineHadContent, tagLines
+        pendingTags, lineHadContent, tagLines = {}, false, {}
         callstack = newStack()
         lastDivertDepth = 0
 
@@ -1047,6 +1065,7 @@ return function(globalTree)
 
         tree, pointer, env, currentAddr = savedTree, savedPointer, savedEnv, savedAddr
         currentKnot, currentStitch = savedKnot, savedStitch
+        pendingTags, lineHadContent, tagLines = savedPendingTags, savedLineHadContent, savedTagLines
     end
 
     local handleDivert = function()
@@ -1294,14 +1313,13 @@ return function(globalTree)
         -- prePop() captures buffer state and pops any existing line before update() runs.
         -- Must happen first: handleChoice() checks isEmpty() to decide whether to defer choices.
         outputBuffer:prePop()
-        s.currentTags = tags
-        tags = {}
         if #s.currentChoices == 0 or choicesNeedDrain then
             update() -- advance to next output; skip if choices already populated (unless draining inline frames)
         end
-        local result, _, newCanContinue = outputBuffer:popTurnLine({
+        local result, producedOutput, newCanContinue = outputBuffer:popTurnLine({
             hasChoices = #s.currentChoices > 0,
         })
+        s.currentTags = producedOutput and (table.remove(tagLines, 1) or {}) or {}
         s.canContinue = newCanContinue
         if not newCanContinue and #s.currentChoices == 0 and not hadCleanEnd and currentKnot and lastOutputLocation then
             local loc = lastOutputLocation
@@ -1368,6 +1386,8 @@ return function(globalTree)
 
         s.currentChoices = {}
         choicesNeedDrain = false
+        pendingTags = {}
+        lineHadContent = false
         outputBuffer:onNewChoice()
         update()
         -- canContinue() returns false when choices are present; force it so continue()
