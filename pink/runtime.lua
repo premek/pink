@@ -1071,11 +1071,30 @@ return function(globalTree)
         update()
     end
 
+    local hasVisibleNonFallback = function(opts)
+        for _, opt in ipairs(opts) do
+            if opt.fallback ~= 'fallback' then
+                local sticky = opt.sticky == 'sticky'
+                if (sticky or not isOptionUsed(opt)) and getOptionConditionsResult(opt) then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
     local handleChoice = function()
         s.canContinue = canContinue()
         if s.canContinue then
-            -- output buffer first
-            return
+            -- Don't defer when mid-paragraph with only fallbacks: the fallback output belongs on the same line.
+            local choiceNode = tree[pointer]
+            local shouldDefer = outputBuffer.hadTrailingNl
+                or choiceNode.gather
+                or hasVisibleNonFallback(choiceNode.options)
+            if shouldDefer then
+                return
+            end
+            s.canContinue = false
         end
 
         local options = tree[pointer].options
