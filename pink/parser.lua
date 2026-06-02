@@ -647,6 +647,7 @@ return function(input, source)
         local id = identifier()
         consumeWhitespace()
         local params = parameters()
+        consumeWhitespaceAndNewlines()
         return token(node.stitch(id, params))
     end
 
@@ -673,8 +674,8 @@ return function(input, source)
             consume('(')
             label = identifier()
             consume(')')
-            consumeWhitespace()
         end
+        consumeWhitespaceAndNewlines()
         return token(node.gather(nesting, { gatherBody(minNesting) }, label)) -- TODO inkText in a table??
     end
 

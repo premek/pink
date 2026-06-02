@@ -412,9 +412,6 @@ return function(globalTree)
         -- automatically go to the first stitch (only) if there is no other content in the knot
         if isNext('stitch') then
             next()
-            if isNext('nl') then
-                next() -- skip the newline that follows the stitch declaration in the source
-            end
         end
         if isNext('option') then
             local option = tree[pointer]
@@ -445,9 +442,6 @@ return function(globalTree)
             discardGatherContinuations(tree)
         else
             next() -- skip the stitch declaration node
-            if isNext('nl') then
-                next() -- skip the newline that follows the stitch declaration in the source
-            end
         end
         -- bind stitch parameters (divert args) into the env
         -- TODO: for non-thread callers this leaks env; currently only used via threads (runThread restores env)
@@ -493,9 +487,6 @@ return function(globalTree)
         elseif is('stitch', entryNode) then
             currentStitch = name
             next() -- skip the stitch declaration node
-            if isNext('nl') then
-                next() -- skip the newline that follows the stitch declaration in the source
-            end
         elseif is('option', entryNode) then
             -- TODO different mechanism for labelled and anon options; duplicated in chooseChoice
             markOptionUsed(entryNode)
