@@ -78,11 +78,14 @@ return function(globalTree)
     local externalDefs
     local storyStarted = false
     -- Tags are collected in pendingTags as update() runs. When an nl node fires and
-    -- the current line had output, the pending tags are committed to tagLines (a queue
-    -- parallel to the output buffer's lines). continue() pops one entry per real output line.
+    -- the current line had output, the pending tags are committed to tagLines. continue()
+    -- always pops one entry per call; entries are {} when a line carries no tags.
     local pendingTags = {}
     local lineHadContent = false
     local tagLines = {}
+    -- set in chooseChoiceIndex; cleared by the first nl in the option body so that
+    -- option tags (from bodyOnlyText) get their own dedicated continue() call
+    local flushOptionTags = false
 
     local markOptionUsed = function(option)
         s.state.usedOptions[option.nodeId] = true
@@ -869,7 +872,14 @@ return function(globalTree)
                 table.insert(tagLines, pendingTags)
                 pendingTags = {}
                 lineHadContent = false
+            elseif flushOptionTags and #pendingTags > 0 then
+                -- first nl after a choice's option-only text: emit a placeholder so the
+                -- option tag gets its own continue() call (before the body content starts)
+                outputBuffer:add('\n')
+                table.insert(tagLines, pendingTags)
+                pendingTags = {}
             end
+            flushOptionTags = false
         end, -- separates "a -> b" from "a\n -> b"
         stitch = function(n)
             currentStitch = n.name
@@ -919,7 +929,9 @@ return function(globalTree)
         local snapshot = clear()
         local savedTree, savedPointer, savedAddr = tree, pointer, currentAddr
         local savedPendingTags, savedLineHadContent, savedTagLines = pendingTags, lineHadContent, tagLines
+        local savedFlushOptionTags = flushOptionTags
         pendingTags, lineHadContent, tagLines = {}, false, {}
+        flushOptionTags = false
         evaluatingOptionText = true
         -- Evaluate sharedStartText and choiceOnlyText directly without a boundary frame so the callstack
         -- is empty when each block ends, preventing update() from escaping into
@@ -936,6 +948,7 @@ return function(globalTree)
         local text = outputBuffer:popLine()
         tree, pointer, currentAddr = savedTree, savedPointer, savedAddr
         pendingTags, lineHadContent, tagLines = savedPendingTags, savedLineHadContent, savedTagLines
+        flushOptionTags = savedFlushOptionTags
         reset(snapshot)
         return text
     end
@@ -946,7 +959,9 @@ return function(globalTree)
         local mainCallstack = callstack
         local savedLastDivertDepth = lastDivertDepth
         local savedPendingTags, savedLineHadContent, savedTagLines = pendingTags, lineHadContent, tagLines
+        local savedFlushOptionTags = flushOptionTags
         pendingTags, lineHadContent, tagLines = {}, false, {}
+        flushOptionTags = false
         callstack = newStack()
         lastDivertDepth = 0
 
@@ -1066,6 +1081,7 @@ return function(globalTree)
         tree, pointer, env, currentAddr = savedTree, savedPointer, savedEnv, savedAddr
         currentKnot, currentStitch = savedKnot, savedStitch
         pendingTags, lineHadContent, tagLines = savedPendingTags, savedLineHadContent, savedTagLines
+        flushOptionTags = savedFlushOptionTags
     end
 
     local handleDivert = function()
@@ -1316,10 +1332,10 @@ return function(globalTree)
         if #s.currentChoices == 0 or choicesNeedDrain then
             update() -- advance to next output; skip if choices already populated (unless draining inline frames)
         end
-        local result, producedOutput, newCanContinue = outputBuffer:popTurnLine({
+        local result, newCanContinue = outputBuffer:popTurnLine({
             hasChoices = #s.currentChoices > 0,
         })
-        s.currentTags = producedOutput and (table.remove(tagLines, 1) or {}) or {}
+        s.currentTags = table.remove(tagLines, 1) or {}
         s.canContinue = newCanContinue
         if not newCanContinue and #s.currentChoices == 0 and not hadCleanEnd and currentKnot and lastOutputLocation then
             local loc = lastOutputLocation
@@ -1388,6 +1404,7 @@ return function(globalTree)
         choicesNeedDrain = false
         pendingTags = {}
         lineHadContent = false
+        flushOptionTags = true
         outputBuffer:onNewChoice()
         update()
         -- canContinue() returns false when choices are present; force it so continue()

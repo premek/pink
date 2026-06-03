@@ -399,26 +399,30 @@ return function()
             local endedByDivert = self.terminalDivert
             local canContinue = not self:isEmpty()
             if res == '' then
-                if not bufferWasEmpty and not endedByDivert then
-                    return '\n', false, canContinue -- whitespace-only line → blank line
+                if not bufferWasEmpty and (not endedByDivert or canContinue) then
+                    return '\n', canContinue -- whitespace-only line → blank line
                 elseif ctx.hasChoices then
                     -- when thread choices are present and a turn has been taken with no text output,
                     -- emit an extra blank line (the thread transition creates a paragraph break)
                     local hasThreadChoices = self.pastFirstChoice and not self.hadOutput and self.threadChoiceAdded
-                    return hasThreadChoices and '\n\n' or '\n', false, canContinue
+                    return hasThreadChoices and '\n\n' or '\n', canContinue
                 else
-                    return '', false, canContinue -- story ended with no output
+                    return '', canContinue -- story ended with no output
                 end
             elseif trailingGlue or canContinue then
                 self.hadOutput = true
-                return res .. '\n', true, canContinue
+                return res .. '\n', canContinue
             elseif not ctx.hasChoices then
                 -- story ended; natural EOF always gets \n; ->END/DONE only gets \n if buffer had one
                 self.hadOutput = true
-                return res .. ((hadNl or not endedByDivert) and '\n' or ''), true, canContinue
+                return res .. ((hadNl or not endedByDivert) and '\n' or ''), canContinue
             else
                 self.hadOutput = true
-                return res .. ((hadNl or self.hadOutBlockThisTurn) and '\n\n' or '\n'), true, canContinue
+                if hadNl or self.hadOutBlockThisTurn then
+                    -- emit text first, then blank separator on the next continue() call
+                    return res .. '\n', true
+                end
+                return res .. '\n', canContinue
             end
         end,
         clear = function(self)
