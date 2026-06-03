@@ -988,16 +988,19 @@ return function(input, source)
         consumeWhitespaceAndNewlines()
         consume(':')
         consumeWhitespaceAndNewlines()
-        local result = {}
-        while ahead('-') and not ahead('->') do
-            consume('-')
-            consumeWhitespace()
-            local element = branchInkText()
-            if element ~= nil then
-                table.insert(result, { element }) -- TODO inkText in a table?
+        if ahead('-') and not ahead('->') then
+            local result = {}
+            while ahead('-') and not ahead('->') do
+                consume('-')
+                consumeWhitespace()
+                local element = branchInkText()
+                if element ~= nil then
+                    table.insert(result, { element }) -- TODO inkText in a table?
+                end
             end
+            return result
         end
-        return result
+        return seqSeparatedBranches()
     end
 
     --TODO name? used for sequences, variable printing, conditional text, cond. option
