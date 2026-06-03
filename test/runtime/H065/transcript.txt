@@ -1,0 +1,2 @@
+ERROR: 'story.ink' line 6: aKnot hasn't been marked as a function, but it's being called as one. Do you need to delcare the knot as '== function aKnot =='?
+ERROR: 'story.ink' line 9: myFunc can't be diverted to. It can only be called as a function since it's been marked as such: 'myFunc(...)'

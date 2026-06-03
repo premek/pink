@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 4: Since 'varTarget' is used as a variable divert target (on line 5 of story.ink), it should be marked as: -> varTarget

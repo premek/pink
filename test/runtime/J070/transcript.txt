@@ -1,0 +1,2 @@
+"The result is 120!" you announce.
+Gauss stares at you in horror.

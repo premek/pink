@@ -1,0 +1,64 @@
+The radio hissed into life.
+
+1: Again
+?> The radio hissed into life.
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> The radio hissed into life. "One!"
+
+1: Again
+?> <User input stream closed.>

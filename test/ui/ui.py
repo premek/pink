@@ -68,7 +68,7 @@ def list_tests(passed_set):
         if not d.is_dir():
             continue
         name = d.name
-        if not name[0].upper() in "IWPX":
+        if not name[0].upper() in "GHIJWPX":
             continue
         files = sorted(p.name for p in d.iterdir() if p.is_file())
         if name in passed_set:
@@ -93,14 +93,18 @@ def run_test(name, compat=True):
     with open(inp, encoding="utf-8") as f:
         stdin_data = f.read()
 
-    result = subprocess.run(
-        ["lua", str(ROOT / "pink-cli")] + compat_flag + [str(story)],
-        input=stdin_data,
-        capture_output=True,
-        text=True,
-        cwd=ROOT,
-    )
-    actual = result.stdout + result.stderr
+    try:
+        result = subprocess.run(
+            ["lua", str(ROOT / "pink-cli")] + compat_flag + [str(story)],
+            input=stdin_data,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=2,
+        )
+        actual = result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        actual = "TIMEOUT"
 
     expected = ""
     if transcript.exists():

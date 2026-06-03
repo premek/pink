@@ -1,0 +1,10 @@
+You see a soldier.
+
+1: Pull a face
+2: Shove the guard aside
+?> You pull a face, and the soldier comes at you! You shove the guard to one side, but he comes back swinging.
+You see a soldier.
+
+1: Grapple and fight
+?> You see a soldier.
+RUNTIME ERROR: 'story.ink' line 3: ran out of content. Do you need a '-> DONE' or '-> END'?

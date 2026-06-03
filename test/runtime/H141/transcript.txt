@@ -1,0 +1,2 @@
+ERROR: 'story.ink' line 9: Unresolved variable: x
+ERROR: 'story.ink' line 9: Unresolved variable: y

@@ -1,0 +1,84 @@
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> 
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> 
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> 
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> 
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> 
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> 
+I held my breath.
+
+1: Try again
+?> 
+I waited impatiently.
+
+1: Try again
+?> 
+I paused.
+
+1: Try again
+?> <User input stream closed.>

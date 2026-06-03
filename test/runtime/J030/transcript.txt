@@ -1,0 +1,10 @@
+At the table, I drew a card. Ace of Hearts.
+
+1: Draw a card
+?> I drew a card.
+2 of Diamonds.
+"Should I hit you again," the croupier asks.
+
+1: No.
+2: Draw a card
+?> I left the table.

@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 1: Expected target for new thread but saw end of line

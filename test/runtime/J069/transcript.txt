@@ -1,0 +1,4 @@
+How much do you give?
+
+1: I don't know
+?> You give 1 or 2 dollars. Hmm.

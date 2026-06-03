@@ -1,0 +1,64 @@
+0
+
+1: choice
+?> 1
+
+1: choice
+?> 2
+
+1: choice
+?> 3
+
+1: choice
+?> 4
+
+1: choice
+?> 5
+
+1: choice
+?> 6
+
+1: choice
+?> 7
+
+1: choice
+?> 8
+
+1: choice
+?> 9
+
+1: choice
+?> 10
+
+1: choice
+?> 11
+
+1: choice
+?> 12
+
+1: choice
+?> 13
+
+1: choice
+?> 14
+
+1: choice
+?> 15
+
+1: choice
+?> 16
+
+1: choice
+?> 17
+
+1: choice
+?> 18
+
+1: choice
+?> 19
+
+1: choice
+?> 20
+
+1: choice
+?> <User input stream closed.>

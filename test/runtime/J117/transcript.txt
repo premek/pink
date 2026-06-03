@@ -1,0 +1,4 @@
+A red sequence.
+# tags: red
+A white sequence.
+# tags: white

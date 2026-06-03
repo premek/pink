@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 6: Divert target not found: '-> next'

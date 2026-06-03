@@ -1,0 +1,64 @@
+He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> He looked at me oddly.
+
+1: "Hello, Master!"
+?> He looked at me oddly.
+
+1: "Hello, Monsieur!"
+?> He looked at me oddly.
+
+1: "Hello, you!"
+?> <User input stream closed.>

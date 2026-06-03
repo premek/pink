@@ -1,0 +1,2 @@
+This is written if yourVariable is true.
+Otherwise this is written.

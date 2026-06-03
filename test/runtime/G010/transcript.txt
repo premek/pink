@@ -1,0 +1,79 @@
+loud
+false
+false
+true
+off, quiet, medium, loud, deafening
+Adding items
+off, quiet, medium, loud
+Adding 1 will increment all items
+quiet, medium, loud, deafening
+Adding 2 will push "loud" to be undefined, and drop
+it from the list
+medium, loud, deafening
+Subtracting
+off, quiet, medium
+medium, loud
+4
+a single value still counts as a 1-item list
+1
+Look up a list item based on numeric value
+quiet
+empty 0
+5
+multiple items takes largest value
+2
+apples, bananas, oranges
+apples
+oranges
+apples, quiet, oranges, medium
+apples, bananas, quiet, oranges, medium
+is empty
+has values
+? has apples and oranges
+has apples
+false
+false
+hasnt apples and bananas
+true
+apples, bananas, and oranges
+apples, off, bananas, quiet, oranges, medium, loud, deafening
+apples, off, bananas, quiet, oranges, medium, loud, deafening
+apples, bananas, oranges
+r =
+r all apples, bananas, oranges
+apples, off, bananas, quiet, oranges, medium, loud, deafening
+quiet, medium
+medium
+quiet, medium, loud
+true
+false
+false
+empty lt empty false
+empty lt something true
+something lt empty false
+false
+true
+false
+empty gt empty false
+empty gt something false
+something gt empty true
+true
+false
+false
+false
+true
+empty lte empty false
+empty lte something true
+something lte empty false
+false
+false
+false
+true
+false
+empty gte empty false
+empty gte something false
+something gte empty true
+apples, oranges
+apples, bananas, oranges
+invert empty
+bananas

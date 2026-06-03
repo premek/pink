@@ -1,0 +1,19 @@
+Counting turns
+0
+Text doesn't increment the turn
+0
+0
+
+1: But choosing here
+2: does increment
+?> But choosing here
+1
+1
+A default choice does not count as a turn
+1
+However a single non-default choice does
+
+1: only choice
+?> only choice
+They lived happily ever after.
+2

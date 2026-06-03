@@ -3,7 +3,7 @@ INKLECATE="$HOME/app/inklecate/inklecate"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ $# -eq 0 ]; then
-    set -- 'W*' 'I*' 'P*'
+    set -- 'W*' 'I*' 'P*' 'G*' 'H*' 'J*'
 fi
 
 for PATTERN in "$@"; do

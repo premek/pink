@@ -1,0 +1,1 @@
+ERROR: Missing function binding for externals: 'message', 'multiply', 'times' , and no fallback ink function found.

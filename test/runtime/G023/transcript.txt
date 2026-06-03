@@ -1,0 +1,20 @@
+Turn: 0
+Visits: 1 0
+
+1: choice one
+2: choice two
+3: choice three
+?> choice one
+Turn: 1
+Visits: 2 1
+
+1: choice two
+2: choice three
+?> choice two
+Turn: 2
+Visits: 3 2
+
+1: choice three
+?> choice three
+Turn: 3
+Visits: 4 3

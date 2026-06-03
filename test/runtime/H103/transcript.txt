@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 3: Choices with conditions should be written: '* {condition} choice'. Otherwise, choices nested in conditionals or sequences need to explicitly divert afterwards.
