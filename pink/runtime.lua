@@ -309,6 +309,7 @@ return function(globalTree)
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var.value = var.value + 1
+        s.state.visitCount[Path.toString(path)] = var.value
         turnAtVisitSet(path, turns)
     end
 
@@ -564,7 +565,6 @@ return function(globalTree)
             error('unknown path: ' .. Path.toString(path)) -- TODO check at compile time?
         end
 
-        -- TODO s.state.visitCount[path] = s.state.visitCountAtPathString(path) + 1 -- TODO stitch
         -- frames above this depth belong to the current knot context (vs thread continuations)
         lastDivertDepth = callstack.size()
     end

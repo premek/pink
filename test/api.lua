@@ -20,16 +20,17 @@ end
 
 function testRVisitCount()
     local story = pink('test/branching.ink')
-    story.choosePathString('hurry_outside')
     luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 0)
+    story.choosePathString('hurry_outside')
     while story.canContinue do
         story.continue()
     end
-    --luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 1)
-    --story.choosePathString('hurry_outside');
-    --while story.canContinue do story.continue() end
-    --luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 2)
-    --luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 2)
+    luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 1)
+    story.choosePathString('hurry_outside')
+    while story.canContinue do
+        story.continue()
+    end
+    luaunit.assertEquals(story.state.visitCountAtPathString('as_fast_as_we_could'), 2)
 end
 
 function testRInclude()
