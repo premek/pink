@@ -1,0 +1,3 @@
+ERROR: 'story.ink' line 6: CONST 'x' has been redefined with a different value. Multiple definitions of the same CONST are valid so long as they contain the same value. Initial definition was on line 5 of story.ink.
+ERROR: 'story.ink' line 9: CONST 'y' has been redefined with a different value. Multiple definitions of the same CONST are valid so long as they contain the same value. Initial definition was on line 8 of story.ink.
+ERROR: 'story.ink' line 12: CONST 'z' has been redefined with a different value. Multiple definitions of the same CONST are valid so long as they contain the same value. Initial definition was on line 11 of story.ink.

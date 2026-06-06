@@ -1,0 +1,4 @@
+Rolling dice 1: 6.
+Rolling dice 2: 6.
+Rolling dice 3: 4.
+Rolling dice 4: 2.

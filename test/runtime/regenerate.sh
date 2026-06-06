@@ -1,7 +1,17 @@
 #!/bin/env bash
 INKLECATE="$HOME/app/inklecate/inklecate"
-for F in test/runtime/W*; do
-    $INKLECATE -p $F/story.ink < $F/input.txt > $F/transcript.txt &
-done
-wait $(jobs -p)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+if [ $# -eq 0 ]; then
+    set -- 'W*' 'I*' 'P*' 'G*' 'H*' 'J*'
+fi
+
+for PATTERN in "$@"; do
+    for F in "$SCRIPT_DIR"/$PATTERN; do
+        [ -d "$F" ] || continue
+        echo "$F"
+        STORY="$F/story.ink"
+        [ -f "$F/setup.ink" ] && STORY="$F/setup.ink"
+        $INKLECATE -p "$STORY" < "$F/input.txt" > "$F/transcript.txt"
+    done
+done

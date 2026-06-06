@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 2: Sequence type combination not supported: Stopping, Once

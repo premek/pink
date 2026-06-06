@@ -1,0 +1,65 @@
+Would my luck hold?
+
+1: Try again
+?> 
+Could I win the hand?
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> 
+
+1: Try again
+?> <User input stream closed.>

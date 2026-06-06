@@ -1,0 +1,1 @@
+VAR x = "{true: yes}"

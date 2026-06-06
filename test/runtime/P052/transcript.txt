@@ -1,0 +1,1 @@
+RUNTIME ERROR: 'story.ink' line 2: Can not call use '==' operation on List and String

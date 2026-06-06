@@ -1,0 +1,9 @@
+Divert as variable example
+Give up now, or keep trying to save your Kingdom?
+
+1: Keep trying!
+2: Give up
+?> Give up now, or keep trying to save your Kingdom?
+
+1: Give up
+?> Everybody dies.

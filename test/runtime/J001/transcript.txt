@@ -1,0 +1,134 @@
+They are keeping me waiting.
+
+1: Hut 14
+?> Hut 14. The door was locked after I sat down.
+I don't even have a pen to do any work. There's a copy of the morning's intercept in my pocket, but staring at the jumbled letters will only drive me mad.
+I am not a machine, whatever they say about me.
+
+1: Think
+2: Plan
+3: Wait
+?> 
+They suspect me to be a traitor. They think I stole the component from the calculating machine. They will be searching my bunk and cases.
+When they don't find it, they'll come back and demand I talk.
+I rattle my fingers on the field table.
+
+1: Plan
+2: Wait
+?> I am a problem—solver. Good with figures, quick with crosswords, excellent at chess.
+But in this scenario — in this trap — what is the winning play?
+
+1: Co—operate
+2: Dissemble
+3: Divert
+?> 
+I must co—operate. My credibility is my main asset. To contradict myself, or another source, would be fatal.
+I must simply hope they do not ask the questions I do not want to answer.
+Half an hour goes by before Commander Harris returns. He closes the door behind him quickly, as though afraid a loose word might slip inside.
+"Well, then," he begins, awkwardly. This is an unseemly situation.
+
+1: "Commander."
+2: "Tell me what this is about."
+3: Wait
+?> "Commander."
+He nods. He has brought two cups of tea in metal mugs: he sets them down on the tabletop between us.
+
+1: Take one
+2: "What's going on?"
+3: Wait
+?> I take a mug and warm my hands. It's a small gesture of friendship.
+Enough to give me hope?
+
+1: Drink
+2: Wait
+?> 
+I raise the cup to my mouth but it's too hot to drink.
+"Quite a difficult situation," Harris begins, sternly. I've seen him adopt this stiff tone of voice before, but only when talking to the brass. "I'm sure you agree."
+
+1: Agree
+2: Disagree
+3: Lie
+4: Evade
+?> 
+"Awkward," I reply, sipping at my tea as though we were old friends.
+
+1: Watch him
+2: Wait
+3: Smile
+?> His face is telling me nothing. I've seen Harris broad and full of laughter. Today he is tight, as much part of the military machine as the device in Hut 5.
+"We need that component," he says.
+
+1: The stolen component...
+2: Shrug
+?> The reel went missing from the Bombe this afternoon. The four of us were in the Hut, working on the latest German intercept. The results were garbage. It was Russell who found the gap in the plugboard.
+Any of us could have taken it; and no one else would have known its worth.
+
+1: Panic
+2: Calculate
+3: Deny
+?> They will pin it on me. They need a scapegoat so that the work can continue. I'm a likely target. Weaker than the rest.
+"So. Do you have it?" Harris is wasting no time: Bletchley is his watch. "Do you know where it is?"
+
+1: Yes
+2: No
+3: Lie
+4: Evade
+?> "I do."
+Harris smiles with satisfaction, as if your willingness to talk was somehow his doing.
+"I see."
+There's a long pause, like the delay between feeding a line of cypher into the Bombe and waiting for its valves to warm up enough to begin processing.
+"You want to explain that?"
+
+1: Explain
+2: Say nothing
+?> 
+I pause a moment, trying to choose my words. To just come out and say it, after a lifetime of hiding... that is a circle I cannot square.
+
+1: Explain
+2: Say nothing
+?> "I've done things," I begin. "Things I didn't want to do. I tried not to. But in the end, it felt like cutting off my own arm to resist."
+"You mean you've left yourself open," Harris answers. "To pressure. Is that what you're saying?"
+
+1: Yes
+2: No
+3: Evade
+?> "That's it," I reply. "There are some things... which a man shouldn't do."
+Harris doesn't stiffen. Doesn't lean away, as though my condition might be infectious. I had thought they trained them in the army to shoot my kind on sight.
+He offers no sympathy either. He nods, once. His understanding of me is a mere turning cog in his calculations, with no meaning to it.
+"I've seen it before. A young man like you — clever, removed. The kind that doesn't go to parties. Who takes himself too seriously. Who takes things too far."
+He slides his thumb between two fingers.
+"Now they own you."
+
+1: Agree
+2: Disagree
+3: Apologise
+?> 
+"What could I do?" I'm shaking now. The night is cold and the heat—lamp in the Hut has been removed. "I don't want to go to prison."
+"Smart man," he replies. "You wouldn't last. So why don't you tell me, right now. Where is it?"
+His eyes bear down like carbonised drill—bits.
+
+1: Confess
+2: Dissemble
+?> 
+"All right. I'll tell you what happened." And never mind my shame.
+"I can imagine how it starts," he replies.
+
+1: Talk
+?> "There was a young man. I met him in the town. A few months ago now. We got to talking. Not about work. And I used my cover story, but he seemed to know it wasn't true. That got me wondering if he might be one of us."
+Harris is not letting me off any more.
+"You seriously entertained that possibility?"
+
+1: Yes
+2: No
+3: Lie
+?> "Yes, I considered it. He seemed to know all about me. He... he was quite enchanted by my achievements."
+The way Harris is staring I expect him to strike me, but he does not. He replies, "I can see how that must have been attractive to you," with such plain—spokeness that I think I must have misheard.
+
+1: Yes
+2: No
+?> "It's a lonely life in this place," I reply. "Lonely - and still one never gets a moment to oneself."
+"That's how it is in the Service," Harris answers.
+
+1: Argue
+2: Agree
+?> <User input stream closed.>

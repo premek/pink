@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 1: Empty diverts (->) are only valid on choices

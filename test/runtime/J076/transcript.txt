@@ -1,0 +1,104 @@
+
+1: a
+2: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> a
+
+1: a
+2: OK
+3: FAIL
+?> <User input stream closed.>

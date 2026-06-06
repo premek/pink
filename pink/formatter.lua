@@ -1,7 +1,6 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local logging = require(base_path .. 'logging')
-local _debug = logging.debug
-local err = logging.error
+local log = logging.newLogger()
 
 local output = { { indent = 0 } }
 
@@ -53,26 +52,26 @@ for _, operator in ipairs(binaryOperators) do
 end
 
 local callFormatter = function(node, ctx)
-    if isBinaryOperator[node[2]] then
-        binaryCallFormatter(node[2], node[3][1], node[3][2], ctx)
+    if isBinaryOperator[node.name] then
+        binaryCallFormatter(node.name, node.args[1], node.args[2], ctx)
     else
         if ctx.mode == 'out' then
             out('~ ')
         end
-        fnCallFormatter(node[2], node[3], ctx)
+        fnCallFormatter(node.name, node.args, ctx)
     end
 end
 
 local nodeFormatters = {
     ink = function(node, ctx)
-        format(node[2], ctx)
+        format(node.nodes, ctx)
     end,
 
     str = function(node, ctx)
         if ctx.mode == 'ev' then
             out('"')
         end
-        out(node[2])
+        out(node.value)
         if ctx.mode == 'ev' then
             out('"')
         end
@@ -81,72 +80,72 @@ local nodeFormatters = {
         resetIndent(0)
         outNewLine(0)
         outNewLine(0)
-        out('=== ', node[2], ' ===')
+        out('=== ', node.name, ' ===')
         outNewLine(0)
-        format(node[4], ctx:with({ indent = 0 }))
+        format(node.body, ctx:with({ indent = 0 }))
     end,
     stitch = function(node, ctx)
         resetIndent(0)
         outNewLine(0)
-        out('= ', node[2], ' =')
+        out('= ', node.name, ' =')
         outNewLine(0)
-        format(node[3], ctx:with({ indent = 0 }))
+        format(node.args, ctx:with({ indent = 0 }))
     end,
-    fn = function(node, ctx)
+    fndef = function(node, ctx)
         resetIndent(0)
         outNewLine(0)
         outNewLine(0)
-        out('=== function ', node[2])
+        out('=== function ', node.name)
         out('(')
-        for _, parameter in ipairs(node[3]) do
+        for _, parameter in ipairs(node.params) do
             -- TODO ref
-            out(parameter[1])
+            out(parameter.name)
         end
         out(')')
         out(' ===')
         outNewLine(0)
-        format(node[4], ctx:with({ indent = 0 }))
+        format(node.body, ctx:with({ indent = 0 }))
     end,
     choice = function(node, ctx)
-        format(node[2], ctx)
-        if node[3] then
-            format({ node[3] }, ctx)
+        format(node.options, ctx)
+        if node.gather then
+            format({ node.gather }, ctx)
         end
     end,
     option = function(node, ctx)
         outNewLine(ctx.indent)
-        out(string.rep('*', node[2]))
+        out(string.rep('*', node.nesting))
         out('  ')
-        format(node[3], ctx)
-        if #node[4] > 0 then
+        format(node.sharedStartText, ctx)
+        if #node.choiceOnlyText > 0 then
             out('[')
-            format(node[4], ctx)
+            format(node.choiceOnlyText, ctx)
             out(']')
         end
-        format(node[5], ctx)
-        format(node[9], ctx:with({ indent = ctx.indent + node[2] + 2 }))
+        format(node.bodyOnlyText, ctx)
+        format(node.body, ctx:with({ indent = ctx.indent + node.nesting + 2 }))
     end,
     gather = function(node, ctx)
         outNewLine(ctx.indent)
-        out(string.rep('- ', node[2]))
-        if node[4] then
-            out('(', node[4], ')')
+        out(string.rep('- ', node.nesting))
+        if node.label then
+            out('(', node.label, ')')
         end
-        format(node[3], ctx)
+        format(node.body, ctx)
     end,
     divert = function(node, _ctx)
-        out('-> ', node[2])
-        --if #node[3] > 0 then
-        --   for _, _arg in ipairs(node[3]) do
+        out('-> ', node.target)
+        --if #node.args > 0 then
+        --   for _, _arg in ipairs(node.args) do
         -- TODO
         --  end
         --end
-        if node[4] then
+        if node.tunnel then
             out(' ->')
         end
     end,
     fork = function(node, _ctx)
-        out('<- ', node[2])
+        out('<- ', node.target)
         --if #node[3] > 0 then
         --for _, _arg in ipairs(node[3]) do
         -- TODO
@@ -160,23 +159,23 @@ local nodeFormatters = {
         outNewLine(ctx.indent)
     end,
     comment = function(node, _ctx)
-        out('// ', node[2])
+        out('// ', node.text)
     end,
     out = function(node, ctx)
         out('{')
-        format({ node[2] }, ctx:with({ mode = 'ev' }))
+        format({ node.content }, ctx:with({ mode = 'ev' }))
         out('}')
     end,
     call = callFormatter,
     ['if'] = function(node, ctx)
         out('{')
-        for _, branch in ipairs(node[2]) do
+        for _, branch in ipairs(node.branches) do
             outNewLine(ctx.indent + 2)
             out('-  ')
-            format({ branch[1] }, ctx)
+            format({ branch.cond }, ctx)
             out(':')
             outNewLine(ctx.indent + 3)
-            format(branch[2], ctx:with({ indent = ctx.indent + 3 }))
+            format(branch.body, ctx:with({ indent = ctx.indent + 3 }))
         end
 
         resetIndent(ctx.indent)
@@ -184,11 +183,11 @@ local nodeFormatters = {
     end,
     seq = function(node, ctx)
         out('{')
-        if node[2].once then
+        if node.opts.once then
             out('once:')
             -- TODO
         end
-        for _, el in ipairs(node[3]) do
+        for _, el in ipairs(node.branches) do
             outNewLine(ctx.indent + 2)
             out('- ')
             format(el, ctx:with({ indent = ctx.indent + 2 }))
@@ -196,36 +195,36 @@ local nodeFormatters = {
         out('}')
     end,
     ref = function(node, _ctx)
-        out(node[2]) --FIXME ref?
+        out(table.concat(node.path, '.'))
     end,
     bool = function(node, _ctx)
-        out(tostring(node[2]))
+        out(tostring(node.value))
     end,
     int = function(node, _ctx)
-        out(tostring(node[2]))
+        out(tostring(node.value))
     end,
     float = function(node, _ctx)
-        out(tostring(node[2]))
+        out(tostring(node.value))
     end,
     include = function(node, _ctx)
-        out('INCLUDE ', node[2])
+        out('INCLUDE ', node.filename)
     end,
     const = function(node, ctx)
-        out('CONST ', node[2], ' = ')
-        format({ node[3] }, ctx:with({ mode = 'ev' }))
+        out('CONST ', node.name, ' = ')
+        format({ node.value }, ctx:with({ mode = 'ev' }))
         outNewLine(ctx.indent)
     end,
     var = function(node, ctx)
-        out('VAR ', node[2], ' = ')
-        format({ node[3] }, ctx:with({ mode = 'ev' }))
+        out('VAR ', node.name, ' = ')
+        format({ node.value }, ctx:with({ mode = 'ev' }))
         outNewLine(ctx.indent)
     end,
     tempvar = function(node, ctx)
         if ctx.mode == 'out' then
             out('~ ')
         end
-        out('temp ', node[2], ' = ')
-        format({ node[3] }, ctx:with({ mode = 'ev' }))
+        out('temp ', node.name, ' = ')
+        format({ node.value }, ctx:with({ mode = 'ev' }))
         outNewLine(ctx.indent)
     end,
     assign = function(node, ctx)
@@ -233,8 +232,8 @@ local nodeFormatters = {
             out('~ ')
         end
 
-        out(node[2], ' = ')
-        format({ node[3] }, ctx:with({ mode = 'ev' }))
+        out(node.name, ' = ')
+        format({ node.expr }, ctx:with({ mode = 'ev' }))
         outNewLine(ctx.indent)
     end,
     ['return'] = function(node, ctx)
@@ -242,30 +241,33 @@ local nodeFormatters = {
             out('~ ')
         end
         out('return ')
-        format({ node[2] }, ctx:with({ mode = 'ev' }))
+        format({ node.value }, ctx:with({ mode = 'ev' }))
     end,
     tunnelreturn = function(_node, _ctx)
         out('->->')
     end,
+    tunnelreturnto = function(n, _ctx)
+        out('->-> ', n.target)
+    end,
     tag = function(node, _ctx)
-        out('#', node[2])
+        out('#', node.text)
     end,
     listlit = function(_node, _ctx)
         out('()') -- TODO
     end,
     listdef = function(node, _ctx)
-        out('LIST ', node[2]) -- TODO
+        out('LIST ', node.name) -- TODO
     end,
 }
 
 format = function(tree, ctx)
     for _, node in ipairs(tree) do
-        _debug(node)
+        log.debug(node)
 
-        local nodeFormatter = nodeFormatters[node[1]]
+        local nodeFormatter = nodeFormatters[node.type]
         if not nodeFormatter then
-            _debug(node)
-            err('unknown node')
+            log.debug(node)
+            log.die('unknown node')
         end
         nodeFormatter(node, ctx)
     end
@@ -298,8 +300,8 @@ local outputToString = function()
 end
 
 return function(globalTree)
-    _debug('in', globalTree)
+    log.debug('in', globalTree)
     format(globalTree, newCtx())
-    _debug('out', output)
+    log.debug('out', output)
     return outputToString()
 end

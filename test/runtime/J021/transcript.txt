@@ -1,0 +1,7 @@
+"We are going on a trip," said Monsieur Fogg.
+
+1: The wager.
+2: I was surprised.
+?> I had heard about the wager.
+I stared at Monsieur Fogg. "But surely you are not serious?" I demanded.
+He said nothing in reply, merely considering his newspaper with as much thoroughness as entomologist considering his latest pinned addition.

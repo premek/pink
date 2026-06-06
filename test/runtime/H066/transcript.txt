@@ -1,0 +1,7 @@
+ERROR: 'story.ink' line 8: Return statements can only be used in knots that are declared as functions: == function test ==
+ERROR: 'story.ink' line 6: Functions cannot be stitches - i.e. they should be defined as '== function myFunc ==' rather than public to another knot.
+ERROR: 'story.ink' line 16: Functions may not contain stitches, but saw 'testStitch' within the function 'myFunc'
+ERROR: 'story.ink' line 15: Functions may not contain diverts, but saw '-> myFunc'
+ERROR: 'story.ink' line 12: Functions may not contain choices, but saw '* ContentList(a choice)...'
+ERROR: 'story.ink' line 13: Functions may not contain choices, but saw '* ContentList(another choice)...'
+ERROR: 'story.ink' line 18: Return statements can only be used in knots that are declared as functions: == function testStitch ==

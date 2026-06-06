@@ -1,0 +1,11 @@
+You are in a small room.
+
+1: Pick up the key
+2: Look under the mat
+?> You take the key.
+You are in a small room.
+
+1: Look under the mat
+?> Nothing there.
+You are in a small room.
+You find the door and leave.

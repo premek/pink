@@ -1,0 +1,1 @@
+ERROR: 'story.ink' line 5: Stitch 'stitch': name has already been used for a var on line 2 of story.ink

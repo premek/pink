@@ -1,0 +1,5 @@
+glue directly betweenwords
+glue betweenlines
+glue newline space after line
+glue first linethen newline
+space before glue space after newline

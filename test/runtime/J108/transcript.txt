@@ -1,0 +1,3 @@
+
+1: Set variable from code to 15
+?> KO

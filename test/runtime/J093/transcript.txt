@@ -1,0 +1,7 @@
+neg:-3
+mod:1
+pow:27
+floor:3
+ceiling:4
+int:3
+float:1

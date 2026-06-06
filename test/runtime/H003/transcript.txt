@@ -1,0 +1,3 @@
+WARNING: 'story.ink' line 11: 'aTarget' being used as read count rather than being called as function. Perhaps you intended to write aTarget()
+ERROR: 'story.ink' line 10: argument 'aTarget': name has already been used for a function on line 7 of story.ink
+ERROR: 'story.ink' line 13: argument 'global_var': name has already been used for a var on line 2 of story.ink

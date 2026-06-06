@@ -1,0 +1,15 @@
+You enter the chamber.
+# tags: entered
+The walls glitter.
+# tags: glitter
+
+1: Examine the altar
+2: Leave immediately
+?> 
+# tags: look_altar
+A stone altar stands at the centre.
+# tags: altar_desc
+It has an inscription.
+# tags: inscription
+The door is still open.
+# tags: door_open

@@ -3,16 +3,13 @@ local pink = require('pink.pink')
 
 function testExternal()
     local story = pink('test/external.ink')
-    luaunit.assertFalse(story.canContinue)
-    -- TODO the following error messages are not normally shown
-    -- because continue() is not called because canContinue is false
+    luaunit.assertTrue(story.canContinue)
     luaunit.assertErrorMsgContains('ext', function()
         story.continue()
     end)
     luaunit.assertErrorMsgContains('ext2', function()
         story.continue()
     end)
-
     local called = false
     story.bindExternalFunction('ext', function()
         called = true
@@ -21,7 +18,7 @@ function testExternal()
 
     -- update called automatically in bind, is that ok?
     luaunit.assertTrue(story.canContinue)
-    luaunit.assertEquals(story.continue(), 'Hello')
+    luaunit.assertEquals(story.continue(), 'Hello\n')
 
     luaunit.assertTrue(called)
     -- TODO test parameters and return values

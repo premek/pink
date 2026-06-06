@@ -1,0 +1,17 @@
+a1, b1, c1
+a1
+a1, b2
+count:2
+max:c2
+min:a1
+true
+true
+false
+empty
+a2
+a2, b2, c2
+range:a1, b2
+a1
+subtract:a1, c1
+random:c2
+listinc:b1

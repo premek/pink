@@ -1,14 +1,25 @@
 -- usage:
 -- local logging = require('logging')
--- logging.debugEnabled = true
--- logging.debug(foo, bar, {foo=bar})
--- note: every time it's required the same instance is used, so the 'enabled' flag is shared
+-- logging.debugEnabled = true / logging.compat = true  (process-wide config)
+-- local logger = logging.newLogger()   (one per story)
+-- logger.debug(foo, bar, {foo=bar})
 
-local dump = require('test/lib/luaunit').prettystr -- TODO optional dep
+local function dump(v, indent)
+    indent = indent or 0
+    local t = type(v)
+    if t == 'table' then
+        local s = '{\n'
+        for k, val in pairs(v) do
+            s = s .. string.rep('  ', indent + 1) .. tostring(k) .. ' = ' .. dump(val, indent + 1) .. ',\n'
+        end
+        return s .. string.rep('  ', indent) .. '}'
+    end
+    return tostring(v)
+end
 
 local logging = {
     debugEnabled = false,
-    lastLocation = nil,
+    compat = false,
 }
 
 local getLocation = function(location)
@@ -19,16 +30,23 @@ local getLogMessage = function(message, token)
     local location = ''
     if token and token.location then
         location = '\n\tsomewhere around ' .. getLocation(token.location)
-    elseif logging.lastLocation then
-        location = '\n\tsomewhere after ' .. getLocation(logging.lastLocation)
     end
-    if token and type(token) == 'table' and #token > 0 then
-        location = location .. ', node type: ' .. token[1]
+    if token and type(token) == 'table' and token.type then
+        location = location .. ', node type: ' .. token.type
     end
     return message .. location
 end
 
-logging.debug = function(...)
+local compatLocation = function(token)
+    local loc = token and (token.location or (token[1] and token))
+    if not loc then
+        return ''
+    end
+    local filename = loc[1]:match('[^/]+$') or loc[1]
+    return "'" .. filename .. "' line " .. loc[2] .. ': '
+end
+
+local function debug(...)
     if not logging.debugEnabled then
         return
     end
@@ -41,15 +59,122 @@ logging.debug = function(...)
     end
 end
 
-logging.error = function(message, token)
+local function die(message, token)
     error(getLogMessage(message, token))
 end
-
-logging.info = function()
-    -- TODO
+local function dieCompat(message, token)
+    io.write('ERROR: ' .. compatLocation(token) .. message .. '\n')
+    os.exit(1)
 end
-logging.warn = function()
-    -- TODO
+
+local function warn(message, token)
+    io.stderr:write('WARNING: ' .. getLogMessage(message, token) .. '\n')
+end
+local function warnCompat(message, token)
+    io.write('WARNING: ' .. compatLocation(token) .. message .. '\n')
+end
+
+logging.newLogger = function()
+    local pendingCompatWarnings = {}
+
+    local function ranOutOfContent(token)
+        io.stderr:write('RUNTIME ERROR: ' .. getLogMessage('ran out of content', token) .. '\n')
+    end
+    local function ranOutOfContentCompat(token)
+        io.write(
+            'RUNTIME ERROR: ' .. compatLocation(token) .. "ran out of content. Do you need a '-> DONE' or '-> END'?\n"
+        )
+    end
+
+    local function listStringEquality(token)
+        io.stderr:write('RUNTIME ERROR: ' .. getLogMessage('eq not supported for list and string', token) .. '\n')
+    end
+    local function listStringEqualityCompat(token)
+        io.write('RUNTIME ERROR: ' .. compatLocation(token) .. "Can not call use '==' operation on List and String\n")
+    end
+
+    local function variableNotFound(name, token)
+        io.stderr:write(
+            'RUNTIME WARNING: '
+                .. getLogMessage('variable not found: ' .. name .. ', using default value of 0', token)
+                .. '\n'
+        )
+    end
+    local function variableNotFoundCompat(name, token)
+        table.insert(
+            pendingCompatWarnings,
+            'RUNTIME WARNING: '
+                .. compatLocation(token)
+                .. "Variable not found: '"
+                .. name
+                .. "'. Using default value of 0 (false). This can happen with temporary variables if the"
+                .. " declaration hasn't yet been hit. Globals are always given a default value on load if"
+                .. " a value doesn't exist in the save state.\n"
+        )
+    end
+
+    local function todo(message, token)
+        io.stderr:write('TODO: ' .. getLogMessage(message, token) .. '\n')
+    end
+    local function todoCompat(message, token)
+        io.stderr:write('TODO: ' .. compatLocation(token) .. message .. '\n')
+    end
+
+    return {
+        debug = debug,
+        die = function(message, token)
+            if logging.compat then
+                dieCompat(message, token)
+            else
+                die(message, token)
+            end
+        end,
+        warn = function(message, token)
+            if logging.compat then
+                warnCompat(message, token)
+            else
+                warn(message, token)
+            end
+        end,
+        dieRanOutOfContent = function(token)
+            if logging.compat then
+                ranOutOfContentCompat(token)
+            else
+                ranOutOfContent(token)
+            end
+            os.exit(1)
+        end,
+        dieListStringEquality = function(token)
+            if logging.compat then
+                listStringEqualityCompat(token)
+            else
+                listStringEquality(token)
+            end
+            os.exit(1)
+        end,
+        variableNotFound = function(name, token)
+            if logging.compat then
+                variableNotFoundCompat(name, token)
+            else
+                variableNotFound(name, token)
+            end
+        end,
+        todo = function(message, token)
+            if logging.compat then
+                todoCompat(message, token)
+            else
+                todo(message, token)
+            end
+        end,
+        drainCompatWarnings = function()
+            if #pendingCompatWarnings == 0 then
+                return ''
+            end
+            local result = table.concat(pendingCompatWarnings, '')
+            pendingCompatWarnings = {}
+            return result
+        end,
+    }
 end
 
 return logging

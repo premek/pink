@@ -1,0 +1,1 @@
+ERROR: Missing function binding for external: 'gameInc' , and no fallback ink function found.

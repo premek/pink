@@ -1,0 +1,84 @@
+one
+
+1: Try again
+?> 
+two
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> 
+final
+
+1: Try again
+?> <User input stream closed.>

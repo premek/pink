@@ -1,0 +1,6 @@
+How much do you give?
+
+1: $1
+2: $2
+3: Nothing
+?> You give 1 dollars.

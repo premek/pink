@@ -3,6 +3,9 @@
 DIFF="colordiff  --side-by-side --suppress-common-lines"
 DIFF="cmp -s" #no diff output
 
+# Override from env: LUAS="lua5.1 lua5.3 lua5.4 luajit" ./test/test.sh
+LUAS="${LUAS:-lua}"
+
 start=$(date +%s.%N)
 
 while getopts vf flag
@@ -16,7 +19,7 @@ done
 shift $((OPTIND-1))
 
 PATTERNS="$*"
-test -z "$PATTERNS" && PATTERNS="I* W* P* api lua sh"
+test -z "$PATTERNS" && PATTERNS="I* W* P* G* H* J* X* api lua sh"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
@@ -61,17 +64,62 @@ for P in $PATTERNS; do
     done
 
   elif [ "$P" = "api" ]; then
-    TESTS=$((TESTS+1))
-    ./test/api.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    for SUITE in api.lua random.lua; do
+      TESTS=$((TESTS+1))
+      FAILED_VERS=""
+      for LUA in $LUAS; do
+        $LUA "./test/$SUITE" >/dev/null 2>&1 || FAILED_VERS="$FAILED_VERS $LUA"
+      done
+      if [ -z "$FAILED_VERS" ]; then
+        PASSED="$PASSED\n$SUITE" && PASSES=$((PASSES+1))
+      else
+        printf "%s fail:%s\n" "$SUITE" "$FAILED_VERS"
+        RET=1
+      fi
+    done
 
   else
     for D in "./$DIR/test/runtime/"$P; do
       TESTCASE=$(basename "$D")
       TESTS=$((TESTS+1))
       echo
-      printf '%s ' "$TESTCASE" &&
-         "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$D/story.ink" < "$D/input.txt" 2>&1 | $DIFF "$D/transcript.txt" - &&
-         printf "OK" && PASSED="$PASSED\n$TESTCASE" && PASSES=$((PASSES+1)) || RET=1
+      printf '%s ' "$TESTCASE"
+      FAILED_VERS=""
+      if [ "${TESTCASE#X}" = "$TESTCASE" ]; then
+        COMPAT_FLAG="--compat"
+      else
+        COMPAT_FLAG=""
+      fi
+      for LUA in $LUAS; do
+        STORY="$D/story.ink"
+        [ -f "$D/setup.ink" ] && STORY="$D/setup.ink"
+        if [ -z "$COMPAT_FLAG" ]; then
+          # X tests: separate stdout/stderr
+          $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" \
+            > "$TMP/stdout" 2> "$TMP/stderr"
+          $DIFF "$D/transcript.txt" "$TMP/stdout" || FAILED_VERS="$FAILED_VERS $LUA"
+          if [ -f "$D/stderr.txt" ]; then
+            $DIFF "$D/stderr.txt" "$TMP/stderr" || FAILED_VERS="$FAILED_VERS $LUA"
+          fi
+          if [ -f "$D/stderr_grep.txt" ]; then
+            grep -qF "$(cat "$D/stderr_grep.txt")" "$TMP/stderr" || FAILED_VERS="$FAILED_VERS $LUA"
+          fi
+          # Run again merged for ordering check
+          if [ -f "$D/stderr_stdout.txt" ]; then
+            $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
+              | $DIFF "$D/stderr_stdout.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
+          fi
+        else
+          $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$COMPAT_FLAG" "$STORY" < "$D/input.txt" 2>&1 \
+            | $DIFF "$D/transcript.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
+        fi
+      done
+      if [ -z "$FAILED_VERS" ]; then
+        printf "OK" && PASSED="$PASSED\n$TESTCASE" && PASSES=$((PASSES+1))
+      else
+        printf "fail:%s" "$FAILED_VERS"
+        RET=1
+      fi
     done
   fi
 done

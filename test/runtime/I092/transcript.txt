@@ -2,4 +2,4 @@
 1: opt
 ?> opt
 text
-RUNTIME ERROR: ran out of content. Do you need a '-> DONE' or '-> END'?
+RUNTIME ERROR: 'story.ink' line 2: ran out of content. Do you need a '-> DONE' or '-> END'?

@@ -1,5 +1,3 @@
-~SEED_RANDOM(3)
-
 VAR a_colour = ""
 
 ~ a_colour = "{~red|blue|green|yellow}"

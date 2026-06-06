@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pink Tests</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="left">
+  <div id="left-toolbar">
+    <input id="search" placeholder="filter tests..." oninput="applyFilters()">
+    <div id="filters">
+      <button class="filter-btn active" data-status="all" onclick="setStatusFilter('all')">All</button>
+      <button class="filter-btn" data-status="pass" onclick="setStatusFilter('pass')">Pass</button>
+      <button class="filter-btn" data-status="fail" onclick="setStatusFilter('fail')">Fail</button>
+      <button class="filter-btn" data-status="unknown" onclick="setStatusFilter('unknown')">?</button>
+      <button class="filter-btn" id="git-filter-btn" onclick="toggleGitFilter()">M</button>
+    </div>
+    <div id="left-actions">
+      <button onclick="showNewTest()">New</button>
+      <button onclick="runAll()">Run All</button>
+      <div id="pass-count"></div>
+    </div>
+  </div>
+  <div id="test-list"></div>
+</div>
+
+<div id="right">
+  <div id="placeholder">Select a test</div>
+  <div id="right-content">
+    <div id="right-header">
+      <span id="test-title"></span>
+      <span id="status-badge" class="badge"></span>
+      <button class="primary" onclick="runTest()" title="Ctrl-Enter">Run</button>
+      <label class="compat-label"><input type="checkbox" id="compat-check" checked> compat</label>
+    </div>
+    <div id="run-all-output">
+      <div class="run-all-close-bar"><button onclick="document.getElementById('run-all-output').style.display='none'">&#10005;</button></div>
+      <div id="run-all-output-text"></div>
+    </div>
+    <div id="run-result">
+      <h3 id="run-result-title"></h3>
+      <div id="run-result-body"></div>
+    </div>
+    <div id="file-sections"></div>
+    <div id="add-file-row">
+      <input id="new-file-name" placeholder="filename">
+      <button onclick="addFile()">Add File</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>New Test</h2>
+    <label>Name (e.g. I136, W2.4.001, P055)<input id="new-name" placeholder="I136"></label>
+    <div id="modal-actions">
+      <button onclick="hideNewTest()">Cancel</button>
+      <button class="primary" onclick="createTest()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

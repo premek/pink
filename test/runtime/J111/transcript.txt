@@ -1,0 +1,8 @@
+How shall we travel?
+
+1: In first class
+2: I'll go cheap
+?> I settled my master.
+
+1: Move to third class
+?> I put myself in third.

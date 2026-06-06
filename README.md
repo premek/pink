@@ -1,6 +1,5 @@
 # pink
-An attempt to implement [ink](https://github.com/inkle/ink) in pure lua,
-currently under development and probably not yet very useful (as of Jan 2024).
+A Lua implementation of [ink](https://github.com/inkle/ink).
 
   <a href="https://premek.github.io/ink-proof/#!/tests?overview=ink" alt="pink test results">
     <img src="https://premek.github.io/ink-proof/pink_compiler.svg"/> 
@@ -11,13 +10,11 @@ both for text-centric games as well as more graphical games that contain highly 
 
 See [WritingWithInk](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md) 
 and [RunningYourInk](https://github.com/inkle/ink/blob/master/Documentation/RunningYourInk.md) 
-for the description of the reference ink implementation.
+for the reference ink documentation.
 
-## Used by
-pink was used by my small game https://github.com/premek/enjoy
-
-## How to use this to run a game
-To use it in your project download the latest source or the latest [release](../../releases). You need just the [pink](../../tree/master/pink) directory.
+## Usage
+To use it in your project download the latest source.
+You need just the [pink](../../tree/master/pink) directory.
 
 ### Example
 Given some .ink file like below, you can easily run it in your lua application using the pink library.
@@ -49,7 +46,7 @@ local story = pink('examples/game.ink')
 while true do
   -- 2) Game content, line by line
   while story.canContinue do
-    print(story.continue())
+    io.write(story.continue())
   end
   -- 3) Display story.currentChoices list, allow player to choose one
   if #story.currentChoices == 0 then break end -- cannot continue and there are no choices

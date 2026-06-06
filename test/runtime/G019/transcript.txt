@@ -1,0 +1,10 @@
+I had a headache; threading is hard to get your head around.
+It was a tense moment for Monty and me.
+We continued to walk down the dusty road.
+
+1: "What did you have for lunch today?"
+2: "Nice weather, we're having,"
+3: Continue walking
+?> "What did you have for lunch today?" I asked.
+"Spam and eggs," he replied.
+Before long, we arrived at his house.

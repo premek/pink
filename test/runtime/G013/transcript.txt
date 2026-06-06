@@ -1,0 +1,18 @@
+NOTE: this output is manually generated
+The seed will give the same output each time, but we don't use the same random
+generator as inklecate to ensure direct compatibility.
+Loop 1:
+1: four
+2: one
+3: two
+4: three
+Loop 2:
+5: four
+6: three
+7: one
+8: two
+Loop 3:
+9: three
+10: two
+11: four
+12: one
