@@ -15,6 +15,7 @@ for writing interactive branching narratives.
 
 See [`docs/ink-language.md`](docs/ink-language.md) for a condensed Ink syntax reference.
 See [`docs/ink-api.md`](docs/ink-api.md) for the API.
+See [`TODO.md`](TODO.md) for known missing features and incomplete work.
 
 ## Workflow
 
@@ -120,16 +121,20 @@ Pipeline:
 
 ### Core Modules (`pink/`)
 
-- **parser.lua** — Lexical and syntactic analysis; converts Ink text to AST (1606 lines)
+- **parser.lua** — Lexical and syntactic analysis; converts Ink text to AST
 - **compiler.lua** — Static phase; builds knot map, registers vars/consts/lists/functions, resolves initial values; called once before runtime starts
 - **runtime.lua** — Execution engine; interprets AST nodes, manages story state and control flow
 - **builtins.lua** — Built-in Ink functions (`FLOOR`, `RANDOM`, `CHOICE_COUNT`, `READ_COUNT`, etc.); wrapped in a factory that receives `getEnv`/`getChoices` deps
-- **list.lua** — List type and all list operations; `list.defs` holds the global list schema
+- **list_definitions.lua** — List schema registry; tracks element names, values, and definitions
 - **output_buffer.lua** — Output buffering; handles glue/trim/newline logic before returning lines; factory function (`newOutputBuffer()`), one instance per story
 - **story.lua** — Minimal story state constructor (`globalTags`, `state`, `variablesState`, `canContinue`)
 - **formatter.lua** — Reverse compilation: AST → formatted Ink text
 - **logging.lua** — Debug logging and error utilities
 - **node.lua** — Value and AST node constructors + type helpers (`node.int`, `node.is`, `node.output`, etc.)
+- **includes.lua** — Resolves `INCLUDE` directives by recursively parsing included files; called from `pink.lua`
+- **path.lua** — Path helpers for visit-count and turn-tracking lookup keys
+- **random.lua** — Park-Miller LCG; deterministic RNG portable across Lua versions; used by `SEED_RANDOM`
+- **stack.lua** — Generic stack; used for the callstack
 
 ### Entry Points
 
@@ -144,7 +149,7 @@ Pipeline:
 
 **callstack** — `[{tree, pointer, fn, env}]` frames. `fn='fn'` marks function calls (vs tunnel calls) so `stepOut` knows where to stop. `env` is restored on step-out. Only function/knot entries create a new env scope; gather/inline frames share the parent env.
 
-**outputBuffer.buffer** — mixed array of strings and instruction tables (`{glue=true}`, `{trim=true}`, `{outBlockStart=true}`, `{trimEnd=true}`). `outputBuffer:collect()` processes these into clean lines.
+**outputBuffer.buffer** — mixed array of strings and instruction tables (`{glue=true}`, `{nl=true}`, `{trim=true}`, `{trimEnd=true}`, `{outBlockStart=true}`, `{outBlockEnd=true}`). `outputBuffer:collect()` processes these into clean lines via a multi-pass pipeline.
 
 **AST nodes** — all carry `.type` and `.location = {source, line, col}`. Named fields only. Key node types: `ink`, `knot`, `stitch`, `fndef`, `option`, `gather`, `choice`, `seq`, `if`, `out`, `divert`, `call`, `ref`, `var`, `const`, `tempvar`, `assign`, `return`, `tag`, `listdef`, `listlit`, `el`.
 

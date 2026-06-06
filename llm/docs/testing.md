@@ -62,12 +62,12 @@ stderr_stdout.txt   expected stdout+stderr merged — use to verify ordering (op
 ```sh
 mkdir test/runtime/Pxxx
 # write story.ink and input.txt
-# use inklecate to generate transacript.txt
+# use inklecate to generate transcript.txt
 # verify the output is correct, then run:
-./test/test.sh I136
+./test/test.sh Pxxx
 ```
-`mktest.sh` automates it using the reference `inklecate` binary to generate the expected output:
-`regenerate.sh` reruns inklecate on all W* tests to refresh transcripts after upstream spec changes.
+`test/runtime/mktest.sh` automates transcript generation using the reference `inklecate` binary.
+`test/runtime/regenerate.sh` reruns inklecate on all W* tests to refresh transcripts after upstream spec changes.
 
 
 ## API tests (`test/api.lua`)

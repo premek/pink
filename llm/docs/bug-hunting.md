@@ -2,6 +2,8 @@
 
 Strategy: write small focused ink snippets, run through both inklecate and pink, diff output. When a mismatch is found, minimise to the smallest reproducer and add as a P* test.
 
+See [`docs/fuzzing-guide.md`](fuzzing-guide.md) for a step-by-step workflow on generating stories, comparing output, and creating failing tests.
+
 ```sh
 # Quick compare helper
 cmp_ink() {
@@ -130,7 +132,7 @@ Test areas in order of complexity:
 - **POW** — exponentiation
 - **RANDOM** — value in range (run multiple times, check bounds)
 - **CHOICE_COUNT** — correct count of available choices
-- **READ_COUNT** — knot visit counter (note: currently broken, issue #6)
+- **READ_COUNT** — knot visit counter (stitch-level counts have TODOs)
 
 ---
 
@@ -152,4 +154,4 @@ Test areas in order of complexity:
 7. **Functions** — parameter passing, recursion
 8. **Lists and tags** — more self-contained
 
-Skip for now: `READ_COUNT` / `TURNS` (issue #6 visitCount broken), tunnels, threads.
+Skip if flaky: `READ_COUNT` / `TURNS_SINCE` (visitCount partially implemented; stitch counts have TODOs). Tunnels and threads are implemented.

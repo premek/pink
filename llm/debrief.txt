@@ -1,0 +1,50 @@
+Note: the following text is written by a human
+
+---
+
+My First Experience with AI Coding Agents
+
+2026-06-03
+
+I used Claude Code to do some refactoring that i was putting aside as it seemed
+too tedious. Then I started using it to fix preexisting failing tests. This
+project had quite a lot of test cases already so the AI was able to verify if
+it fixed a bug and not broke another previously passing test.
+
+I feel like it could keep iterating on my code, adding more and more flags
+and ifs, using blackbox- and fuzz-testing, generating many input files and
+comparing the output to the output of the reference implementation executable
+until the code does exactly what it should. (Similarly to a text-to-image
+generative AIs starting with noise and randomly changing it iteration by
+iteration until it shows the desired image - this is not accurate, I know)
+
+I didn't enjoy assisting the AI with this process. My work was telling it what
+test to fix next, allowing it to run a command, reminding it how to do things
+again and again and lots of waiting for it to finish. This should improve if
+I learned how to use the tools better.
+
+Over the month I was using it, it did fix all the failing tests I had.
+
+But I wonder what state my code ended up. I tried to review everything,
+but sometimes I accepted just another one if, another flag, another piece
+of spaghetti to make the test green and go to the next one. I'm going
+to find out now.
+
+On the last day of my subscription I told it to write a good bye letter
+and then I downloaded new tests from other projects and found out that more
+than 50 of them are still failing.
+
+
+What I didn't like:
+- Addictive properties - like a slot machine with unpredictable and variable
+  result, try again to win (i think this should improve with better prompts,
+  planning etc)
+- Draining, exhausting, not fun, not using your brain
+- Will I be able to understand the generated code ever again?
+
+What I liked:
++ lookup and summarize concepts in complicated codebase
++ larger refactoring or tasks not easily possible with traditional IDEs
++ prototyping (a dev-only gui tool used to run/edit tests)
+
+At the end of my evaluation period I donated to non profits planting trees.

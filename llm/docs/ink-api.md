@@ -31,7 +31,7 @@ story.chooseChoiceIndex(1)  -- 1-based
 |--------|------|-------------|
 | `story.canContinue` | bool | true when there is more content to output |
 | `story.continue()` | `→ string` | output next line; advances story; returned string includes trailing `\n` (use `io.write`, not `print`) |
-| `story.currentChoices` | `[{text, option, gather}]` | choices waiting for input; non-empty when canContinue is false |
+| `story.currentChoices` | `[{text}]` | choices waiting for input; non-empty when canContinue is false |
 | `story.chooseChoiceIndex(n)` | | select choice by 1-based index |
 | `story.choosePathString(knotName)` | | jump to a knot by name |
 
