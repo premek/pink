@@ -1,6 +1,3 @@
-
-~ SEED_RANDOM(1)
-
 Once: {f_once()} {f_once()} {f_once()} {f_once()}
 Stopping: {f_stopping()} {f_stopping()} {f_stopping()} {f_stopping()}
 Default: {f_default()} {f_default()} {f_default()} {f_default()}
