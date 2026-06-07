@@ -1308,13 +1308,9 @@ return function(globalTree)
     s.continue = function()
         -- first run
         if not storyStarted then
-            local notBindExternalFunctionNames = getNotBindExternalFunctionNames()
-            if #notBindExternalFunctionNames > 0 then
-                error(
-                    'Missing function(s) binding for external '
-                        .. table.concat(notBindExternalFunctionNames, ', ')
-                        .. ' and no fallback ink function found'
-                )
+            local notBind = getNotBindExternalFunctionNames()
+            if #notBind > 0 then
+                log.dieMissingExternalBindings(getNotBindExternalFunctionNames())
             end
             storyStarted = true
             update() -- first call: process story before popping

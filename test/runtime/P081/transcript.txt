@@ -1,0 +1,1 @@
+ERROR: Missing function binding for externals: 'fn3', 'fn1', 'fn2' , and no fallback ink function found.

@@ -267,6 +267,7 @@ return function(globalTree, env, noKnot, listDefinitions)
 
             if is('external', n) then
                 -- store signature; binding must happen after story construction but before play
+                -- TODO compat: usage order, not definition order in error message
                 externalDefs[n.name] = n.params
             end
         end

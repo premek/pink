@@ -119,15 +119,36 @@ logging.newLogger = function()
     local function todoCompat(message, token)
         io.stderr:write('TODO: ' .. compatLocation(token) .. message .. '\n')
     end
+    local dieMissingExternalBinding = function(names)
+        die(
+            'Missing function binding for external(s): '
+                .. table.concat(names, ', ')
+                .. ' and no fallback ink function found'
+        )
+    end
+    local dieMissingExternalBindingCompat = function(names)
+        local quoted = {}
+        for _, name in ipairs(names) do
+            table.insert(quoted, "'" .. name .. "'")
+        end
+        local m = 'Missing function binding for external' .. (#names > 1 and 's' or '') .. ': '
+        m = m .. table.concat(quoted, ', ')
+        m = m .. ' , and no fallback ink function found.'
+        dieCompat(m)
+    end
+
+    local log = function(pinkFn, compatFn, ...)
+        if logging.compat then
+            compatFn(...)
+        else
+            pinkFn(...)
+        end
+    end
 
     return {
         debug = debug,
         die = function(message, token)
-            if logging.compat then
-                dieCompat(message, token)
-            else
-                die(message, token)
-            end
+            log(die, dieCompat, message, token)
         end,
         warn = function(message, token)
             if logging.compat then
@@ -173,6 +194,9 @@ logging.newLogger = function()
             local result = table.concat(pendingCompatWarnings, '')
             pendingCompatWarnings = {}
             return result
+        end,
+        dieMissingExternalBindings = function(...)
+            log(dieMissingExternalBinding, dieMissingExternalBindingCompat, ...)
         end,
     }
 end
