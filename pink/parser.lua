@@ -1009,6 +1009,7 @@ return function(input, source)
 
         consume('{')
         consumeWhitespaceAndNewlines()
+        local afterOpeningBrace = newMark()
 
         -- Cycles are like sequences, but they loop their content.
         -- Once-only: when they run out of content, display nothing (as a sequence with a blank last entry).
@@ -1037,46 +1038,40 @@ return function(input, source)
 
         -- Sequence: go through alternatives and stick on last (stopping), cycle, once-only, shuffle.
         -- Any order/combination of keywords, e.g. {stopping shuffle:} = {shuffle stopping:}.
-        if ahead('stopping') or ahead('shuffle') or ahead('once') or ahead('cycle') then
+        if aheadAnyOf('stopping', 'shuffle', 'once', 'cycle') then
             local seqStartLine = line
-            while ahead('stopping') or ahead('shuffle') or ahead('once') or ahead('cycle') do
-                if ahead('stopping') then
-                    consume('stopping')
-                    opts.stopping = true
-                elseif ahead('shuffle') then
-                    consume('shuffle')
-                    opts.shuffle = true
-                elseif ahead('once') then
-                    consume('once')
-                    opts.once = true
-                elseif ahead('cycle') then
-                    consume('cycle')
-                    opts.cycle = true
+            -- FIXME cleanup. varible which starts with seq type keyword, e.g. {shuffler}
+            local keyword = identifier()
+            resetTo(afterOpeningBrace)
+            if keyword == 'stopping' or keyword == 'shuffle' or keyword == 'once' or keyword == 'cycle' then
+                while aheadAnyOf('stopping', 'shuffle', 'once', 'cycle') do
+                    keyword = consumeAnyOf('stopping', 'shuffle', 'once', 'cycle')
+                    opts[keyword] = true
+                    consumeWhitespaceAndNewlines()
                 end
-                consumeWhitespaceAndNewlines()
+                local nonShuffleNames = {}
+                if opts.stopping then
+                    nonShuffleNames[#nonShuffleNames + 1] = 'Stopping'
+                end
+                if opts.once then
+                    nonShuffleNames[#nonShuffleNames + 1] = 'Once'
+                end
+                if opts.cycle then
+                    nonShuffleNames[#nonShuffleNames + 1] = 'Cycle'
+                end
+                if #nonShuffleNames > 1 then
+                    log.die(
+                        'Sequence type combination not supported: ' .. table.concat(nonShuffleNames, ', '),
+                        { source, seqStartLine, 1 }
+                    )
+                end
+                if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
+                    opts.cycle = true -- plain {shuffle:} defaults to cycle
+                end
+                local branches = seqBranches()
+                consume('}')
+                return token(node.seq(opts, branches))
             end
-            local nonShuffleNames = {}
-            if opts.stopping then
-                nonShuffleNames[#nonShuffleNames + 1] = 'Stopping'
-            end
-            if opts.once then
-                nonShuffleNames[#nonShuffleNames + 1] = 'Once'
-            end
-            if opts.cycle then
-                nonShuffleNames[#nonShuffleNames + 1] = 'Cycle'
-            end
-            if #nonShuffleNames > 1 then
-                log.die(
-                    'Sequence type combination not supported: ' .. table.concat(nonShuffleNames, ', '),
-                    { source, seqStartLine, 1 }
-                )
-            end
-            if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
-                opts.cycle = true -- plain {shuffle:} defaults to cycle
-            end
-            local branches = seqBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
         end
 
         if ahead('-') and not ahead('->') then
@@ -1087,8 +1082,6 @@ return function(input, source)
             end
         end
         consumeWhitespaceAndNewlines()
-
-        local afterOpeningBrace = newMark()
 
         -- {a||b} must parse as a 3-branch stopping sequence, not boolean OR.
         -- {x < 10 || x > 20: ...} is an expression (`:` follows, not `}`).
