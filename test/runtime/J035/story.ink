@@ -5,4 +5,5 @@
             -   one
             -   two
         }
-        + [Try again] -> test
+        + [Try again] 
+{->test|->test|->END}

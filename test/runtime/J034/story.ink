@@ -6,4 +6,5 @@
             -   King of Spades.
             -   2 of Diamonds.
         }
-        + [Try again] -> test
+        + [Try again] 
+          {->test|->test|->test|->END}

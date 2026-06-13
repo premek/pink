@@ -1,84 +1,13 @@
 I entered the casino.
 
 1: Try again
-?> 
-I entered the casino again.
+?> I entered the casino again.
+
+1: Try again
+?> Once more, I went inside.
+
+1: Try again
+?> Once more, I went inside.
 
 1: Try again
 ?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> 
-Once more, I went inside.
-
-1: Try again
-?> <User input stream closed.>

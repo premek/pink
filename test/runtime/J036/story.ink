@@ -6,4 +6,5 @@
             -   two
             -   final
         }
-        + [Try again] -> test
+        + [Try again]
+          {->test|->test|->test|->END}

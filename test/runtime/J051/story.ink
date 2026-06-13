@@ -7,3 +7,5 @@ VAR roll = 0
  { roll == 0:
     ~ roll = 1
  }
+
+{roll}

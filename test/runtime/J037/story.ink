@@ -6,4 +6,5 @@
             -  I entered the casino again.
             -  Once more, I went inside.
         }
-        + [Try again] -> test
+        + [Try again]
+          {->test|->test|->test|->END}

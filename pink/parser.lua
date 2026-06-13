@@ -565,6 +565,7 @@ return function(input, source)
             consume('->')
             consumeWhitespace()
             tunnel = 'tunnel'
+            -- FIXME J119 {! ->intro->}
             if not eolAhead() then
                 -- Tunnels can be chained together, or finish on a normal divert
                 -- -> tunnel -> tunnel -> divert

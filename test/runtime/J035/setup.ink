@@ -1,0 +1,2 @@
+~ SEED_RANDOM(222)
+INCLUDE story.ink
