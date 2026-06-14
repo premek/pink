@@ -225,10 +225,11 @@ async function runTest() {
   titleEl.style.color = '';
   bodyEl.innerHTML = '';
   const compat = document.getElementById('compat-check').checked;
+  const verbose = document.getElementById('verbose-check').checked;
   const resp = await fetch(`/api/tests/${selected}/run`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({compat})
+    body: JSON.stringify({compat, verbose})
   });
   const data = await resp.json();
   const t = tests.find(x => x.name === selected);

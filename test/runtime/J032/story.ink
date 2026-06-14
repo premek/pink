@@ -8,4 +8,5 @@
             -   <> King of Spades.
             "You lose," he crowed.
         }
-        + [Draw a card] I drew a card. -> test
+        + [Draw a card] I drew a card.
+          {->test|->test|->test|->END}

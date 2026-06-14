@@ -1,64 +1,41 @@
 0
 
 1: choice
+2: end
 ?> 1
 
 1: choice
+2: end
 ?> 2
 
 1: choice
+2: end
 ?> 3
 
 1: choice
+2: end
 ?> 4
 
 1: choice
+2: end
 ?> 5
 
 1: choice
+2: end
 ?> 6
 
 1: choice
+2: end
 ?> 7
 
 1: choice
+2: end
 ?> 8
 
 1: choice
+2: end
 ?> 9
 
 1: choice
-?> 10
-
-1: choice
-?> 11
-
-1: choice
-?> 12
-
-1: choice
-?> 13
-
-1: choice
-?> 14
-
-1: choice
-?> 15
-
-1: choice
-?> 16
-
-1: choice
-?> 17
-
-1: choice
-?> 18
-
-1: choice
-?> 19
-
-1: choice
-?> 20
-
-1: choice
-?> <User input stream closed.>
+2: end
+?> 

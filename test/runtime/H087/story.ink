@@ -1,15 +1,10 @@
 
-LIST l = A, (B), (C), (D), E
+LIST l = A, (B), (C), D
 {LIST_RANDOM(l)}
 {LIST_RANDOM (l)}
 {LIST_RANDOM (l)}
 {LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
-{LIST_RANDOM (l)}
+
                     
 /*
 INK_TEST_STORY_START

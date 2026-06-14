@@ -131,4 +131,59 @@ The way Harris is staring I expect him to strike me, but he does not. He replies
 
 1: Argue
 2: Agree
-?> <User input stream closed.>
+?> "I'm not in the Service."
+Harris shakes his head. "Yes, you are."
+Then he waves the thought aside.
+"Go on with your confession."
+That gives me pause. I hadn't thought of it as such. But I suppose he's right. I am about to admit what I did.
+"There's not much else to say. I took the part from Bombe computing device. You seem to know that already. I had to. He was going to expose me if I didn't."
+"This young man was blackmailing you over your affair?"
+As Harris speaks I find myself suddenly sharply aware, as if waking from a long sleep. The table, the corrugated walls of the hut, everything seems suddenly more tangible than a moment before.
+Whatever it was they put in my drink is wearing off.
+
+1: Yes
+2: No
+3: Tell the truth
+4: Lie
+?> 
+"Yes. I suppose he was their agent. I should have realised but I didn't. Then he threatened to tell you. I thought you would have me locked up: I couldn't bear the thought of it. I love working here. I've never been so happy, so successful, anywhere before. I didn't want to lose it."
+"So what did you do with the component?" Harris talks urgently. He grips his gloves tightly in one hand, perhaps prepared to lift them and strike if it is required. "Have you passed it to this man already? Have you left it somewhere for him to find?"
+
+1: I have it
+2: I don't have it
+3: Lie
+4: Tell the truth
+?> 
+"I still have it. Not on me, of course. The missing component of the Bombe computer is hidden in a small cavity in a breeze—block supporting the left rear post of Hut 2. I put in there anticipating a search. I intended to dispose of it once the fuss had died down. I suppose I was foolish to think that it might."
+"Indeed. And Mr Manning: God help you if you're lying to me."
+Harris stands, and slips away smartly. Then the door closes. I am alone again, as I have been for most of my short life.
+
+1: Make your peace
+?> I am waiting again. I have no God to make my peace with. I find it difficult to believe in goodness of any kind, in a world such as this.
+But I am no traitor. Not to my country. To my sex, perhaps. But how could I support the Reich? If the Nazis were to come to power, I would be worse off than ever.
+I have no place here. No way to fit. I am caught, in the middle, cryptic and understood only thinly, through my machines.
+
+1: I must seem very calm.
+2: Perhaps I should try to escape.
+?> I must seem very calm. I suppose I do not believe they will hang me. They will lock me up and continue to use my brain, if they can. I wonder what they will tell the world — perhaps that I have taken my own life. That would be simplest. The few who know me would believe it.
+Well, then. Not a bad existence, in prison. Removed from temptation.
+A monastic life, with plenty of problems to keep me going.
+I wonder what else I might yet unravel before I'm done?
+
+1: The door is opening.
+?> The door is opening. Harris is returning. Our little calculation here is complete. We are just pieces in this machine; interchangeable and prone to wear.
+That is the true secret of the calculating engine, and the source of its power. It is not the components that matter, they are quite repetitive. What matters is how they are wired; the diversity of the patterns and structures they can form. Much like people — it is how they connect that determines our victories and tragedies, and not their genius.
+Which makes me wonder. Should I give up my beautiful young man to them as well as myself?
+
+1: Yes
+2: No
+3: Lie
+4: Evade
+?> 
+But of course I will. A little vengeance, disguised as doing something good.
+Harris put the cuffs around my wrists. "I still have the intercept in my pocket," I remark. "Wherever we're going, could I have a pencil?"
+He looks me in the eye.
+"Of course. And one of your computing things, if I get my way. And when we're old, and smoking pipes together in The Rag like heroes, I'll explain to you the way that decent men have affairs. You scientists."
+He drags me up to my feet.
+"You think you have to re—invent everything."
+With that, he hustles me out of the door and I can't help thinking that, with a little more strategy, I could still have won the day. But too late now, of course.

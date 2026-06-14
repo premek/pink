@@ -4,6 +4,7 @@
 + (c) [choice]
     {TURNS ()}
     -> top
+* [end] ->END
                     
 /*
 INK_TEST_STORY_START

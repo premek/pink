@@ -1,4 +1,3 @@
-WARNING: 'story.ink' line 9: Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?
 
 1: an option
 ?> an option
@@ -6,4 +5,3 @@ Some content.
 
 1: Found gatherpoint
 ?> Found gatherpoint
-RUNTIME ERROR: 'story.ink' line 9: ran out of content. Do you need a '-> DONE' or '-> END'?

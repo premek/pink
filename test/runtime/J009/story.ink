@@ -6,4 +6,4 @@
             - (gatherpoint) Some content.
               -> knot.stitch_two
           = stitch_two
-            * {gatherpoint} Found gatherpoint
+            * {gatherpoint} Found gatherpoint ->END

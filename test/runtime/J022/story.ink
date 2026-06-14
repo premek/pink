@@ -6,4 +6,5 @@
             - I waited impatiently.
             - I paused.
         }
-        + [Try again] -> test
+        + [Try again]
+          {->test|->test|->test|->END}

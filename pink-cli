@@ -1,6 +1,6 @@
 #!/bin/env lua
 if not arg[1] then
-    error('\nUsage: ' .. arg[0] .. ' [-v] [format] game.ink\n')
+    error('\nUsage: ' .. arg[0] .. ' [-v] [--compat] [format] game.ink\n')
 end
 
 local verbose = false

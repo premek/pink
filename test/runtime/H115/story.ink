@@ -1,7 +1,7 @@
 
 - (dododo)
 -> tunnel ->
--> dododo
+{-> dododo|->dododo|->END}
 
 == tunnel
 + A

@@ -4,7 +4,7 @@
 First line.
 Second line.
 + Choice 1
-+ Choice 2
++ Choice 2 -> END
 - -> test
 
 

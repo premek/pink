@@ -443,13 +443,15 @@ node.listContainsAll = function(hay, needles)
     node.requireType(hay, 'list')
     node.requireType(needles, 'list')
 
-    local empty = true -- no lists contain the empty list
+    if listCountNumber(needles) == 0 then
+        -- no lists contain the empty list
+        return false
+    end
     local res = true
     iterateElements(needles, function(needle)
-        empty = false
         res = res and node.listContains(hay, needle)
     end)
-    return empty or res
+    return res
 end
 
 node.listFromEls = function(els, knownListNames)

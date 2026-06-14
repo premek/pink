@@ -81,7 +81,7 @@ def list_tests(passed_set):
     return tests
 
 
-def run_test(name, compat=True):
+def run_test(name, compat=True, verbose=False):
     d = RUNTIME / name
     story = d / "setup.ink" if (d / "setup.ink").exists() else d / "story.ink"
     inp = d / "input.txt"
@@ -89,13 +89,14 @@ def run_test(name, compat=True):
 
     is_x = name.startswith("X")
     compat_flag = [] if is_x or not compat else ["--compat"]
+    verbose_flag = [] if not verbose else ["-v"]
 
     with open(inp, encoding="utf-8") as f:
         stdin_data = f.read()
 
     try:
         result = subprocess.run(
-            ["lua", str(ROOT / "pink-cli")] + compat_flag + [str(story)],
+            ["lua", str(ROOT / "pink-cli")] + verbose_flag + compat_flag + [str(story)],
             input=stdin_data,
             capture_output=True,
             text=True,
@@ -289,7 +290,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith("/api/tests/") and self.path.endswith("/run"):
             name = self.safe_name(self.path[len("/api/tests/"):-len("/run")])
             req = json.loads(body) if body else {}
-            self.send_json(200, run_test(name, compat=req.get("compat", True)))
+            self.send_json(200, run_test(name, compat=req.get("compat", True), verbose=req.get("verbose", False)))
 
         elif self.path.startswith("/api/tests/") and self.path.endswith("/regenerate"):
             name = self.safe_name(self.path[len("/api/tests/"):-len("/regenerate")])
