@@ -18,8 +18,8 @@ body { font-family: monospace; font-size: 13px; display: flex; height: 100vh; ov
 .dot.pass { background: #2e7d32; }
 .dot.fail { background: #c62828; }
 .dot.unknown { background: #bbb; }
-#right { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #fff; }
-#right-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#right { flex: 1; overflow-y: auto;  display: flex; flex-direction: column; gap: 8px; background: #fff; }
+#right-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px; position:sticky; top: 8px; background: #fff }
 #test-title { font-size: 16px; font-weight: bold; }
 .badge { padding: 2px 8px; border-radius: 3px; font-size: 11px; }
 .badge.pass { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
@@ -32,7 +32,7 @@ button.primary { background: #0078d4; color: #fff; border-color: #0078d4; }
 button.primary:hover { background: #006bbf; }
 .compat-label { font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
 #placeholder { color: #aaa; padding: 40px; text-align: center; }
-#right-content { display: none; }
+#right-content { display: none; padding: 12px;}
 #run-all-output { background: #fafafa; border: 1px solid #ddd; padding: 8px; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto; display: none; }
 .run-all-close-bar { position: sticky; top: 0; display: flex; justify-content: flex-end; background: #fafafa; padding-bottom: 4px; }
 #run-result { background: #fafafa; border: 1px solid #ddd; padding: 8px; display: none; }

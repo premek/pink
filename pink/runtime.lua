@@ -158,6 +158,7 @@ return function(globalTree)
     end
 
     local getChildren = function(parentName, segments, tbl, token)
+        log.debug('DDD', parentName, segments, tbl, token)
         for _, part in ipairs(segments) do
             if not tbl._children or not tbl._children[part] then
                 -- list type variable may have been reassigned to a non-list value, but
