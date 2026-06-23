@@ -1,8 +1,8 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local runtime = require(base_path .. 'runtime')
-local resolveIncludes = require(base_path .. 'includes')
+local load = require(base_path .. 'loader')
 
 return function(filename)
-    local nodes = resolveIncludes(filename) -- TODO rename
+    local nodes = load(filename)
     return runtime(nodes)
 end

@@ -15,13 +15,13 @@ local function basedir(str)
 end
 
 return function(filename)
-    local resolveIncludes, parse
+    local resolveIncludes, load
 
     resolveIncludes = function(nodes, dir)
         local result = {}
         for _, t in ipairs(nodes) do
             if t.type == 'include' then
-                local included = parse(toAbsolute(t.filename, dir))
+                local included = load(toAbsolute(t.filename, dir))
                 for _, n in ipairs(included) do
                     table.insert(result, n)
                 end
@@ -35,12 +35,12 @@ return function(filename)
         return result
     end
 
-    parse = function(file)
+    load = function(file)
         local content = read(file)
         --local tokens = scanner(content, filename)
         local parsed = parser(content, file)
         return resolveIncludes(parsed, basedir(file))
     end
 
-    return parse(filename)
+    return load(filename)
 end

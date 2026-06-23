@@ -21,7 +21,7 @@ end
 
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
-local resolveIncludes = require('pink.includes')
+local load = require('pink.loader')
 
 if verbose then
     logging.debugEnabled = true
@@ -36,11 +36,11 @@ end
 local filename = arg[1]
 
 if format then
-    print(formatter(resolveIncludes(filename)))
+    print(formatter(load(filename)))
     return
 end
 
-local story = runtime(resolveIncludes(filename))
+local story = runtime(load(filename))
 while true do
     while story.canContinue do
         io.write(story.continue())
