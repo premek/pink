@@ -1,25 +1,46 @@
 local base_path = (...):match('(.-)[^%.]+$')
+local read = require(base_path .. 'reader')
 local parser = require(base_path .. 'parser')
 
-local resolveIncludes
-resolveIncludes = function(nodes, dir, reader)
-    local result = {}
-    for _, t in ipairs(nodes) do
-        if t.type == 'include' then
-            local fullPath = t.filename:sub(1, 1) == '/' and t.filename or dir .. '/' .. t.filename
-            local subDir = fullPath:match('(.+)/[^/]+$') or dir
-            local includedNodes = parser(reader(fullPath), t.filename)
-            for _, includedNode in ipairs(resolveIncludes(includedNodes, subDir, reader)) do
-                table.insert(result, includedNode)
-            end
-        elseif t.nodes then
-            t.nodes = resolveIncludes(t.nodes, dir, reader)
-            table.insert(result, t)
-        else
-            table.insert(result, t)
-        end
-    end
-    return result
+local function isAbsolute(path)
+    return path:sub(1, 1) == '/'
 end
 
-return resolveIncludes
+local function toAbsolute(filename, dir)
+    return isAbsolute(filename) and filename or (dir .. '/' .. filename)
+end
+
+local function basedir(str)
+    return string.gsub(str, '(.*)(/.*)', '%1')
+end
+
+return function(filename)
+    local resolveIncludes, parse
+
+    resolveIncludes = function(nodes, dir)
+        local result = {}
+        for _, t in ipairs(nodes) do
+            if t.type == 'include' then
+                local included = parse(toAbsolute(t.filename, dir))
+                for _, n in ipairs(included) do
+                    table.insert(result, n)
+                end
+            elseif t.nodes then
+                t.nodes = resolveIncludes(t.nodes, dir)
+                table.insert(result, t)
+            else
+                table.insert(result, t)
+            end
+        end
+        return result
+    end
+
+    parse = function(file)
+        local content = read(file)
+        --local tokens = scanner(content, filename)
+        local parsed = parser(content, file)
+        return resolveIncludes(parsed, basedir(file))
+    end
+
+    return parse(filename)
+end

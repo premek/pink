@@ -19,31 +19,12 @@ if compatMode then
     logging.compat = true
 end
 
-local parser = require('pink.parser')
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
 local resolveIncludes = require('pink.includes')
 
 if verbose then
     logging.debugEnabled = true
-end
-
-local function read(file)
-    local f = io.open(file, 'rb')
-    if not f then
-        error('failed to open "' .. file .. '"')
-    end
-    local content = f:read('*all')
-    f:close()
-    return content
-end
-
-local function basedir(str)
-    return string.gsub(str, '(.*)(/.*)', '%1')
-end
-
-local parse = function(file)
-    return resolveIncludes(parser(read(file), file), basedir(file), read)
 end
 
 local format = false
@@ -55,11 +36,11 @@ end
 local filename = arg[1]
 
 if format then
-    print(formatter(parse(filename)))
+    print(formatter(resolveIncludes(filename)))
     return
 end
 
-local story = runtime(parse(filename))
+local story = runtime(resolveIncludes(filename))
 while true do
     while story.canContinue do
         io.write(story.continue())

@@ -1443,10 +1443,10 @@ return function(globalTree)
     while is('tag', tree[pointer]) do
         pointer = pointer + 1
     end
-    log.debug(tree)
-    log.debug('lists:', listDefinitions)
-    log.debug('external:', externalDefs)
-    log.debug('state:', s.variablesState)
+    log.debug('tree: ', tree)
+    --log.debug('lists:', listDefinitions)
+    --log.debug('external:', externalDefs)
+    --log.debug('state:', s.variablesState)
 
     return s
 end

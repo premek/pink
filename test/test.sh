@@ -40,12 +40,12 @@ for P in $PATTERNS; do
     luacheck --codes -q . && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     printf "\nselene: "
     TESTS=$((TESTS+1))
-    find pink/ -mindepth 1 -name '*.lua' -not -name pink.lua -exec selene --config selene-lua52.toml '{}' \; && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    find pink/ -mindepth 1 -name '*.lua' -not -name reader.lua -exec selene --config selene-lua52.toml '{}' \; && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     TESTS=$((TESTS+1))
     selene --config selene-lua52.toml pink-cli examples/game.lua && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
     printf "\nselene-love: "
     TESTS=$((TESTS+1))
-    selene --config selene-love.toml pink/pink.lua examples/love2d/ && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
+    selene --config selene-love.toml pink/reader.lua examples/love2d/ && PASSED="$PASSED\n$P" && PASSES=$((PASSES+1)) || RET=1
 
     echo 'stylua...'
     TESTS=$((TESTS+1))
