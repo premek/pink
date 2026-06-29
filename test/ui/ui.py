@@ -68,8 +68,6 @@ def list_tests(passed_set):
         if not d.is_dir():
             continue
         name = d.name
-        if not name[0].upper() in "GHIJWPX":
-            continue
         files = sorted(p.name for p in d.iterdir() if p.is_file())
         if name in passed_set:
             status = "pass"

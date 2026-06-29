@@ -6,12 +6,15 @@ DIFF="cmp -s" #no diff output
 # Override from env: LUAS="lua5.1 lua5.3 lua5.4 luajit" ./test/test.sh
 LUAS="${LUAS:-lua}"
 
+rm -f luacov.*
+
 start=$(date +%s.%N)
 
-while getopts vf flag
+while getopts vcf flag
 do
     case "${flag}" in
         v) VERBOSE="-v";;
+        c) COV="-lluacov";;
         f) DIFF="colordiff -U999";;
         *) echo invalid flag; exit 1;;
     esac
@@ -68,7 +71,7 @@ for P in $PATTERNS; do
       TESTS=$((TESTS+1))
       FAILED_VERS=""
       for LUA in $LUAS; do
-        $LUA "./test/$SUITE" >/dev/null 2>&1 || FAILED_VERS="$FAILED_VERS $LUA"
+        $LUA ${COV:+"$COV"} "./test/$SUITE" >/dev/null 2>&1 || FAILED_VERS="$FAILED_VERS $LUA"
       done
       if [ -z "$FAILED_VERS" ]; then
         PASSED="$PASSED\n$SUITE" && PASSES=$((PASSES+1))
@@ -95,7 +98,7 @@ for P in $PATTERNS; do
         [ -f "$D/setup.ink" ] && STORY="$D/setup.ink"
         if [ -z "$COMPAT_FLAG" ]; then
           # X tests: separate stdout/stderr
-          $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" \
+          $LUA ${COV:+"$COV"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" \
             > "$TMP/stdout" 2> "$TMP/stderr"
           $DIFF "$D/transcript.txt" "$TMP/stdout" || FAILED_VERS="$FAILED_VERS $LUA"
           if [ -f "$D/stderr.txt" ]; then
@@ -106,11 +109,11 @@ for P in $PATTERNS; do
           fi
           # Run again merged for ordering check
           if [ -f "$D/stderr_stdout.txt" ]; then
-            $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
+            $LUA ${COV:+"$COV"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
               | $DIFF "$D/stderr_stdout.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
           fi
         else
-          $LUA "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$COMPAT_FLAG" "$STORY" < "$D/input.txt" 2>&1 \
+          $LUA ${COV:+"$COV"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$COMPAT_FLAG" "$STORY" < "$D/input.txt" 2>&1 \
             | $DIFF "$D/transcript.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
         fi
       done
@@ -123,6 +126,10 @@ for P in $PATTERNS; do
     done
   fi
 done
+
+if [ -n "$COV" ]; then
+  luacov || exit 1
+fi
 
 echo
 

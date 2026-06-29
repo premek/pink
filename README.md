@@ -79,3 +79,18 @@ And this example shows [LÖVE](https://love2d.org) integration:
 
 - [More tests](https://premek.github.io/ink-proof/#!/tests?overview=ink) - source: [premek/ink-proof](https://github.com/premek/ink-proof) 
     
+## coverage
+```
+sudo luarocks  install  luacov
+sudo luarocks  install cluacov
+```
+
+Note which version it's installed for: `ls -d /usr/local/share/lua/*/luacov`
+
+```
+LUAS=lua5.1 ./test/test.sh -c
+firefox luacov.report.html
+```
+
+
+
