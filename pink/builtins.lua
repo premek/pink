@@ -102,8 +102,15 @@ return function(deps)
     end
 
     local mul = function(a, b)
-        requireType(a, 'float', 'int')
-        requireType(b, 'float', 'int')
+        requireType(a, 'float', 'int', 'bool')
+        requireType(b, 'float', 'int', 'bool')
+
+        if a.type == 'bool' then
+            a = node.toInt(a)
+        end
+        if b.type == 'bool' then
+            b = node.toInt(b)
+        end
 
         local t = a.type == 'int' and b.type == 'int' and 'int' or 'float'
 
@@ -111,8 +118,15 @@ return function(deps)
     end
 
     local div = function(a, b)
-        requireType(a, 'float', 'int')
-        requireType(b, 'float', 'int')
+        requireType(a, 'float', 'int', 'bool')
+        requireType(b, 'float', 'int', 'bool')
+
+        if a.type == 'bool' then
+            a = node.toInt(a)
+        end
+        if b.type == 'bool' then
+            b = node.toInt(b)
+        end
 
         if a.type == 'float' or b.type == 'float' then
             return node.float(a.value / b.value)
@@ -133,16 +147,31 @@ return function(deps)
     end
 
     local mod = function(a, b)
-        requireType(a, 'float', 'int')
-        requireType(b, 'float', 'int')
+        requireType(a, 'float', 'int', 'bool')
+        requireType(b, 'float', 'int', 'bool')
+
+        if a.type == 'bool' then
+            a = node.toInt(a)
+        end
+        if b.type == 'bool' then
+            b = node.toInt(b)
+        end
 
         local t = a.type == 'int' and b.type == 'int' and 'int' or 'float'
 
         return node[t](math.fmod(a.value, b.value))
     end
 
+    local neg = function(a)
+        requireType(a, 'bool', 'int', 'float')
+
+        local t = a.type == 'int' and 'int' or 'float'
+
+        return node[t](-node.toFloat(a).value)
+    end
+
     local notFn = function(a)
-        requireType(a, 'bool', 'int', 'float') -- str not allowed
+        requireType(a, 'bool', 'int', 'float')
 
         return node.bool(not node.toBool(a).value)
     end
@@ -334,6 +363,7 @@ return function(deps)
     builtins.has = node.native(contains)
     builtins['!?'] = node.native(notContains)
     builtins.hasnt = node.native(notContains)
+    builtins['neg'] = node.native(neg)
     builtins['not'] = node.native(notFn)
     builtins['||'] = node.native(orFn)
     builtins['&&'] = node.native(andFn)

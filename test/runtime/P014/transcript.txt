@@ -1,7 +1,11 @@
-a<> #->{
-/no-comment
-/*not comment*/
-//not comment
+0
+1a<> #->{
+2
+3/no-comment
+4
+5/block-comment-first-then-line-comment
+6/*not comment*/
+7//not comment
 
 1: option[]
 ?> option[]

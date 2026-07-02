@@ -289,7 +289,6 @@ return function()
         preTrailingGlue = false,
         preHadNl = true,
         preBufferWasEmpty = true,
-        preRawHadContent = false,
         instr = function(self, instr)
             self.needsCollect = true
             table.insert(self.buffer, { [instr] = true })
@@ -378,7 +377,6 @@ return function()
         -- Captures buffer state before the second update() in continue(); must be called
         -- before update() so that handleChoice() sees an empty buffer and processes choices.
         prePop = function(self)
-            self.preRawHadContent = #self.buffer > 0
             self.preBufferWasEmpty = self:isEmpty() -- calls collect()
             self.preRes, self.preTrailingGlue, self.preHadNl = '', false, true
             if not self.preBufferWasEmpty then
@@ -391,11 +389,6 @@ return function()
         popTurnLine = function(self, ctx)
             local res, trailingGlue, hadNl, bufferWasEmpty =
                 self.preRes, self.preTrailingGlue, self.preHadNl, self.preBufferWasEmpty
-            -- if update() added content to a truly empty buffer, pop it now
-            if res == '' and not self.preRawHadContent and not self:isEmpty() then
-                res, trailingGlue, hadNl = self:popLine()
-                bufferWasEmpty = false
-            end
             local endedByDivert = self.terminalDivert
             local canContinue = not self:isEmpty()
             if res == '' then
@@ -438,7 +431,6 @@ return function()
                 preTrailingGlue = self.preTrailingGlue,
                 preHadNl = self.preHadNl,
                 preBufferWasEmpty = self.preBufferWasEmpty,
-                preRawHadContent = self.preRawHadContent,
             }
             self.buffer = {}
             self.hadTrailingNl = false
@@ -450,7 +442,6 @@ return function()
             self.hadOutBlockThisTurn = false
             self.preRes, self.preTrailingGlue, self.preHadNl = '', false, true
             self.preBufferWasEmpty = true
-            self.preRawHadContent = false
             return snapshot
         end,
         reset = function(self, snapshot)
@@ -465,7 +456,6 @@ return function()
             self.preTrailingGlue = snapshot.preTrailingGlue
             self.preHadNl = snapshot.preHadNl
             self.preBufferWasEmpty = snapshot.preBufferWasEmpty
-            self.preRawHadContent = snapshot.preRawHadContent
         end,
         isEmpty = function(self)
             self:collect()

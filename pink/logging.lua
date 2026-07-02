@@ -23,7 +23,7 @@ local logging = {
 }
 
 local getLocation = function(location)
-    return location[1] .. ', line ' .. location[2] .. ', column ' .. location[3]
+    return location.source .. ', line ' .. location.line .. ', column ' .. location.column
 end
 
 local getLogMessage = function(message, token)
@@ -37,15 +37,6 @@ local getLogMessage = function(message, token)
     return message .. location
 end
 
-local compatLocation = function(token)
-    local loc = token and (token.location or (token[1] and token))
-    if not loc then
-        return ''
-    end
-    local filename = loc[1]:match('[^/]+$') or loc[1]
-    return "'" .. filename .. "' line " .. loc[2] .. ': '
-end
-
 local function debug(...)
     if not logging.debugEnabled then
         return
@@ -57,6 +48,15 @@ local function debug(...)
     for _, x in ipairs(args) do
         print(dump(x))
     end
+end
+
+local compatLocation = function(token)
+    local loc = token and (token.location or (token.source and token)) --FIXME?
+    if not loc then
+        return ''
+    end
+    local filename = loc.source:match('[^/]+$') or loc.source
+    return "'" .. filename .. "' line " .. loc.line .. ': '
 end
 
 local function die(message, token)

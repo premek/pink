@@ -137,9 +137,6 @@ end
 node.choice = function(options, gather)
     return { type = 'choice', options = options, gather = gather }
 end
-node.comment = function(text)
-    return { type = 'comment', text = text }
-end
 node.fork = function(target, args)
     return { type = 'fork', target = target, args = args }
 end
@@ -153,8 +150,6 @@ node.call = function(name, args)
     return { type = 'call', name = name, args = args }
 end
 
--- ── Type checks ───────────────────────────────────────────────────────────────
-
 node.is = function(what, n)
     return n ~= nil and type(n) == 'table' and n.type == what
 end
@@ -165,7 +160,7 @@ end
 
 node.requirePinkType = function(a)
     if a == nil then
-        log.die('null not allowed')
+        log.die('nil not allowed')
     end
     if type(a) ~= 'table' then
         log.debug(a)
@@ -187,8 +182,6 @@ node.requireType = function(a, ...)
     end
     log.die('unexpected type: ' .. t .. ', expected one of: ' .. table.concat({ ... }, ', '), a)
 end
-
--- ── Type conversions ──────────────────────────────────────────────────────────
 
 local intToStr = function(a)
     node.requireType(a, 'int')
@@ -297,8 +290,6 @@ node.isTruthy = function(a)
     return node.toBool(a).value
 end
 
--- ── Output ────────────────────────────────────────────────────────────────────
-
 node.makeOutput = function(listDefinitions)
     return function(a)
         node.requirePinkType(a)
@@ -319,8 +310,6 @@ node.makeOutput = function(listDefinitions)
         end
     end
 end
-
--- ── List operations ───────────────────────────────────────────────────────────
 
 local iterateElements = function(lst, callback)
     for listName, els in pairs(lst.elements) do

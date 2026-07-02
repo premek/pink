@@ -5,78 +5,75 @@ local node = require(base_path .. 'node')
 
 local unpack = table.unpack or unpack
 
-return function(input, source)
-    log.debug(input)
-
-    source = source or 'unknown source'
-
-    local current = 1
-    local line = 1
-    local column = 1
+return function(tokens)
+    local current = 1 -- pointing to the token waiting to be parsed
 
     local errorAt = function(msg, ...)
+        log.debug(tokens[current])
         local formattedMsg = string.format(msg, ...)
+        local location = tokens[current].location
         error(
-            string.format(formattedMsg .. "\n\tat '%s', line %s, column %s", source, line, column)
-                .. '\n\t...\n\t'
-                .. input:sub(math.max(0, current - 100), current)
-                .. '\n\t'
-                .. '<<somewhere around here>>'
-                .. '\n\t'
-                .. input:sub(current + 1, current + 100)
-                .. '...\n\t'
+            string.format(
+                formattedMsg .. "\n\tat '%s', line %s, column %s",
+                location.source,
+                location.line,
+                location.column
+            )
         )
     end
 
-    local newMark = function()
-        return {
-            current = current,
-            line = line,
-            column = column,
-        }
+    local next = function()
+        current = current + 1
     end
 
-    local resetTo = function(mark)
-        current = mark.current
-        line = mark.line
-        column = mark.column
+    local peek = function()
+        return tokens[current]
+    end
+    local peekNext = function()
+        return tokens[current + 1]
     end
 
-    -- true if the 'current' pointer points *after* the last character of the input
+    local isType = function(token, type)
+        return token and (token.type == type or (token.type == 'softkeyword' and token.literal == type))
+    end
+
+    local ahead = function(type)
+        return isType(peek(), type)
+    end
+
+    local aheadAnyOf = function(...)
+        for _, type in ipairs({ ... }) do
+            if ahead(type) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local whitespaceAhead = function()
+        return aheadAnyOf('whitespace')
+    end
+
     local isAtEnd = function()
-        return current >= #input + 1
+        return ahead('eof')
     end
 
-    local newline = function()
-        line = line + 1
-        column = 1
+    local eolAhead = function()
+        return ahead('newline') or isAtEnd()
     end
 
-    local next = function(chars)
-        chars = chars or 1
-        column = column + chars
-        current = current + chars -- todo error on unexpected eof
+    local nextAhead = function(type)
+        return isType(peekNext(), type)
     end
 
-    local peek = function(chars)
-        if isAtEnd() then
-            return nil
-        end -- FIXME?
-        return input:sub(current, current + chars - 1)
-    end
-
-    -- one char at position 'pos'
-    local peekAt = function(pos)
-        return input:sub(pos, pos)
-    end
-
+    --
     -- TODO is this needed?
     local isLineStart = function()
         for i = current - 1, 1, -1 do
-            local char = peekAt(i)
-            if char == '\n' then
+            local t = tokens[i]
+            if t.type == 'newline' then
                 return true
-            elseif char == ' ' or char == '\t' then
+            elseif t.type == 'whitespace' then
                 local _ -- keepSearching
             else
                 -- non-whitespace characters between newline and 'current' position
@@ -86,53 +83,18 @@ return function(input, source)
         return true -- start of the first line
     end
 
-    local ahead = function(str)
-        return str == peek(#str)
-    end
-
-    local aheadAnyOf = function(...)
-        for _, str in ipairs({ ... }) do
-            if ahead(str) then
-                return true
-            end
+    local consume = function(type)
+        if not ahead(type) then
+            errorAt('expected ' .. type)
         end
-        return false
-    end
-
-    local whitespaceAhead = function()
-        return aheadAnyOf(' ', '\r', '\t')
-    end
-
-    local eolAhead = function()
-        return ahead('\n') or isAtEnd()
-    end
-
-    local readable = function(s)
-        if s == '\n' then
-            return 'newline'
-        else
-            return "'" .. s .. "'"
-        end
-    end
-
-    local consume = function(str)
-        if not ahead(str) then
-            errorAt('expected ' .. readable(str))
-        end
-        next(#str)
-    end
-
-    local consumeAll = function(c)
-        while ahead(c) do
-            next()
-        end
+        next()
     end
 
     local consumeAnyOf = function(...)
-        for _, str in ipairs({ ... }) do
-            if ahead(str) then
-                consume(str)
-                return str
+        for _, type in ipairs({ ... }) do
+            if ahead(type) then
+                consume(type)
+                return type
             end
         end
         errorAt('expected any of ' .. table.concat(..., ', '))
@@ -144,62 +106,44 @@ return function(input, source)
         end
     end
 
-    local consumeWhitespaceAndNewlines
-    consumeWhitespaceAndNewlines = function()
-        consumeWhitespace()
-        if ahead('\n') then
-            next()
-            newline()
-            consumeWhitespaceAndNewlines()
+    local consumeWhitespaceAndNewlines = function()
+        while aheadAnyOf('whitespace', 'newline') do
+            consumeAnyOf('whitespace', 'newline')
         end
     end
 
+    local currentText = function(fromIndex)
+        local result = ''
+        for i = fromIndex, current - 1 do
+            local t = tokens[i]
+            if
+                t.type == 'text'
+                or t.type == 'word'
+                or t.type == 'digits'
+                or t.type == 'whitespace'
+                or t.type == 'softkeyword'
+            then
+                result = result .. t.literal
+            elseif t.type == 'newline' then
+                result = result .. '\n'
+            else
+                result = result .. t.type
+            end
+        end
+        return result
+    end
+
     local token = function(n)
-        n.location = { source, line, column }
+        n.location = tokens[current].location
         return n
     end
     local nl = function()
         next()
-        newline()
         consumeWhitespace()
         return token(node.nl())
     end
 
-    local currentText = function(startPos)
-        return input:sub(startPos, current - 1)
-    end
-
-    local text -- forward declaration; defined below after singleLineComment
-
-    local singleLineComment = function()
-        consume('//')
-        consumeWhitespace()
-        local commentText = text({ onlyStopAt = {} })
-        consumeWhitespace()
-        return token(node.comment(commentText))
-    end
-
-    local multiLineComment = function()
-        if not ahead('/*') then
-            return
-        end
-        consume('/*')
-        consumeWhitespace()
-        local s = current
-        while not ahead('*/') and not isAtEnd() do
-            if ahead('\n') then
-                newline()
-            end
-            next()
-        end
-        local commentText = currentText(s)
-        consume('*/')
-        consumeWhitespaceAndNewlines()
-        -- we have to return something so the caller does not stop here
-        return token(node.comment(commentText))
-    end
-
-    text = function(opts)
+    local text = function(opts)
         local s = current
         local result = ''
         -- TODO list allowed chars only?
@@ -213,28 +157,26 @@ return function(input, source)
                     break
                 end
             else
-                if aheadAnyOf('#', '->', '<-', '==', '<>', '//', '{', '}', '|', '/*') then
+                if aheadAnyOf('#', '->', '->->', '<-', '==', '<>', '{', '}', '|', '||') then
                     break
                 end
                 if opts and opts.stopAt and aheadAnyOf(unpack(opts.stopAt)) then
                     break
                 end
             end
-            if not ahead('\\') then
-                next()
-            else
+            if ahead('\\') then
                 -- skip the backslash
                 result = result .. currentText(s)
                 next()
                 s = current
 
-                -- a comment will be a comment anyway
-                if not aheadAnyOf('//', '/*') then
-                    -- if not a comment, get the escaped character
-                    result = result .. peek(1)
+                if not eolAhead() then
                     next()
+                    result = result .. currentText(s)
                     s = current
                 end
+            else
+                next()
             end
         end
         return result .. currentText(s)
@@ -252,33 +194,17 @@ return function(input, source)
         return textLine()
     end
 
-    local charsRange = function(tbl, from, to)
-        for i = string.byte(from), string.byte(to or from) do
-            tbl[string.char(i)] = true
-        end
-    end
-    local identifierChars = {}
-    charsRange(identifierChars, '_')
-    charsRange(identifierChars, 'A', 'Z')
-    charsRange(identifierChars, 'a', 'z')
-    charsRange(identifierChars, '0', '9')
-
-    local identifierCharAhead = function()
-        local char = peek(1)
-        return char ~= nil and (identifierChars[char] or string.byte(char) > 127)
-    end
-
     local identifier = function()
-        if not identifierCharAhead() then
+        if not aheadAnyOf('word', 'digits', 'once', '_') then -- TODO !!which keywords
             errorAt('identifier expected')
         end
         local s = current
-        -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
-        -- /WritingWithInk.md#part-6-international-character-support-in-identifiers
-        while identifierCharAhead() do
+        -- identifier could be a keyword too (e.g. "once", but not VAR)
+        while aheadAnyOf('word', 'digits', '_', 'once') do --TODO
             next()
         end
-
+        -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
+        -- /WritingWithInk.md#part-6-international-character-support-in-identifiers
         return currentText(s)
     end
 
@@ -304,33 +230,32 @@ return function(input, source)
 
     local number = function()
         local s = current
-        if ahead('-') then
-            next()
-        end
-        while aheadAnyOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9') do -- TODO
-            next()
-        end
+        consume('digits')
         return currentText(s)
     end
 
-    local floatLiteral = function(intPart)
-        consume('.')
-        return token(node.float(tonumber(intPart .. '.' .. number())))
-    end
-
-    -- TODO name!
-    local intLiteral = function()
-        local mark = newMark()
-        local val = number()
-        if ahead('.') then
-            return floatLiteral(val)
+    local numberLiteral = function()
+        local mark = current
+        local intPart = number()
+        if ahead('.') and nextAhead('digits') then
+            consume('.')
+            local fracPart = number()
+            return token(node.float(tonumber(intPart .. '.' .. fracPart)))
         end
-        if identifierCharAhead() then
-            resetTo(mark)
+        if aheadAnyOf('word', 'once', '_') then -- TODO!!!!! messy
+            --if identifierCharAhead() then
+            current = mark
             return token(node.ref(path()))
         end
-        return token(node.int(tonumber(val)))
+        return token(node.int(tonumber(intPart)))
     end
+    -- if ahead('.') and isDigit(peekNext(1, 1)) then -- TODO cleanup
+    --     next()
+    --     consumeDigit()
+    --     while aheadAnyOf(unpack(digits)) do
+    --         next()
+    --     end
+    -- end
 
     -- Arguments are the actual values or expressions passed to the function when calling it
     local argument = function()
@@ -338,26 +263,6 @@ return function(input, source)
             return divert()
         end
         return expression()
-    end
-
-    -- (element, element, ...)
-    local listOf = function(elementParser)
-        local args = {}
-        if ahead('(') then
-            consume('(')
-            consumeWhitespace()
-            while not ahead(')') do
-                table.insert(args, elementParser())
-                consumeWhitespace()
-                if ahead(',') then
-                    consume(',')
-                    consumeWhitespace()
-                end
-            end
-            consume(')')
-            consumeWhitespace()
-        end
-        return args
     end
 
     -- Parameters are the placeholders defined in the function or knot definition
@@ -387,6 +292,26 @@ return function(input, source)
         consumeWhitespace()
         return params
     end
+    --
+    -- (element, element, ...)
+    local listOf = function(elementParser)
+        local args = {}
+        if ahead('(') then
+            consume('(')
+            consumeWhitespace()
+            while not ahead(')') do
+                table.insert(args, elementParser())
+                consumeWhitespace()
+                if ahead(',') then
+                    consume(',')
+                    consumeWhitespace()
+                end
+            end
+            consume(')')
+            consumeWhitespace()
+        end
+        return args
+    end
 
     local listLiteral = function()
         if not ahead('(') then
@@ -408,16 +333,23 @@ return function(input, source)
         if ahead('"') then
             return stringLiteral()
         end
-        if aheadAnyOf('-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9') then -- TODO
-            return intLiteral()
+
+        if ahead('-') then
+            consume('-')
+            consumeWhitespace()
+            return token(node.call('neg', { expression() }))
+        end
+
+        if ahead('digits') then
+            return numberLiteral()
         end
 
         if ahead('(') then -- TODO this is expression and not term?
-            local mark = newMark()
+            local mark = current
             consume('(')
             consumeWhitespace()
             if ahead(')') then
-                resetTo(mark)
+                current = mark
                 return listLiteral()
             end
 
@@ -425,7 +357,7 @@ return function(input, source)
             consumeWhitespace()
 
             if exp.type == 'ref' and ahead(',') then
-                resetTo(mark)
+                current = mark
                 return listLiteral()
             end
             consume(')')
@@ -449,7 +381,11 @@ return function(input, source)
         local id = path()
         consumeWhitespace()
         if ahead('(') then
-            return functionCall(id[1]) -- function names are always simple (no dots)
+            -- function names are always simple (no dots)
+            if #id > 1 then
+                errorAt('unexpected path')
+            end
+            return functionCall(id[1])
         end
         return token(node.ref(id)) -- FIXME same name as function argument passed as a reference
     end
@@ -481,12 +417,6 @@ return function(input, source)
         consumeWhitespace()
 
         while aheadAnyOf(unpack(operators)) do
-            if ahead('//') then
-                break
-            end -- '/' vs '//' -- FIXME not needed if we had tokens
-            if ahead('->') then
-                break
-            end -- '-' vs '->' -- FIXME not needed if we had tokens
             local operator = consumeAnyOf(unpack(operators))
             consumeWhitespace()
 
@@ -531,12 +461,31 @@ return function(input, source)
     end
 
     local todo = function()
-        if not ahead('TODO:') then
+        if not ahead('TODO') then
             return
         end
-        consume('TODO:')
+        consume('TODO')
         consumeWhitespace()
+        if ahead(':') then
+            consume(':')
+            consumeWhitespace()
+        end
         return token(node.todo(text({ onlyStopAt = { '//' } })))
+    end
+
+    local tunnelReturn = function()
+        if not ahead('->->') then
+            return
+        end
+        consume('->->')
+        consumeWhitespace()
+        if eolAhead() then
+            return token(node.tunnelreturn())
+        end
+        local targetName = path()
+        consumeWhitespace()
+        local args = listOf(argument)
+        return token(node.tunnelreturnto(targetName, args))
     end
 
     divert = function()
@@ -544,24 +493,13 @@ return function(input, source)
             return
         end
         consume('->')
-        if ahead('->') then
-            consume('->')
-            consumeWhitespace()
-            if eolAhead() then
-                return token(node.tunnelreturn())
-            end
-            local targetName = path()
-            consumeWhitespace()
-            local args = listOf(argument)
-            return token(node.tunnelreturnto(targetName, args))
-        end
         consumeWhitespace()
         local targetName = path()
         consumeWhitespace()
         local args = listOf(argument)
         local tunnel = nil
         if ahead('->') then
-            local mark = newMark()
+            local mark = current
             consume('->')
             consumeWhitespace()
             tunnel = 'tunnel'
@@ -569,7 +507,7 @@ return function(input, source)
             if not eolAhead() then
                 -- Tunnels can be chained together, or finish on a normal divert
                 -- -> tunnel -> tunnel -> divert
-                resetTo(mark)
+                current = mark
                 -- set the current one as a tunnel but parse the arrow again as part of the next one
                 -- the final '->' will stay consumed in this case: -> tunnel ->  \n
             end
@@ -606,10 +544,11 @@ return function(input, source)
         local params = parameters()
 
         consumeWhitespace()
-        consumeAll('=')
+        if ahead('==') then
+            consume('==')
+        end
         consumeWhitespace()
-        consume('\n')
-        newline()
+        consume('newline')
         consumeWhitespaceAndNewlines()
         local body = functionBody()
         return token(node.fndef(name, params, body))
@@ -620,7 +559,6 @@ return function(input, source)
             return
         end
         consume('==')
-        consumeAll('=')
         consumeWhitespace()
         local id = identifier()
         if id == 'function' then
@@ -629,10 +567,12 @@ return function(input, source)
 
         consumeWhitespace()
         local params = parameters()
-        consumeAll('=')
         consumeWhitespace()
-        consume('\n')
-        newline()
+        if ahead('==') then
+            consume('==')
+            consumeWhitespace()
+        end
+        consume('newline')
         consumeWhitespaceAndNewlines()
         local body = knotBody()
         -- TODO are they the same? use functions for knots? what about stitches
@@ -657,16 +597,16 @@ return function(input, source)
             return
         end
 
-        local mark = newMark()
+        local mark = current
         local nesting = 0
-        while ahead('-') and not ahead('->') do
+        while ahead('-') do
             consume('-')
             nesting = nesting + 1
             consumeWhitespace()
         end
         -- TODO test unbalanced option/gather nesting
         if nesting < minNesting then
-            resetTo(mark)
+            current = mark
             return
         end
 
@@ -687,11 +627,11 @@ return function(input, source)
         if not (ahead('*') or ahead('+')) then
             return
         end
-        local bulletSymbol = peek(1)
+        local bulletSymbol = peek().type
         local sticky = (bulletSymbol == '+') and 'sticky' or nil
         local fallback = nil
 
-        local mark = newMark()
+        local mark = current
         local nesting = 0
         while ahead(bulletSymbol) do
             consume(bulletSymbol)
@@ -699,7 +639,7 @@ return function(input, source)
             consumeWhitespace()
         end
         if nesting < minNesting then
-            resetTo(mark)
+            current = mark
             return
         end
 
@@ -721,7 +661,7 @@ return function(input, source)
             consumeWhitespaceAndNewlines()
         end
 
-        if ahead('->') then
+        if aheadAnyOf('->', '->->') then
             fallback = 'fallback'
             -- A fallback choice is simply a "choice without choice text"
             -- * -> out_of_options
@@ -729,12 +669,15 @@ return function(input, source)
             -- a default choice with content in it, using an "choice then arrow" (consume the arrow)
             -- * ->
             --   text
-            local mark2 = newMark()
-            consume('->')
-            consumeWhitespace()
-            if not ahead('\n') then
-                resetTo(mark2)
-                -- this will be parsed as a normal divert later
+
+            if ahead('->') then
+                local beforeArrow = current
+                consume('->')
+                consumeWhitespace()
+                if not ahead('newline') then
+                    current = beforeArrow
+                    -- this will be parsed as a normal divert later
+                end
             end
         end
 
@@ -751,7 +694,7 @@ return function(input, source)
 
         consumeWhitespace()
 
-        --local insertNl = ahead('\n')
+        --local insertNl = ahead('newline')
         --consumeWhitespaceAndNewlines()
 
         local body = optionBody(nesting + 1) -- the parameter will come back to this function as minNesting
@@ -921,7 +864,8 @@ return function(input, source)
     local branch = function(first, isFirstBranch)
         consume('-')
         consumeWhitespaceAndNewlines()
-        local mark = newMark()
+
+        local afterLeadingBranchDash = current
 
         local condition, body
         if ahead('else') then
@@ -939,25 +883,21 @@ return function(input, source)
             consumeWhitespace()
 
             if expressionParsed and ahead(':') then
-                -- switch {expr:\n -val1:text\n -val2:text\n}
+                -- switch
+                -- {expr:
+                --   -val1:text
+                --   -val2:text
+                -- }
                 condition = token(node.call('==', { first, branchCaseExpression }))
-
                 consume(':')
                 consumeWhitespaceAndNewlines()
-
-                -- TODO would be nicer without this if
-                if ahead('-') and not ahead('->') then
-                    -- empty branch body, but the condition should be evaluated
-                    body = {}
-                else
-                    body = { branchInkText() }
-                end
+                body = { branchInkText() }
             else
                 -- {expr:
                 --   -textiftrue
                 --   -textiffalse
                 -- }
-                resetTo(mark) -- jump after the '-' of the current branch
+                current = afterLeadingBranchDash
 
                 body = { branchInkText() }
                 if isFirstBranch then
@@ -975,23 +915,33 @@ return function(input, source)
     local seqSeparatedBranches = function()
         consumeWhitespaceAndNewlines()
         local result = { { inkText() } }
-        while ahead('|') do
-            consume('|')
-            local element = inkText()
-            if element ~= nil then
-                table.insert(result, { element })
+        while aheadAnyOf('|', '||') do
+            if ahead('|') then
+                consume('|')
+                local element = { inkText() } -- TODO too much wrapping?
+                if element ~= nil then
+                    table.insert(result, element)
+                end
+            elseif ahead('||') then
+                consume('||')
+                table.insert(result, token(node.ink({})))
+                local element = { inkText() } -- TODO too much wrapping?
+                if element ~= nil then
+                    table.insert(result, element)
+                end
             end
         end
         return result
     end
 
     local seqBranches = function()
+        log.debug('BB', peek())
         consumeWhitespaceAndNewlines()
         consume(':')
         consumeWhitespaceAndNewlines()
-        if ahead('-') and not ahead('->') then
+        if ahead('-') then
             local result = {}
-            while ahead('-') and not ahead('->') do
+            while ahead('-') do
                 consume('-')
                 consumeWhitespace()
                 local element = branchInkText()
@@ -1010,7 +960,8 @@ return function(input, source)
 
         consume('{')
         consumeWhitespaceAndNewlines()
-        local afterOpeningBrace = newMark()
+
+        local afterOpeningBrace = current
 
         -- Cycles are like sequences, but they loop their content.
         -- Once-only: when they run out of content, display nothing (as a sequence with a blank last entry).
@@ -1040,46 +991,38 @@ return function(input, source)
         -- Sequence: go through alternatives and stick on last (stopping), cycle, once-only, shuffle.
         -- Any order/combination of keywords, e.g. {stopping shuffle:} = {shuffle stopping:}.
         if aheadAnyOf('stopping', 'shuffle', 'once', 'cycle') then
-            local seqStartLine = line
-            -- FIXME cleanup. varible which starts with seq type keyword, e.g. {shuffler}
-            local keyword = identifier()
-            resetTo(afterOpeningBrace)
-            if keyword == 'stopping' or keyword == 'shuffle' or keyword == 'once' or keyword == 'cycle' then
-                while aheadAnyOf('stopping', 'shuffle', 'once', 'cycle') do
-                    keyword = consumeAnyOf('stopping', 'shuffle', 'once', 'cycle')
-                    opts[keyword] = true
-                    consumeWhitespaceAndNewlines()
-                end
-                local nonShuffleNames = {}
-                if opts.stopping then
-                    nonShuffleNames[#nonShuffleNames + 1] = 'Stopping'
-                end
-                if opts.once then
-                    nonShuffleNames[#nonShuffleNames + 1] = 'Once'
-                end
-                if opts.cycle then
-                    nonShuffleNames[#nonShuffleNames + 1] = 'Cycle'
-                end
-                if #nonShuffleNames > 1 then
-                    log.die(
-                        'Sequence type combination not supported: ' .. table.concat(nonShuffleNames, ', '),
-                        { source, seqStartLine, 1 }
-                    )
-                end
-                if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
-                    opts.cycle = true -- plain {shuffle:} defaults to cycle
-                end
-                local branches = seqBranches()
-                consume('}')
-                return token(node.seq(opts, branches))
+            local location = peek().location
+            while aheadAnyOf('stopping', 'shuffle', 'once', 'cycle') do
+                local keyword = consumeAnyOf('stopping', 'shuffle', 'once', 'cycle')
+                opts[keyword] = true
+                consumeWhitespaceAndNewlines()
             end
+            local nonShuffleNames = {}
+            if opts.stopping then
+                nonShuffleNames[#nonShuffleNames + 1] = 'Stopping'
+            end
+            if opts.once then
+                nonShuffleNames[#nonShuffleNames + 1] = 'Once'
+            end
+            if opts.cycle then
+                nonShuffleNames[#nonShuffleNames + 1] = 'Cycle'
+            end
+            if #nonShuffleNames > 1 then
+                log.die('Sequence type combination not supported: ' .. table.concat(nonShuffleNames, ', '), location)
+            end
+            if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
+                opts.cycle = true -- plain {shuffle:} defaults to cycle
+            end
+            local branches = seqBranches()
+            consume('}')
+            return token(node.seq(opts, branches))
         end
 
-        if ahead('-') and not ahead('->') then
-            local beforeMinus = newMark()
+        if ahead('-') then
+            local beforeMinus = current
             consume('-')
             if not whitespaceAhead() then
-                resetTo(beforeMinus) -- unary minus or negative literal; let expression parser handle it
+                current = beforeMinus -- unary minus or negative literal; let expression parser handle it
             end
         end
         consumeWhitespaceAndNewlines()
@@ -1092,30 +1035,39 @@ return function(input, source)
         consumeWhitespaceAndNewlines()
 
         if firstExpressionParsed and ahead('}') then
-            local exprText = input:sub(afterOpeningBrace.current, current - 1)
-            if not exprText:find('|', 1, true) then
+            -- TODO ?
+            local hadDoublePipe = false
+            for i = afterOpeningBrace, current - 1 do
+                if tokens[i].type == '||' then
+                    hadDoublePipe = true
+                end
+            end
+            log.debug(firstExpressionParsed, first, hadDoublePipe)
+
+            if not hadDoublePipe then
                 -- variable printing: {expression}
                 consume('}')
                 return token(node.out(first, opts))
             end
-            -- `|` was consumed as part of `||` — fall through to re-parse as sequence
-            resetTo(afterOpeningBrace)
+            -- || was consumed - fall through to re-parse as sequence
+            current = afterOpeningBrace
         end
 
         if firstExpressionParsed and ahead(':') then
             consume(':')
-            local afterColon = newMark()
+
+            local afterColon = current
             consumeWhitespaceAndNewlines()
             local branches = {}
-            if ahead('-') and not ahead('->') then
+            if ahead('-') then
                 -- newlines after the first ':' ignored
-                while ahead('-') and not ahead('->') do
+                while ahead('-') do
                     table.insert(branches, branch(first, #branches == 0))
                 end
             else
                 -- Conditional block: {expr:textIfTrue}
                 -- newlines after the first ':' significant
-                resetTo(afterColon)
+                current = afterColon
                 consumeWhitespace()
                 table.insert(branches, { cond = first, body = { branchInkText() } })
                 consumeWhitespaceAndNewlines()
@@ -1124,8 +1076,8 @@ return function(input, source)
                     consume('|')
                     -- else branch, the condition is always true
                     table.insert(branches, { cond = token(node.bool(true)), body = { branchInkText() } })
-                elseif ahead('-') and not ahead('->') then
-                    while ahead('-') and not ahead('->') do
+                elseif ahead('-') then
+                    while ahead('-') do
                         table.insert(branches, branch(token(node.bool(true)), false))
                     end
                 end
@@ -1136,22 +1088,31 @@ return function(input, source)
         end
 
         -- read the first element after the '{' again, this time as ink text
-        resetTo(afterOpeningBrace)
+        current = afterOpeningBrace
         first = inkText()
         consumeWhitespace()
 
-        if ahead('|') then
+        if aheadAnyOf('|', '||') then -- FIXME hack: || two separators with empty string in between
             -- {text|text|...}
             -- A sequence (or a "stopping block") is a set of alternatives that tracks
             -- how many times its been seen, and each time, shows the next element along.
             -- When it runs out of new content it continues the show the final element.
             opts.stopping = true
             local result = { { first } } -- TODO too much wrapping?
-            while ahead('|') do
-                consume('|')
-                local element = { inkText() } -- TODO too much wrapping?
-                if element ~= nil then
-                    table.insert(result, element)
+            while aheadAnyOf('|', '||') do
+                if ahead('|') then
+                    consume('|')
+                    local element = { inkText() } -- TODO too much wrapping?
+                    if element ~= nil then
+                        table.insert(result, element)
+                    end
+                elseif ahead('||') then
+                    consume('||')
+                    table.insert(result, token(node.ink({})))
+                    local element = { inkText() } -- TODO too much wrapping?
+                    if element ~= nil then
+                        table.insert(result, element)
+                    end
                 end
             end
             consume('}')
@@ -1226,18 +1187,16 @@ return function(input, source)
     end
 
     local inkNode = function(opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return tunnelReturn()
         elseif ahead('->') then
             return divert()
         elseif ahead('<-') then
@@ -1270,18 +1229,16 @@ return function(input, source)
     end
 
     local knotBodyNode = function(opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return tunnelReturn()
         elseif ahead('->') then
             return divert()
         elseif ahead('<-') then
@@ -1311,18 +1268,16 @@ return function(input, source)
         end
     end
     local functionBodyNode = function(opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return nil
         elseif ahead('->') then
             return nil --------divert()
         elseif ahead('<-') then
@@ -1353,18 +1308,16 @@ return function(input, source)
     end
 
     local optionTextNode = function(opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nil --nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return nil
         elseif ahead('->') then
             return nil ---divert()
         elseif ahead('<-') then
@@ -1393,18 +1346,16 @@ return function(input, source)
     end
 
     local optionBodyNode = function(minNesting, opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return tunnelReturn()
         elseif ahead('->') then
             return divert()
         elseif ahead('<-') then
@@ -1418,14 +1369,15 @@ return function(input, source)
         elseif ahead('-') then
             -- peek at gather nesting: absorb gathers at >= minNesting (inside this option),
             -- stop for gathers at < minNesting (they belong to an outer scope)
-            local mark = newMark()
+
+            local mark = current
             local n = 0
-            while ahead('-') and not ahead('->') do
+            while ahead('-') do
                 consume('-')
                 n = n + 1
                 consumeWhitespace()
             end
-            resetTo(mark)
+            current = mark
             if n >= minNesting then
                 return gather(n)
             else
@@ -1449,18 +1401,16 @@ return function(input, source)
     end
 
     local gatherBodyNode = function(minNesting, opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return tunnelReturn()
         elseif ahead('->') then
             return divert()
         elseif ahead('<-') then
@@ -1490,18 +1440,16 @@ return function(input, source)
         end
     end
     local branchInkNode = function(opts)
-        if ahead('\n') then
+        if ahead('newline') then
             return nl()
-        elseif ahead('//') then
-            return singleLineComment()
-        elseif ahead('/*') then
-            return multiLineComment()
-        elseif ahead('TODO:') then
+        elseif ahead('TODO') then
             return todo()
         elseif ahead('INCLUDE') then
             return include()
         elseif ahead('<>') then
             return glue()
+        elseif ahead('->->') then
+            return tunnelReturn()
         elseif ahead('->') then
             return divert()
         elseif ahead('<-') then
@@ -1635,6 +1583,7 @@ return function(input, source)
         return token(node.ink(result))
     end
 
+    -- log.debug(tokens)
     local statements = { inkText() }
     --log.debug(statements)
     return statements

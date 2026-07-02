@@ -7,9 +7,6 @@ return function(initialItems)
         pop = function()
             return table.remove(items)
         end,
-        peek = function()
-            return items[#items]
-        end,
         isEmpty = function()
             return #items == 0
         end,

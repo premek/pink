@@ -23,7 +23,7 @@ return function(globalTree)
     local listDefinitions = newListDefinitions()
     local nodeOutput = node.makeOutput(listDefinitions)
     local getEnv, s, nodeById, turnAtVisitGet -- forward declarations needed by createBuiltins closures
-    local lastLocation = nil
+    local lastTokenWithLocation = nil
     local currentKnot, currentStitch -- forward declarations needed by getEnv for label lookup
     local turns = 0
     -- Each node has `.turn` (recorded turn number) and `.children` (subtable keyed by path segment).
@@ -51,7 +51,7 @@ return function(globalTree)
         end,
         listDefinitions = listDefinitions,
         getLocation = function()
-            return lastLocation
+            return lastTokenWithLocation
         end,
     })
     local env = rootEnv -- TODO should env be part of the callstack?
@@ -63,7 +63,7 @@ return function(globalTree)
     -- any buffered content (already popped into res) first, then calls this on the next turn
     local pendingDie = nil
     local hadCleanEnd = false
-    local lastOutputLocation = nil
+    local lastOutputTokenWithLocation = nil
 
     -- story - this table will be passed to client code
     s = Story.new(rootEnv)
@@ -579,7 +579,6 @@ return function(globalTree)
             or is('int', val)
             or is('float', val)
             or is('bool', val)
-            or is('divert', val)
             or is('list', val)
             or is('el', val)
         then
@@ -593,6 +592,12 @@ return function(globalTree)
             return getValue(node.listFromLit(val, function(n)
                 return getEnv(Path.of(n))
             end))
+        elseif is('divert', val) then
+            return node.divert(
+                Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
+                val.args,
+                val.tunnel
+            )
         elseif is('call', val) then
             local args = val.args
 
@@ -705,13 +710,6 @@ return function(globalTree)
         end
 
         local newValue = getValue(n.expr)
-        if newValue ~= nil and is('divert', n.expr) and is('divert', newValue) then
-            newValue = node.divert(
-                Path.qualify(newValue.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
-                newValue.args,
-                newValue.tunnel
-            )
-        end
         if is('list', oldValue) and (is('el', newValue) or is('list', newValue)) then
             node.listSet(oldValue, newValue)
         else
@@ -738,7 +736,7 @@ return function(globalTree)
                 lineHadContent = true
             end
             if n.location then
-                lastOutputLocation = n.location
+                lastOutputTokenWithLocation = n
             end
         end
     end
@@ -811,13 +809,6 @@ return function(globalTree)
         end,
         tempvar = function(n)
             local val = getValue(n.value)
-            if val and is('divert', n.value) and is('divert', val) then
-                val = node.divert(
-                    Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
-                    val.args,
-                    val.tunnel
-                )
-            end
             env[n.name] = val
         end,
         assign = nodeUpdateAssign,
@@ -825,13 +816,6 @@ return function(globalTree)
             local val = nil
             if n.value then
                 val = getValue(n.value)
-                if val and is('divert', n.value) and is('divert', val) then
-                    val = node.divert(
-                        Path.qualify(val.target, currentKnot, currentKnot and knots[currentKnot], currentStitch),
-                        val.args,
-                        val.tunnel
-                    )
-                end
             end
             returnValue = { active = true, value = val }
             stepOut('fn') -- step out of the function, not just the last block we stepped into
@@ -972,7 +956,7 @@ return function(globalTree)
 
         while true do
             if tree[pointer] and tree[pointer].location then
-                lastLocation = tree[pointer].location
+                lastTokenWithLocation = tree[pointer]
             end
 
             if isEnd() then
@@ -1192,18 +1176,18 @@ return function(globalTree)
                 local f = callstack.get(i)
                 if f.gatherEntry then
                     -- gather body is {ink_node}; first content node gives inklecate's error line
-                    local loc = lastLocation
+                    local tokenWithLocation = lastTokenWithLocation
                     local inkNode = f.gatherEntry[1]
                     if inkNode and inkNode.nodes then
                         for _, n in ipairs(inkNode.nodes) do
-                            if n.location and n.location[2] then
-                                loc = n.location
+                            if n.location and n.location.line then
+                                tokenWithLocation = n
                                 break
                             end
                         end
                     end
                     pendingDie = function()
-                        log.dieRanOutOfContent(loc)
+                        log.dieRanOutOfContent(tokenWithLocation)
                     end
                     return
                 end
@@ -1259,7 +1243,7 @@ return function(globalTree)
         end
 
         if tree[pointer] and tree[pointer].location then
-            lastLocation = tree[pointer].location
+            lastTokenWithLocation = tree[pointer].location
         end
 
         if not storyStarted and #getNotBindExternalFunctionNames() > 0 then
@@ -1334,10 +1318,16 @@ return function(globalTree)
         })
         s.currentTags = table.remove(tagLines, 1) or {}
         s.canContinue = newCanContinue
-        if not newCanContinue and #s.currentChoices == 0 and not hadCleanEnd and currentKnot and lastOutputLocation then
-            local loc = lastOutputLocation
+        if
+            not newCanContinue
+            and #s.currentChoices == 0
+            and not hadCleanEnd
+            and currentKnot
+            and lastOutputTokenWithLocation
+        then
+            local t = lastOutputTokenWithLocation
             pendingDie = function()
-                log.dieRanOutOfContent(loc)
+                log.dieRanOutOfContent(t)
             end
         end
         if pendingDie then

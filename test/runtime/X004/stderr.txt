@@ -1,1 +1,2 @@
 RUNTIME ERROR: ran out of content
+	somewhere around ././test/runtime/X004/story.ink, line 2, column 13, node type: str
