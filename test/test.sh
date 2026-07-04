@@ -10,11 +10,12 @@ rm -f luacov.*
 
 start=$(date +%s.%N)
 
-while getopts vcf flag
+while getopts vcpf flag
 do
     case "${flag}" in
         v) VERBOSE="-v";;
         c) COV="-lluacov";;
+        p) LUA_PROF="-jp=F"; PINK_PROF="--profile"; LUAS="luajit";;
         f) DIFF="colordiff -U999";;
         *) echo invalid flag; exit 1;;
     esac
@@ -98,7 +99,7 @@ for P in $PATTERNS; do
         [ -f "$D/setup.ink" ] && STORY="$D/setup.ink"
         if [ -z "$COMPAT_FLAG" ]; then
           # X tests: separate stdout/stderr
-          $LUA ${COV:+"$COV"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" \
+          $LUA ${COV:+"$COV"} ${LUA_PROF:+"$LUA_PROF"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} ${PINK_PROF:+"$PINK_PROF"} "$STORY" < "$D/input.txt" \
             > "$TMP/stdout" 2> "$TMP/stderr"
           $DIFF "$D/transcript.txt" "$TMP/stdout" || FAILED_VERS="$FAILED_VERS $LUA"
           if [ -f "$D/stderr.txt" ]; then
@@ -109,11 +110,11 @@ for P in $PATTERNS; do
           fi
           # Run again merged for ordering check
           if [ -f "$D/stderr_stdout.txt" ]; then
-            $LUA ${COV:+"$COV"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$STORY" < "$D/input.txt" 2>&1 \
+            $LUA ${COV:+"$COV"} ${LUA_PROF:+"$LUA_PROF"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} ${PINK_PROF:+"$PINK_PROF"} "$STORY" < "$D/input.txt" 2>&1 \
               | $DIFF "$D/stderr_stdout.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
           fi
         else
-          $LUA ${COV:+"$COV"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} "$COMPAT_FLAG" "$STORY" < "$D/input.txt" 2>&1 \
+          $LUA ${COV:+"$COV"} ${LUA_PROF:+"$LUA_PROF"} "./$DIR/pink-cli" ${VERBOSE:+"$VERBOSE"} ${PINK_PROF:+"$PINK_PROF"} "$COMPAT_FLAG" "$STORY" < "$D/input.txt" 2>&1 \
             | $DIFF "$D/transcript.txt" - || FAILED_VERS="$FAILED_VERS $LUA"
         fi
       done

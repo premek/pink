@@ -1,30 +1,28 @@
 #!/bin/env lua
 if not arg[1] then
-    error('\nUsage: ' .. arg[0] .. ' [-v] [--compat] [format] game.ink\n')
-end
-
-local verbose = false
-local compatMode = false
-if arg[1] == '-v' then
-    verbose = true
-    table.remove(arg, 1)
-end
-if arg[1] == '--compat' then
-    compatMode = true
-    table.remove(arg, 1)
+    error('\nUsage: ' .. arg[0] .. ' [-v] [--profile] [--compat] [format] game.ink\n')
 end
 
 local logging = require('pink.logging')
-if compatMode then
-    logging.compat = true
-end
-
 local formatter = require('pink.formatter')
 local runtime = require('pink.runtime')
 local load = require('pink.loader')
 
-if verbose then
+-- TODO order should not be significant
+if arg[1] == '-v' then
     logging.debugEnabled = true
+    table.remove(arg, 1)
+end
+
+local profile = false
+if arg[1] == '--profile' then
+    profile = true
+    table.remove(arg, 1)
+end
+
+if arg[1] == '--compat' then
+    logging.compat = true
+    table.remove(arg, 1)
 end
 
 local format = false
@@ -37,6 +35,13 @@ local filename = arg[1]
 
 if format then
     print(formatter(load(filename)))
+    return
+end
+
+if profile then
+    for _ = 1, 40 do
+        runtime(load(filename))
+    end
     return
 end
 

@@ -137,6 +137,8 @@ end
 return function(input, source)
     source = source or 'unknown source'
 
+    local inputLength = #input
+
     local current = 1
     local line = 1
     local column = 1
@@ -158,9 +160,8 @@ return function(input, source)
     end
 
     -- true if the 'current' pointer points *after* the last character of the input
-    local isAtEnd = function(skip)
-        skip = skip or 0
-        return current + skip >= #input + 1
+    local isAtEnd = function()
+        return current >= inputLength + 1
     end
 
     local nextLine = function()

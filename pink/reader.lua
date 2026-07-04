@@ -1,4 +1,3 @@
-local love = love
 local function loveFileReader(file)
     if not love.filesystem.getInfo(file, 'file') then
         error('failed to open "' .. file .. '"')
