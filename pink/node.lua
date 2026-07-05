@@ -518,11 +518,6 @@ node.listCount = function(a)
     return node.int(listCountNumber(a))
 end
 
-node.listIsEmpty = function(a)
-    node.requireType(a, 'list')
-    return listCountNumber(a) == 0
-end
-
 node.listRandom = function(a)
     node.requireType(a, 'list')
 

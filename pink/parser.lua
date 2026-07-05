@@ -29,16 +29,21 @@ return function(tokens)
     local peek = function()
         return tokens[current]
     end
+
     local peekNext = function()
         return tokens[current + 1]
     end
 
     local isType = function(token, type)
-        return token and (token.type == type or (token.type == 'softkeyword' and token.literal == type))
+        return token and token.type == type
     end
 
     local ahead = function(type)
         return isType(peek(), type)
+    end
+
+    local nextAhead = function(type)
+        return isType(peekNext(), type)
     end
 
     local aheadAnyOf = function(...)
@@ -60,10 +65,6 @@ return function(tokens)
 
     local eolAhead = function()
         return ahead('newline') or isAtEnd()
-    end
-
-    local nextAhead = function(type)
-        return isType(peekNext(), type)
     end
 
     --
@@ -116,16 +117,8 @@ return function(tokens)
         local result = ''
         for i = fromIndex, current - 1 do
             local t = tokens[i]
-            if
-                t.type == 'text'
-                or t.type == 'word'
-                or t.type == 'digits'
-                or t.type == 'whitespace'
-                or t.type == 'softkeyword'
-            then
+            if t.type == 'text' or t.type == 'word' or t.type == 'digits' or t.type == 'whitespace' then
                 result = result .. t.literal
-            elseif t.type == 'newline' then
-                result = result .. '\n'
             else
                 result = result .. t.type
             end
@@ -235,27 +228,20 @@ return function(tokens)
     end
 
     local numberLiteral = function()
-        local mark = current
+        local beforeNumber = current
         local intPart = number()
         if ahead('.') and nextAhead('digits') then
             consume('.')
             local fracPart = number()
             return token(node.float(tonumber(intPart .. '.' .. fracPart)))
         end
-        if aheadAnyOf('word', 'once', '_') then -- TODO!!!!! messy
-            --if identifierCharAhead() then
-            current = mark
+        if aheadAnyOf('keyword', 'word') then
+            -- identifiers: 512x2, 2VAR, etc
+            current = beforeNumber
             return token(node.ref(path()))
         end
         return token(node.int(tonumber(intPart)))
     end
-    -- if ahead('.') and isDigit(peekNext(1, 1)) then -- TODO cleanup
-    --     next()
-    --     consumeDigit()
-    --     while aheadAnyOf(unpack(digits)) do
-    --         next()
-    --     end
-    -- end
 
     -- Arguments are the actual values or expressions passed to the function when calling it
     local argument = function()

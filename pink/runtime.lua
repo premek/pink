@@ -306,7 +306,7 @@ return function(globalTree)
     end
 
     local incrementSeenCounter = function(path)
-        log.debug('increment seen counter: ' .. Path.toString(path))
+        log.debug('increment seen counter: ', Path.toString(path))
         local var = getEnv(path, nil, rootEnv)
         requireType(var, 'int')
         var.value = var.value + 1

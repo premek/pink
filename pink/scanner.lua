@@ -65,8 +65,6 @@ local symbols = {
 }
 local keywords = {
     'VAR',
-}
-local softkeywords = {
     'TODO',
     'INCLUDE',
     'CONST',
@@ -100,11 +98,6 @@ charsRange(wordChars, '0', '9')
 local keywordsLookup = {}
 for _, keyword in ipairs(keywords) do
     keywordsLookup[keyword] = true
-end
-
-local softKeywordsLookup = {}
-for _, softKeyword in ipairs(softkeywords) do
-    softKeywordsLookup[softKeyword] = true
 end
 
 local isWordChar = function(char)
@@ -298,9 +291,6 @@ return function(input, source)
         local t = currentText(start)
         if keywordsLookup[t] then
             return token(t, location)
-        end
-        if softKeywordsLookup[t] then
-            return token('softkeyword', location, t)
         end
         return token('word', location, currentText(start))
     end

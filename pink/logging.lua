@@ -51,7 +51,7 @@ local function debug(...)
 end
 
 local compatLocation = function(token)
-    local loc = token and (token.location or (token.source and token)) --FIXME?
+    local loc = token and (token.location or (token.source and token))
     if not loc then
         return ''
     end
