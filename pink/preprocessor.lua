@@ -1,5 +1,5 @@
 --
--- Removes /*block*/ comments and then //line comments from input
+-- Removes /*block*/ comments and then //line comments from string
 --
 
 return function(input)
@@ -21,7 +21,7 @@ return function(input)
         return input:sub(current, current + chars - 1)
     end
 
-    local skip = function()
+    local advance = function()
         current = current + 1
     end
 
@@ -35,32 +35,32 @@ return function(input)
 
     local out = function()
         table.insert(output, peek(1))
-        skip()
+        advance()
     end
 
-    local skipBlockComment = function()
+    local skipBlockComments = function()
         while not isAtEnd() do
             if ahead('/*') then
                 while not ahead('*/') do
                     if eolAhead() then
                         out()
                     else
-                        skip()
+                        advance()
                     end
                 end
-                skip()
-                skip()
+                advance()
+                advance()
             else
                 out()
             end
         end
     end
 
-    local skipLineComment = function()
+    local skipLineComments = function()
         while not isAtEnd() do
             if ahead('//') then
                 while not eolAhead() do
-                    skip()
+                    advance()
                 end
             else
                 out()
@@ -69,8 +69,8 @@ return function(input)
     end
 
     reset(input)
-    skipBlockComment()
+    skipBlockComments()
     reset(table.concat(output))
-    skipLineComment()
+    skipLineComments()
     return table.concat(output)
 end

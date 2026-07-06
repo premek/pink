@@ -1,8 +1,8 @@
 local base_path = (...):match('(.-)[^%.]+$')
 local read = require(base_path .. 'reader')
-local parser = require(base_path .. 'parser')
-local scanner = require(base_path .. 'scanner')
-local preprocessor = require(base_path .. 'preprocessor')
+local parse = require(base_path .. 'parser')
+local scan = require(base_path .. 'scanner')
+local preprocess = require(base_path .. 'preprocessor')
 
 local function isAbsolute(path)
     return path:sub(1, 1) == '/'
@@ -39,9 +39,9 @@ return function(filename)
 
     load = function(file)
         local content = read(file)
-        local preprocessed = preprocessor(content)
-        local tokens = scanner(preprocessed, filename)
-        local parsed = parser(tokens)
+        local preprocessed = preprocess(content)
+        local tokens = scan(preprocessed, filename)
+        local parsed = parse(tokens)
         return resolveIncludes(parsed, basedir(file))
     end
 

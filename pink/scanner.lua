@@ -138,20 +138,6 @@ return function(input, source)
 
     local tokens = {}
 
-    local errorAt = function(msg, ...)
-        local formattedMsg = string.format(msg, ...)
-        error(
-            string.format(formattedMsg .. "\n\tat '%s', line %s, column %s", source, line, column)
-                .. '\n\t...\n\t'
-                .. input:sub(math.max(0, current - 100), current)
-                .. '\n\t'
-                .. '<<somewhere around here>>'
-                .. '\n\t'
-                .. input:sub(current + 1, current + 100)
-                .. '...\n\t'
-        )
-    end
-
     -- true if the 'current' pointer points *after* the last character of the input
     local isAtEnd = function()
         return current >= inputLength + 1
@@ -162,16 +148,15 @@ return function(input, source)
         column = 1
     end
 
-    local next = function(chars)
-        chars = chars or 1
-        column = column + chars
-        current = current + chars -- todo error on unexpected eof
+    local next = function()
+        column = column + 1
+        current = current + 1
     end
 
     local peek = function(chars)
         if isAtEnd() then
             return nil
-        end -- FIXME?
+        end
         return input:sub(current, current + chars - 1)
     end
 
@@ -192,9 +177,6 @@ return function(input, source)
         return aheadAnyOf(unpack(whitespace))
     end
 
-    local eolAhead = function()
-        return ahead('\n') or isAtEnd()
-    end
     local wordCharAhead = function()
         local char = peek(1)
         return char ~= nil and isWordChar(char)
@@ -202,21 +184,6 @@ return function(input, source)
 
     local digitAhead = function()
         return aheadAnyOf(unpack(digits))
-    end
-
-    local readable = function(s)
-        if s == '\n' then
-            return 'newline'
-        else
-            return "'" .. s .. "'"
-        end
-    end
-
-    local consume = function(str)
-        if not ahead(str) then
-            errorAt('expected ' .. readable(str))
-        end
-        next(#str)
     end
 
     local currentText = function(startPos)
@@ -243,40 +210,62 @@ return function(input, source)
         }
     end
 
-    local getText = function(opts) -- TODO cleanup
-        local s = current
-        local result = ''
-        -- TODO list allowed chars only?
-        -- FIXME this is wierd
-        --
-        --
-        while not eolAhead() do
-            -- opts.onlyStopAt replaces the default stop list entirely (eol always stops)
-            if opts and opts.onlyStopAt then
-                if aheadAnyOf(unpack(opts.onlyStopAt)) then
-                    break
-                end
-            else
-                if aheadAnyOf(unpack(symbols)) or wordCharAhead() or whitespaceAhead() then
-                    break
-                end
-                if opts and opts.stopAt and aheadAnyOf(unpack(opts.stopAt)) then
-                    break
-                end
-            end
+    local scanWhitespace = function()
+        if whitespaceAhead() then
+            local location = getLocation()
+            return token('whitespace', location, consumeWhitespace())
+        end
+    end
+
+    local scanNewline = function()
+        if ahead('\n') then
+            local location = getLocation()
+            next()
+            nextLine()
+            return token('newline', location)
+        end
+    end
+
+    -- 2 or more equal signs
+    local scanEqualEqual = function()
+        if not ahead('==') then
+            return
+        end
+        local start = current
+        local location = getLocation()
+        while ahead('=') do
             next()
         end
-        return result .. currentText(s)
+        return token('==', location, currentText(start))
     end
 
-    local scanText = function()
+    -- string of 0-9s
+    local scanDigits = function()
+        if not digitAhead() then
+            return
+        end
+        local start = current
         local location = getLocation()
-        local t = getText()
-        if #t > 0 then
-            return token('text', location, t)
+        while digitAhead() do
+            next()
+        end
+        return token('digits', location, currentText(start))
+    end
+
+    -- a symbol that could have a meaning
+    local scanSymbol = function()
+        for _, s in ipairs(symbols) do
+            if ahead(s) then
+                local location = getLocation()
+                for _ = 1, #s do
+                    next()
+                end
+                return token(s, location)
+            end
         end
     end
 
+    -- could be an identifier, keyword, output
     local scanWord = function()
         if not wordCharAhead() then
             return
@@ -295,56 +284,13 @@ return function(input, source)
         return token('word', location, currentText(start))
     end
 
-    local scanDigits = function()
-        if not digitAhead() then
-            return
-        end
-        local start = current
+    -- anything else - not a recognised symbol, cannot be a part of identifier
+    -- Scan one by one to keep it simple
+    local scanText = function()
         local location = getLocation()
-        while digitAhead() do
-            next()
-        end
-        return token('digits', location, currentText(start))
-    end
-
-    -- 2 or more equal signs
-    local scanEqualEqual = function()
-        if not ahead('==') then
-            return
-        end
-        local start = current
-        local location = getLocation()
-        consume('==')
-        while ahead('=') do
-            next()
-        end
-        return token('==', location, currentText(start)) -- TODO stores location of the end of token, not beginning
-    end
-
-    local scanSymbol = function()
-        for _, s in ipairs(symbols) do
-            if ahead(s) then
-                local location = getLocation()
-                consume(s)
-                return token(s, location)
-            end
-        end
-    end
-
-    local scanWhitespace = function()
-        if whitespaceAhead() then
-            local location = getLocation()
-            return token('whitespace', location, consumeWhitespace())
-        end
-    end
-
-    local scanNewline = function()
-        if ahead('\n') then
-            local location = getLocation()
-            next()
-            nextLine()
-            return token('newline', location)
-        end
+        local t = peek(1)
+        next()
+        return token('text', location, t)
     end
 
     local scanners = {
@@ -358,19 +304,12 @@ return function(input, source)
     }
 
     while not isAtEnd() do
-        local loopStart = current
-
         for _, scanner in ipairs(scanners) do
             local t = scanner()
             if t then
                 table.insert(tokens, t)
                 break
             end
-        end
-
-        if loopStart == current then
-            log.debug(tokens)
-            errorAt('nothing consumed')
         end
     end
     table.insert(tokens, token('eof', getLocation()))
