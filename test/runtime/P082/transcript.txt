@@ -1,1 +1,25 @@
-1
+once_xxx 1
+var
+todo 1
+include 1
+const
+external 1
+list
+false false
+true true
+temp
+re-turn
+else
+stopping 1
+shuffle1
+once 1
+cycle 1
+not
+or 1
+and 1
+hasnt 1
+has 1
+mod 1
+ref 1
+__ 1
+_

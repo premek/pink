@@ -9,7 +9,6 @@ local is = node.is
 return function(deps)
     local listDefinitions = deps.listDefinitions
     local getLocation = deps.getLocation
-    local builtins = {}
 
     local floor = function(a)
         requireType(a, 'float', 'int')
@@ -339,42 +338,6 @@ return function(deps)
         return node.int(deps.getTurns() - last)
     end
 
-    builtins.FLOOR = node.native(floor)
-    builtins.CEILING = node.native(ceil)
-    builtins.INT = node.native(int)
-    builtins.FLOAT = node.native(float)
-    builtins.SEED_RANDOM = node.native(seedRandom)
-    builtins.RANDOM = node.native(randomFn)
-    builtins.READ_COUNT = node.native(readCount)
-    builtins.CHOICE_COUNT = node.native(choiceCount)
-    builtins.TURNS = node.native(turnsFn)
-    builtins.TURNS_SINCE = node.native(turnsSince)
-
-    builtins['+'] = node.native(add)
-    builtins['-'] = node.native(sub)
-    builtins['*'] = node.native(mul)
-    builtins['/'] = node.native(div)
-    builtins.POW = node.native(pow)
-    builtins['%'] = node.native(mod)
-    builtins['mod'] = node.native(mod)
-    builtins['=='] = node.native(eq)
-    builtins['!='] = node.native(notEq)
-    builtins['?'] = node.native(contains)
-    builtins.has = node.native(contains)
-    builtins['!?'] = node.native(notContains)
-    builtins.hasnt = node.native(notContains)
-    builtins['neg'] = node.native(neg)
-    builtins['not'] = node.native(notFn)
-    builtins['||'] = node.native(orFn)
-    builtins['&&'] = node.native(andFn)
-    builtins['or'] = node.native(orFn)
-    builtins['and'] = node.native(andFn)
-    builtins['<'] = node.native(lt)
-    builtins['<='] = node.native(lte)
-    builtins['>'] = node.native(gt)
-    builtins['>='] = node.native(gte)
-    builtins.MIN = node.native(min)
-    builtins.MAX = node.native(max)
     local listValue = function(list)
         return node.listValue(list, listDefinitions)
     end
@@ -394,15 +357,53 @@ return function(deps)
         return node.listRange(list, minIncl, maxIncl, listDefinitions)
     end
 
-    builtins.LIST_VALUE = node.native(listValue)
-    builtins.LIST_COUNT = node.native(node.listCount)
-    builtins.LIST_RANDOM = node.native(node.listRandom)
-    builtins.LIST_ALL = node.native(listAll)
-    builtins.LIST_MIN = node.native(listMin)
-    builtins.LIST_MAX = node.native(listMax)
-    builtins.LIST_INVERT = node.native(listInvert)
-    builtins.LIST_RANGE = node.native(listRange)
-    builtins['^'] = node.native(node.listIntersection)
+    return {
+        FLOOR = node.native(floor),
+        CEILING = node.native(ceil),
+        INT = node.native(int),
+        FLOAT = node.native(float),
+        POW = node.native(pow),
+        MIN = node.native(min),
+        MAX = node.native(max),
 
-    return builtins
+        SEED_RANDOM = node.native(seedRandom),
+        RANDOM = node.native(randomFn),
+        READ_COUNT = node.native(readCount),
+        CHOICE_COUNT = node.native(choiceCount),
+        TURNS = node.native(turnsFn),
+        TURNS_SINCE = node.native(turnsSince),
+
+        ['+'] = node.native(add),
+        ['-'] = node.native(sub),
+        ['*'] = node.native(mul),
+        ['/'] = node.native(div),
+        ['%'] = node.native(mod),
+        ['mod'] = node.native(mod),
+        ['=='] = node.native(eq),
+        ['!='] = node.native(notEq),
+        ['?'] = node.native(contains),
+        ['has'] = node.native(contains),
+        ['!?'] = node.native(notContains),
+        ['hasnt'] = node.native(notContains),
+        ['neg'] = node.native(neg),
+        ['not'] = node.native(notFn),
+        ['||'] = node.native(orFn),
+        ['&&'] = node.native(andFn),
+        ['or'] = node.native(orFn),
+        ['and'] = node.native(andFn),
+        ['<'] = node.native(lt),
+        ['<='] = node.native(lte),
+        ['>'] = node.native(gt),
+        ['>='] = node.native(gte),
+
+        LIST_VALUE = node.native(listValue),
+        LIST_COUNT = node.native(node.listCount),
+        LIST_RANDOM = node.native(node.listRandom),
+        LIST_ALL = node.native(listAll),
+        LIST_MIN = node.native(listMin),
+        LIST_MAX = node.native(listMax),
+        LIST_INVERT = node.native(listInvert),
+        LIST_RANGE = node.native(listRange),
+        ['^'] = node.native(node.listIntersection),
+    }
 end

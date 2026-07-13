@@ -5,6 +5,25 @@ local node = require(base_path .. 'node')
 
 local unpack = table.unpack or unpack
 
+-- identifier could be a keyword too (e.g. "once", but not VAR)
+local allowedAsIdentifiers = {
+    'word',
+    'digits',
+    'TODO',
+    'INCLUDE',
+    'EXTERNAL',
+    'stopping',
+    'shuffle',
+    'once',
+    'cycle',
+    'or',
+    'and',
+    'hasnt',
+    'has',
+    'mod',
+    'ref',
+}
+
 return function(tokens)
     local current = 1 -- pointing to the token waiting to be parsed
 
@@ -188,12 +207,11 @@ return function(tokens)
     end
 
     local identifier = function()
-        if not aheadAnyOf('word', 'digits', 'once', '_') then -- TODO !!which keywords
+        if not aheadAnyOf(unpack(allowedAsIdentifiers)) then
             errorAt('identifier expected')
         end
         local s = current
-        -- identifier could be a keyword too (e.g. "once", but not VAR)
-        while aheadAnyOf('word', 'digits', '_', 'once') do --TODO
+        while aheadAnyOf(unpack(allowedAsIdentifiers)) do
             next()
         end
         -- FIXME: https://github.com/inkle/ink/blob/master/Documentation
@@ -921,8 +939,6 @@ return function(tokens)
     end
 
     local seqBranches = function()
-        log.debug('BB', peek())
-        consumeWhitespaceAndNewlines()
         consume(':')
         consumeWhitespaceAndNewlines()
         if ahead('-') then
@@ -999,9 +1015,13 @@ return function(tokens)
             if opts.shuffle and not opts.stopping and not opts.once and not opts.cycle then
                 opts.cycle = true -- plain {shuffle:} defaults to cycle
             end
-            local branches = seqBranches()
-            consume('}')
-            return token(node.seq(opts, branches))
+            if ahead(':') then
+                local branches = seqBranches()
+                consume('}')
+                return token(node.seq(opts, branches))
+            end
+            -- maybe printing a variable like {once}
+            current = afterOpeningBrace
         end
 
         if ahead('-') then
