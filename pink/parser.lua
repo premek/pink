@@ -920,20 +920,12 @@ return function(tokens)
         consumeWhitespaceAndNewlines()
         local result = { { inkText() } }
         while aheadAnyOf('|', '||') do
-            if ahead('|') then
-                consume('|')
-                local element = { inkText() } -- TODO too much wrapping?
-                if element ~= nil then
-                    table.insert(result, element)
-                end
-            elseif ahead('||') then
-                consume('||')
+            if ahead('||') then
                 table.insert(result, token(node.ink({})))
-                local element = { inkText() } -- TODO too much wrapping?
-                if element ~= nil then
-                    table.insert(result, element)
-                end
             end
+            consumeAnyOf('|', '||')
+            consumeWhitespaceAndNewlines()
+            table.insert(result, { inkText() })
         end
         return result
     end
@@ -1098,32 +1090,25 @@ return function(tokens)
         first = inkText()
         consumeWhitespace()
 
-        if aheadAnyOf('|', '||') then -- FIXME hack: || two separators with empty string in between
+        if aheadAnyOf('|', '||') then -- || two separators with empty string in between
             -- {text|text|...}
             -- A sequence (or a "stopping block") is a set of alternatives that tracks
             -- how many times its been seen, and each time, shows the next element along.
             -- When it runs out of new content it continues the show the final element.
             opts.stopping = true
-            local result = { { first } } -- TODO too much wrapping?
+            local result = { { first } }
             while aheadAnyOf('|', '||') do
-                if ahead('|') then
-                    consume('|')
-                    local element = { inkText() } -- TODO too much wrapping?
-                    if element ~= nil then
-                        table.insert(result, element)
-                    end
-                elseif ahead('||') then
-                    consume('||')
+                if ahead('||') then
                     table.insert(result, token(node.ink({})))
-                    local element = { inkText() } -- TODO too much wrapping?
-                    if element ~= nil then
-                        table.insert(result, element)
-                    end
                 end
+                consumeAnyOf('|', '||')
+                consumeWhitespaceAndNewlines()
+                table.insert(result, { inkText() })
             end
             consume('}')
             return token(node.seq(opts, result))
         end
+
         errorAt('failed to parse an alternative')
     end
 
@@ -1488,11 +1473,11 @@ return function(tokens)
         end
     end
 
-    knotBody = function(opts)
-        local result = {} -- TODO just table or 'block'?
+    local parse = function(parserFn, ...)
+        local result = {}
 
         while not isAtEnd() do
-            local n = knotBodyNode(opts)
+            local n = parserFn(...)
             if n == nil then
                 break
             end
@@ -1501,95 +1486,38 @@ return function(tokens)
         return result
     end
 
-    -- TODO this is getting ridiculous
-    functionBody = function(opts)
-        local result = {} -- TODO just table or 'block'?
+    knotBody = function(opts)
+        return parse(knotBodyNode, opts)
+    end
 
-        while not isAtEnd() do
-            local n = functionBodyNode(opts)
-            if n == nil then
-                break
-            end
-            table.insert(result, n)
-        end
-        return result
+    functionBody = function(opts)
+        return parse(functionBodyNode, opts)
     end
 
     optionText = function(opts)
-        local result = {} -- TODO just table or 'block'?
-
-        while not isAtEnd() do
-            local n = optionTextNode(opts)
-            if n == nil then
-                break
-            end
-            table.insert(result, n)
-        end
-        return token(node.ink(result))
+        return token(node.ink(parse(optionTextNode, opts)))
     end
 
     optionBody = function(minNesting, opts)
-        local result = {} -- TODO just table or 'block'?
-
-        while not isAtEnd() do
-            local n = optionBodyNode(minNesting, opts)
-            if n == nil then
-                break
-            end
-            table.insert(result, n)
-        end
-        return result
+        return parse(optionBodyNode, minNesting, opts)
     end
 
     gatherBody = function(minNesting, opts)
-        local result = {} -- TODO just table or 'block'?
-
-        while not isAtEnd() do
-            local n = gatherBodyNode(minNesting, opts)
-            if n == nil then
-                break
-            end
-            table.insert(result, n)
-        end
-        return token(node.ink(result))
+        return token(node.ink(parse(gatherBodyNode, minNesting, opts))) -- TODO why some have token/node.ink
     end
 
     -- used in sequences / conditionals ("multiline blocks"?)
     -- where a dash means a branch start, not a gather
     branchInkText = function(opts)
-        local result = {} -- TODO just table or 'block'?
-
-        while not isAtEnd() do
-            local n = branchInkNode(opts)
-            if n == nil then
-                break
-            end
-            table.insert(result, n)
-        end
-        return token(node.ink(result))
+        return token(node.ink(parse(branchInkNode, opts)))
     end
 
     inkText = function(opts)
-        local result = {} -- TODO just table or 'block'?
-
-        consumeWhitespaceAndNewlines()
-        while not isAtEnd() do
-            local startCursor = current
-
-            local n = inkNode(opts)
-            if n ~= nil then
-                table.insert(result, n)
-            end
-
-            if current == startCursor then
-                break
-                --errorAt("nothing consumed") --FIXME
-            end
-        end
-        return token(node.ink(result))
+        return token(node.ink(parse(inkNode, opts)))
     end
 
     -- log.debug(tokens)
+    consumeWhitespaceAndNewlines()
     local statements = { inkText() }
     --log.debug(statements)
     return statements
