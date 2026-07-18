@@ -621,12 +621,11 @@ return function(tokens)
             consume(')')
         end
         consumeWhitespaceAndNewlines()
-        return token(node.gather(nesting, { gatherBody(minNesting) }, label)) -- TODO inkText in a table??
+        return token(node.gather({ gatherBody(minNesting) }, label)) -- TODO inkText in a table??
     end
 
     -- minNesting: options with this or higher (deeper) nesting will be included in the body,
     -- options with lower nesting will not be parsed (to jump up one level)
-    --
     local option = function(minNesting)
         if not (ahead('*') or ahead('+')) then
             return
@@ -705,7 +704,6 @@ return function(tokens)
         -- TODO use named arguments or some other mechanism
         return token(
             node.option(
-                nesting,
                 { sharedStartText },
                 { choiceOnlyText },
                 { bodyOnlyText },
@@ -1040,7 +1038,6 @@ return function(tokens)
                     hadDoublePipe = true
                 end
             end
-            log.debug(firstExpressionParsed, first, hadDoublePipe)
 
             if not hadDoublePipe then
                 -- variable printing: {expression}
@@ -1519,6 +1516,6 @@ return function(tokens)
     -- log.debug(tokens)
     consumeWhitespaceAndNewlines()
     local statements = { inkText() }
-    --log.debug(statements)
+    log.debug('AST', statements)
     return statements
 end

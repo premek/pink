@@ -104,20 +104,9 @@ end
 node.nl = function()
     return { type = 'nl' }
 end
-node.option = function(
-    nesting,
-    sharedStartText,
-    choiceOnlyText,
-    bodyOnlyText,
-    label,
-    sticky,
-    conditions,
-    body,
-    fallback
-)
+node.option = function(sharedStartText, choiceOnlyText, bodyOnlyText, label, sticky, conditions, body, fallback)
     return {
         type = 'option',
-        nesting = nesting,
         sharedStartText = sharedStartText,
         choiceOnlyText = choiceOnlyText,
         bodyOnlyText = bodyOnlyText,
@@ -128,8 +117,8 @@ node.option = function(
         fallback = fallback,
     }
 end
-node.gather = function(nesting, body, label)
-    return { type = 'gather', nesting = nesting, body = body, label = label }
+node.gather = function(body, label)
+    return { type = 'gather', body = body, label = label }
 end
 node.seq = function(opts, branches)
     return { type = 'seq', opts = opts, branches = branches }

@@ -158,7 +158,6 @@ return function(globalTree)
     end
 
     local getChildren = function(parentName, segments, tbl, token)
-        log.debug('DDD', parentName, segments, tbl, token)
         for _, part in ipairs(segments) do
             if not tbl._children or not tbl._children[part] then
                 -- list type variable may have been reassigned to a non-list value, but
@@ -1433,7 +1432,7 @@ return function(globalTree)
     while is('tag', tree[pointer]) do
         pointer = pointer + 1
     end
-    log.debug('tree: ', tree)
+    --log.debug('tree: ', tree)
     --log.debug('lists:', listDefinitions)
     --log.debug('external:', externalDefs)
     --log.debug('state:', s.variablesState)

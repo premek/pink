@@ -4,23 +4,154 @@
 -- local logger = logging.newLogger()   (one per story)
 -- logger.debug(foo, bar, {foo=bar})
 
+local getIndent = function(i)
+    return string.rep('𓏺   ', i)
+end
+
 local function dump(v, indent)
     indent = indent or 0
     local t = type(v)
     if t == 'table' then
         local s = '{\n'
         for k, val in pairs(v) do
-            s = s .. string.rep('  ', indent + 1) .. tostring(k) .. ' = ' .. dump(val, indent + 1) .. ',\n'
+            s = s .. getIndent(indent + 1) .. tostring(k) .. ' = ' .. dump(val, indent + 1) .. ',\n'
         end
-        return s .. string.rep('  ', indent) .. '}'
+        return s .. getIndent(indent) .. '}'
     end
     return tostring(v)
+end
+
+local countPairs = function(t)
+    local count = 0
+    local lastKey = nil
+    for k in pairs(t) do
+        count = count + 1
+        lastKey = k
+    end
+    return count, lastKey
+end
+
+local function isInline(value, count, lastKey)
+    if count == 0 then
+        return true
+    end
+    local singleValue = count == 1 and value[lastKey]
+    local singleValuePairsCount = type(singleValue) == 'table' and countPairs(singleValue)
+    return singleValue and (type(singleValue) ~= 'table' or singleValuePairsCount == 0)
+end
+
+local priorityKeysOrder = {
+    'name',
+    'params',
+    'args',
+    'nesting',
+    'conditions',
+    'sharedStartText',
+    'choiceOnlyText',
+    'bodyOnlyText',
+    'body',
+    'value',
+}
+
+local function dumpNodes(value, indent)
+    indent = indent or 0
+    local s = ''
+
+    local ind = function(i)
+        return getIndent(indent + (i or 0))
+    end
+
+    if type(value) == 'table' then
+        if value.type then
+            -- for nodes, print some keys first, skip some
+            s = s .. '❰' .. value.type .. '❱'
+            local keysToPrint = {}
+            local skip = { type = true, location = true, nodeId = true }
+            for _, priorityKey in ipairs(priorityKeysOrder) do
+                skip[priorityKey] = true
+                if value[priorityKey] then
+                    table.insert(keysToPrint, priorityKey)
+                end
+            end
+            for key in pairs(value) do
+                if not skip[key] then
+                    table.insert(keysToPrint, key)
+                end
+            end
+
+            if #keysToPrint > 0 then
+                local inline = isInline(value, #keysToPrint, keysToPrint[#keysToPrint])
+
+                s = s .. ' {'
+                if not inline then
+                    s = s .. '\n'
+                end
+                for _, key in ipairs(keysToPrint) do
+                    if not inline then
+                        s = s .. ind(1)
+                    end
+                    s = s .. tostring(key) .. ' = ' .. dumpNodes(value[key], indent + 1)
+                    if not inline then
+                        s = s .. '\n'
+                    end
+                end
+                if not inline then
+                    s = s .. ind()
+                end
+                s = s .. '}'
+            end
+        else
+            -- any regular table
+            local inline = isInline(value, countPairs(value))
+
+            s = s .. '{'
+            if not inline then
+                s = s .. '\n'
+            end
+            for key, val in pairs(value) do
+                if not inline then
+                    s = s .. ind(1)
+                end
+                s = s .. tostring(key) .. ' = ' .. dumpNodes(val, indent + 1)
+                if not inline then
+                    s = s .. '\n'
+                end
+            end
+            if not inline then
+                s = s .. ind()
+            end
+            s = s .. '}'
+        end
+    elseif type(value) == 'string' then
+        s = s .. '"' .. value .. '"'
+    else
+        s = s .. tostring(value)
+    end
+    return s
 end
 
 local logging = {
     debugEnabled = false,
     compat = false,
+    rawTables = false, -- TODO remove if not useful
 }
+
+local function debug(...)
+    if not logging.debugEnabled then
+        return
+    end
+    local args = { ... }
+    if #args == 0 then
+        print('(nil)')
+    end
+    for _, arg in ipairs(args) do
+        if logging.rawTables then
+            print(dump(arg))
+        else
+            print(dumpNodes(arg))
+        end
+    end
+end
 
 local getLocation = function(location)
     return location.source .. ', line ' .. location.line .. ', column ' .. location.column
@@ -35,19 +166,6 @@ local getLogMessage = function(message, token)
         location = location .. ', node type: ' .. token.type
     end
     return message .. location
-end
-
-local function debug(...)
-    if not logging.debugEnabled then
-        return
-    end
-    local args = { ... }
-    if #args == 0 then
-        print('(nil)')
-    end
-    for _, x in ipairs(args) do
-        print(dump(x))
-    end
 end
 
 local compatLocation = function(token)

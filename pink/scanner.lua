@@ -315,7 +315,7 @@ return function(input, source)
     table.insert(tokens, token('eof', getLocation()))
 
     log.debug(input)
-    debug(tokens)
-    log.debug(tokens)
+    -- debug(tokens)
+    -- log.debug(tokens)
     return tokens
 end
