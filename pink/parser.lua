@@ -169,7 +169,7 @@ return function(tokens)
                     break
                 end
             else
-                if aheadAnyOf('#', '->', '->->', '<-', '==', '<>', '{', '}', '|', '||') then
+                if aheadAnyOf('#', '->', '->->', '<-', '<>', '{', '}', '|', '||') then
                     break
                 end
                 if opts and opts.stopAt and aheadAnyOf(unpack(opts.stopAt)) then
