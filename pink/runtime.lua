@@ -621,10 +621,8 @@ return function(globalTree)
                 -- TODO convert arguments, return values for external
                 return target.fn(unpack(argumentValues))
             elseif is('fn', target) then
-                local params = target.params
-                local body = target.body
-                local newEnv = getArgumentsEnv(params, args)
-                stepInto(body, newEnv, 'fn', bodyAddr(target))
+                local newEnv = getArgumentsEnv(target.params, args)
+                stepInto(target.body, newEnv, 'fn', bodyAddr(target))
                 outputBuffer:instr('trim')
                 update()
                 local ret = returnValue.value
@@ -929,7 +927,14 @@ return function(globalTree)
         currentAddr = choiceOnlyTextAddr(option)
         update()
         evaluatingOptionText = false
-        local text = outputBuffer:popLine()
+        local text = ''
+        -- TODO cleanup, move to output buffer
+        while not outputBuffer:isEmpty() do
+            if text ~= '' then
+                text = text .. '\n'
+            end
+            text = text .. outputBuffer:popLine()
+        end
         tree, pointer, currentAddr = savedTree, savedPointer, savedAddr
         pendingTags, lineHadContent, tagLines = savedPendingTags, savedLineHadContent, savedTagLines
         flushOptionTags = savedFlushOptionTags
